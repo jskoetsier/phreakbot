@@ -411,12 +411,27 @@ class PhreakBot(irc.bot.SingleServerIRCBot):
 
         # First try modules that handle commands
         if event["trigger"] == "command":
+            self.logger.info(f"Routing command: {event['command']} with args: {event['command_args']}")
+            
+            # Log all available modules and their commands
+            self.logger.info("Available modules and their commands:")
+            for module_name, module in self.modules.items():
+                self.logger.info(f"Module: {module_name}, Commands: {module['commands']}")
+                
             for module_name, module in self.modules.items():
                 if event["command"] in module["commands"]:
-                    if self._check_permissions(event, module["permissions"]):
+                    self.logger.info(f"Found module {module_name} to handle command {event['command']}")
+                    
+                    # Check permissions
+                    has_permission = self._check_permissions(event, module["permissions"])
+                    self.logger.info(f"User has permission: {has_permission}")
+                    
+                    if has_permission:
                         try:
+                            self.logger.info(f"Calling module {module_name}.run() with command {event['command']}")
                             module["object"].run(self, event)
                             handled = True
+                            self.logger.info(f"Module {module_name} handled command {event['command']}")
                         except Exception as e:
                             import traceback
 
