@@ -42,18 +42,26 @@ def run(bot, event):
         # Log all channels and users for debugging
         bot.logger.info(f"Looking for user '{tnick}' in channels:")
         for channel_name, channel in bot.channels.items():
-            users = channel.users()
-            bot.logger.info(f"Channel {channel_name} users: {list(users)}")
-            
-            # Check if the user is in this channel (case insensitive)
-            for user in users:
-                if user.lower() == tnick.lower():
-                    tuserhost = users[user]
-                    bot.logger.info(f"Found user '{user}' with hostmask '{tuserhost}'")
+            # Get the users in the channel
+            try:
+                # Get the channel's users dictionary
+                users_dict = channel.users()
+                bot.logger.info(f"Channel {channel_name} users: {list(users_dict.keys())}")
+                
+                # Directly access the channel's users dictionary
+                for nick, hostmask in users_dict.items():
+                    bot.logger.info(f"Checking user: {nick} with hostmask: {hostmask}")
+                    if nick.lower() == tnick.lower():
+                        tuserhost = hostmask
+                        bot.logger.info(f"Found user '{nick}' with hostmask '{tuserhost}'")
+                        break
+                
+                if tuserhost:
                     break
-            
-            if tuserhost:
-                break
+            except Exception as e:
+                bot.logger.error(f"Error accessing channel users: {e}")
+                import traceback
+                bot.logger.error(f"Traceback: {traceback.format_exc()}")
 
         if not tuserhost:
             bot.add_response(f"Can't find user '{tnick}' on any channel.")
