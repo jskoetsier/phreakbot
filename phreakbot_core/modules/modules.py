@@ -1,4 +1,4 @@
-def config(wcb):
+def config(bot):
     return {
         'events': [],
         'commands': ['load', 'reload', 'unload', 'avail'],
@@ -7,22 +7,28 @@ def config(wcb):
     }
 
 
-def run(wcb, event):
+def run(bot, event):
     if event['command'] == 'avail':
-        mlist = ", ".join(sorted(wcb.modules.keys()))
-        return wcb.say("Modules loaded: %s" % mlist)
+        mlist = ", ".join(sorted(bot.modules.keys()))
+        bot.add_response(f"Modules loaded: {mlist}")
+        return
 
     # Commands below require owner / modules permissions.
-    if not wcb.perms('modules'):
-        return wcb.say("I can't let you do that, Dave.")
+    if not bot._check_permissions(event, ['modules']):
+        bot.add_response("I can't let you do that, Dave.")
+        return
 
     # Commands below require param to be set.        
     if event['command_args'] == '':
-        return wcb.reply("this command requires at least one argument (module name)")
+        bot.reply("this command requires at least one argument (module name)")
+        return
 
     if event['command'] == 'load' or event['command'] == 'reload':
-        return wcb.say(wcb.load_module(event['command_args']))
+        result = bot.load_module(event['command_args'])
+        bot.add_response(result)
+        return
 
     if event['command'] == 'unload':
-        wcb.unload_module(event['command_args'])
-        return wcb.say("Unloaded module '%s'" % event['command_args'])
+        bot.unload_module(event['command_args'])
+        bot.add_response(f"Unloaded module '{event['command_args']}'")
+        return
