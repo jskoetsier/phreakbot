@@ -108,7 +108,7 @@ def _claim_ownership(bot, event):
             bot.add_response(f"You are already the owner, {event['nick']}!")
             cur.close()
             return
-        
+
         # If there's already an owner and the current user is not the owner, reject the claim
         if owner_count > 0:
             bot.add_response("This bot already has an owner.")

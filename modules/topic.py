@@ -1,97 +1,107 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 #
-# Topic module for PhreakBot
+# PhreakBot - A modular IRC bot
+#
+# Module: topic
+# Set and retrieve channel topics
+#
 
-
-def config(bot):
-    """Return module configuration"""
+def config(wcb):
     return {
-        "events": [],
-        "commands": ["topic", "settopic", "addtopic"],
-        "permissions": ["user", "topic"],
-        "help": "Manage channel topics. Usage: !topic - Show the current topic. !settopic <text> - Set a new topic (requires topic permission). !addtopic <text> - Add text to the current topic (requires topic permission).",
+        'events': ['irc_in2_332', 'irc_in2_TOPIC'],  # Add event handlers for topic responses
+        'commands': ['topic', 'settopic', 'addtopic'],
+        'permissions': ['topic'],
+        'help': {
+            'topic': 'Retrieve the current topic for a channel',
+            'settopic': 'Set the topic for a channel',
+            'addtopic': 'Add text to the current topic'
+        }
     }
 
 
-def run(bot, event):
-    """Handle topic commands"""
-    if event["command"] == "topic":
-        _show_topic(bot, event)
-    elif event["command"] == "settopic":
-        _set_topic(bot, event)
-    elif event["command"] == "addtopic":
-        _add_topic(bot, event)
-
-
-def _show_topic(bot, event):
-    """Show the current topic or set a new one if arguments are provided"""
-    channel = event["channel"]
-
-    # Check if the channel is in the bot's configured channels
-    if channel not in bot.config["channels"]:
-        bot.add_response(f"I'm not in channel {channel}")
+def run(wcb, event):
+    # Handle topic response events
+    if event['trigger'] == 'event':
+        if event['signal'] == 'irc_in2_332':  # RPL_TOPIC response
+            # This is the response to a TOPIC request
+            channel = event['raw_event'].arguments[0]
+            topic = event['raw_event'].arguments[1]
+            wcb.say(channel, f"Current topic: {topic}")
+        elif event['signal'] == 'irc_in2_TOPIC':  # TOPIC change notification
+            channel = event['raw_event'].target
+            topic = event['raw_event'].arguments[0]
+            wcb.say(channel, f"Topic changed to: {topic}")
         return
 
-    # If arguments are provided, treat it as a request to set the topic
-    if event["command_args"]:
-        # Reuse the _set_topic function by creating a new event with the settopic command
-        new_event = event.copy()
-        new_event["command"] = "settopic"
-        _set_topic(bot, new_event)
-        return
+    # Handle commands
+    if event['command'] == 'topic':
+        # Get the current topic
+        channel = event['channel']
+        if event['command_args']:
+            channel = event['command_args'].strip()
 
-    # Otherwise, get the topic using the connection object
-    bot.connection.topic(channel)
-    bot.add_response("Retrieving topic information...")
+        # Check if the channel is in the config
+        if channel not in wcb.config['channels']:
+            wcb.reply(f"I'm not in channel {channel}")
+            return
 
+        # Get the topic
+        wcb.logger.info(f"Getting topic for channel: {channel}")
+        wcb.connection.topic(channel)
+        wcb.reply(f"Retrieving topic for {channel}...")
 
-def _set_topic(bot, event):
-    """Set a new topic for the channel"""
-    # Add debug logging
-    bot.logger.info(f"Setting topic, checking permissions for {event['source']}")
-    bot.logger.info(f"User info: {event['user_info']}")
-    
-    # Check if the user has permission
-    if not bot._has_permission(event["source"], "topic") and not bot._is_owner(event["source"]):
-        bot.add_response("You don't have permission to set topics.")
-        return
+    elif event['command'] == 'settopic':
+        # Set the topic
+        if not event['command_args']:
+            wcb.reply("Please provide a topic")
+            return
 
-    new_topic = event["command_args"]
-    if not new_topic:
-        bot.add_response("Please specify a topic.")
-        return
+        channel = event['channel']
+        topic = event['command_args']
 
-    channel = event["channel"]
-    # Check if the channel is in the bot's configured channels
-    if channel not in bot.config["channels"]:
-        bot.add_response(f"I'm not in channel {channel}")
-        return
+        # Check if the user has permission to set topics
+        has_permission = wcb._check_permissions(event, ['topic'])
+        wcb.logger.info(f"User {event['nick']} permission to set topic: {has_permission}")
+        
+        if not has_permission:
+            wcb.reply("You don't have permission to set topics.")
+            return
 
-    bot.connection.topic(channel, new_topic)
-    bot.add_response(f"Setting topic to: {new_topic}")
+        # Check if the channel is in the config
+        if channel not in wcb.config['channels']:
+            wcb.reply(f"I'm not in channel {channel}")
+            return
 
+        # Set the topic
+        wcb.logger.info(f"Setting topic in {channel} to: {topic}")
+        wcb.connection.topic(channel, topic)
+        wcb.reply(f"Setting topic for {channel} to: {topic}")
 
-def _add_topic(bot, event):
-    """Add text to the current topic"""
-    bot.logger.info(f"Adding to topic, checking permissions for {event['source']}")
-    if not bot._has_permission(event["source"], "topic") and not bot._is_owner(event["source"]):
-        bot.add_response("You don't have permission to modify topics.")
-        return
+    elif event['command'] == 'addtopic':
+        # Add to the topic
+        if not event['command_args']:
+            wcb.reply("Please specify text to add to the topic.")
+            return
 
-    addition = event["command_args"]
-    if not addition:
-        bot.add_response("Please specify text to add to the topic.")
-        return
+        channel = event['channel']
+        addition = event['command_args']
 
-    channel = event["channel"]
-    # Check if the channel is in the bot's configured channels
-    if channel not in bot.config["channels"]:
-        bot.add_response(f"I'm not in channel {channel}")
-        return
+        # Check if the user has permission to set topics
+        has_permission = wcb._check_permissions(event, ['topic'])
+        wcb.logger.info(f"User {event['nick']} permission to modify topic: {has_permission}")
+        
+        if not has_permission:
+            wcb.reply("You don't have permission to modify topics.")
+            return
 
-    # We need to request the current topic first
-    # For now, just set the new topic to the addition
-    # In a future update, we could implement a callback to get the current topic first
-    bot.connection.topic(channel, addition)
-    bot.add_response(f"Setting topic to: {addition}")
+        # Check if the channel is in the config
+        if channel not in wcb.config['channels']:
+            wcb.reply(f"I'm not in channel {channel}")
+            return
+
+        # For now, just set the new topic to the addition
+        # In a future update, we could implement a callback to get the current topic first
+        wcb.connection.topic(channel, addition)
+        wcb.reply(f"Setting topic to: {addition}")
+    # This comment is already handled in the code above

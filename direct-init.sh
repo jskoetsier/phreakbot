@@ -117,13 +117,13 @@ CREATE TABLE phreakbot_quotes (
 );
 
 -- Only insert the import user if it doesn't exist
-INSERT INTO phreakbot_users (username) 
-SELECT 'phreakbot_import_user' 
+INSERT INTO phreakbot_users (username)
+SELECT 'phreakbot_import_user'
 WHERE NOT EXISTS (SELECT 1 FROM phreakbot_users WHERE username = 'phreakbot_import_user');
 
 -- Only insert the hostmask if it doesn't exist
-INSERT INTO phreakbot_hostmasks (users_id, hostmask) 
-SELECT 1, 'phreakbot_import_user' 
+INSERT INTO phreakbot_hostmasks (users_id, hostmask)
+SELECT 1, 'phreakbot_import_user'
 WHERE NOT EXISTS (SELECT 1 FROM phreakbot_hostmasks WHERE hostmask = 'phreakbot_import_user');
 
 SELECT 'Database schema created successfully!' AS result;

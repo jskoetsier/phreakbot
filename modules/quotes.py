@@ -10,12 +10,21 @@ def config(bot):
     """Return module configuration"""
     return {
         "events": [],
-        "commands": ["quote", "q", "addquote", "aq", "delquote", "dq", "searchquote", "sq"],
+        "commands": [
+            "quote",
+            "q",
+            "addquote",
+            "aq",
+            "delquote",
+            "dq",
+            "searchquote",
+            "sq",
+        ],
         "permissions": ["user"],
         "help": "Quote management. Usage: !quote/!q [id] - Show a random quote or a specific quote by ID.\n"
-                "       !addquote or !aq <text> - Add a new quote\n"
-                "       !delquote or !dq <id> - Delete a quote (owner/admin only)\n"
-                "       !searchquote or !sq <text> - Search for quotes containing text",
+        "       !addquote or !aq <text> - Add a new quote\n"
+        "       !delquote or !dq <id> - Delete a quote (owner/admin only)\n"
+        "       !searchquote or !sq <text> - Search for quotes containing text",
     }
 
 
@@ -91,7 +100,7 @@ def _search_quotes(bot, event):
     if not event["command_args"]:
         bot.add_response("Please provide a search term.")
         return
-    
+
     bot.logger.info(f"Searching quotes for: {event['command_args']}")
     search_term = event["command_args"]
 
@@ -118,10 +127,11 @@ def _search_quotes(bot, event):
             f"Quote #{quote_id}: {quote_text} (added by {username} in {channel} on {timestamp.strftime('%Y-%m-%d')})"
         )
 
+
 def _add_quote(bot, event):
     """Add a new quote to the database"""
     quote_text = event["command_args"]
-    
+
     if not quote_text:
         bot.add_response("Please provide a quote to add.")
         return
