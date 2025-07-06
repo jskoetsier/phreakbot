@@ -1,2 +1,5 @@
 irc>=20.0.0
-psycopg2-binary>=2.9.3
+psycopg2-bin>=2.9.3
+iso3166>=2.0.2
+pycurl>=7.45.1
+# Add any additional dependencies below
