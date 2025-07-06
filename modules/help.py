@@ -40,11 +40,15 @@ def run(bot, event):
         )
         return
 
-    # Display module help information
-    helptxt = bot.modules[module]["help"]
-    helpcmds = ", ".join(bot.modules[module]["commands"])
-    helpperm = ", ".join(bot.modules[module]["permissions"])
+    try:
+        # Display module help information
+        helptxt = bot.modules[module]["help"]
+        helpcmds = ", ".join(bot.modules[module]["commands"])
+        helpperm = ", ".join(bot.modules[module]["permissions"])
 
-    bot.add_response(f"{helptxt}")
-    bot.add_response(f"Provides commands: {helpcmds}")
-    bot.add_response(f"Needs permissions: {helpperm}")
+        bot.add_response(f"{helptxt}")
+        bot.add_response(f"Provides commands: {helpcmds}")
+        bot.add_response(f"Needs permissions: {helpperm}")
+    except Exception as e:
+        bot.logger.error(f"Error displaying help for module {module}: {e}")
+        bot.add_response(f"Error displaying help for module {module}. Please check the logs.")
