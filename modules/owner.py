@@ -86,9 +86,15 @@ def _claim_ownership(bot, event):
         return
 
     try:
+        # Log the hostmask for debugging
+        bot.logger.info(
+            f"Claim ownership attempt from: {event['nick']} with hostmask: {event['hostmask']}"
+        )
+
         cur = bot.db_connection.cursor()
         cur.execute("SELECT COUNT(*) FROM phreakbot_users WHERE is_owner = TRUE")
         owner_count = cur.fetchone()[0]
+        bot.logger.info(f"Current owner count in database: {owner_count}")
 
         # If there's already an owner, only the current owner can change ownership
         if owner_count > 0 and not bot._is_owner(event["hostmask"]):
@@ -98,21 +104,27 @@ def _claim_ownership(bot, event):
 
         # Get user info or create new user
         user_info = event["user_info"]
+        bot.logger.info(f"User info from event: {user_info}")
+        
         if not user_info:
+            bot.logger.info(f"Creating new user for {event['nick']} with hostmask {event['hostmask']}")
             # Create new user
             cur.execute(
                 "INSERT INTO phreakbot_users (username, is_owner) VALUES (%s, TRUE) RETURNING id",
                 (event["nick"].lower(),),
             )
             user_id = cur.fetchone()[0]
+            bot.logger.info(f"Created new user with ID: {user_id}")
 
             # Add hostmask
+            bot.logger.info(f"Adding hostmask {event['hostmask']} for user ID {user_id}")
             cur.execute(
                 "INSERT INTO phreakbot_hostmasks (users_id, hostmask) VALUES (%s, %s)",
                 (user_id, event["hostmask"].lower()),
             )
 
             # Add owner permission
+            bot.logger.info(f"Adding owner permission for user ID {user_id}")
             cur.execute(
                 "INSERT INTO phreakbot_perms (users_id, permission) VALUES (%s, %s)",
                 (user_id, "owner"),
