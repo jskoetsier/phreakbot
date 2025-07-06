@@ -425,37 +425,18 @@ class PhreakBot(irc.bot.SingleServerIRCBot):
             return False
 
         try:
-            # First check if the hostmask matches the config file owner
-            # This is for backward compatibility
-            if "owner" in self.config and self.config["owner"]:
-                owner_pattern = self.config["owner"]
-                if owner_pattern.startswith("*!"):
-                    # Extract the user and host parts from the pattern
-                    pattern_parts = owner_pattern[2:].split("@")
-                    if len(pattern_parts) == 2:
-                        pattern_user = pattern_parts[0]
-                        pattern_host = pattern_parts[1]
+            # Log the hostmask for debugging
+            self.logger.info(f"Checking owner status for hostmask: {hostmask}")
 
-                        # Extract the user and host parts from the hostmask
-                        hostmask_parts = hostmask.split("@")
-                        if len(hostmask_parts) == 2:
-                            current_user = hostmask_parts[0]
-                            current_host = hostmask_parts[1]
-
-                            # Check if the pattern matches
-                            if (
-                                pattern_user == "*" or pattern_user == current_user
-                            ) and (pattern_host == "*" or pattern_host == current_host):
-                                return True
-                # Legacy format - exact match
-                elif hostmask == self.config["owner"]:
-                    return True
-
-            # Then check if the user is an owner in the database
+            # Check if the user is an owner in the database
             user_info = self.db_get_userinfo_by_userhost(hostmask)
             if user_info and user_info.get("is_owner"):
+                self.logger.info(
+                    f"User with hostmask {hostmask} is an owner in the database"
+                )
                 return True
 
+            self.logger.info(f"User with hostmask {hostmask} is not an owner")
             return False
         except Exception as e:
             self.logger.error(f"Error checking owner status: {e}")

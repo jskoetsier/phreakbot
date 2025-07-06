@@ -33,9 +33,8 @@ def create_config(args):
         "remote_directory": args.remote_dir,
     }
 
-    # Add owner to config for backward compatibility if specified
-    if args.owner and args.owner != "*!user@host":
-        config["owner"] = args.owner
+    # We no longer add the owner to the config file
+    # The owner will be set in the database using the !owner claim command
 
     # Create config directory if it doesn't exist
     os.makedirs(os.path.dirname(os.path.abspath(args.config)), exist_ok=True)

@@ -42,7 +42,6 @@ services:
       - IRC_PORT=${IRC_PORT:-6667}
       - IRC_NICKNAME=${IRC_NICKNAME:-PhreakBot}
       - IRC_CHANNEL=${IRC_CHANNEL:-#phreakbot}
-      - OWNER_HOSTMASK=${OWNER_HOSTMASK:-*!user@host}
       - REMOTE_SSH_COMMAND=${REMOTE_SSH_COMMAND:-}
       - REMOTE_DIRECTORY=${REMOTE_DIRECTORY:-/opt/phreakbot}
     command: /app/startup.sh
