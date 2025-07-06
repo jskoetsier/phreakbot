@@ -43,10 +43,10 @@ def run(bot, event):
         bot.logger.info(f"Looking for user '{tnick}' in channels:")
         for channel_name, channel in bot.channels.items():
             users = channel.users()
-            bot.logger.info(f"Channel {channel_name} users: {list(users.keys())}")
+            bot.logger.info(f"Channel {channel_name} users: {list(users)}")
             
             # Check if the user is in this channel (case insensitive)
-            for user in users.keys():
+            for user in users:
                 if user.lower() == tnick.lower():
                     tuserhost = users[user]
                     bot.logger.info(f"Found user '{user}' with hostmask '{tuserhost}'")
