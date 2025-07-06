@@ -20,7 +20,7 @@ def run(bot, event):
 
     # Commands below require param to be set.
     if event["command_args"] == "":
-        bot.reply("this command requires at least one argument (module name)")
+        bot.add_response("This command requires at least one argument (module name)")
         return
 
     if event["command"] == "load" or event["command"] == "reload":
