@@ -43,14 +43,30 @@ def run(bot, event):
     try:
         # Display module help information
         helptxt = bot.modules[module]["help"]
-        helpcmds = ", ".join(bot.modules[module]["commands"])
-        helpperm = ", ".join(bot.modules[module]["permissions"])
-
-        bot.add_response(f"{helptxt}")
-        bot.add_response(f"Provides commands: {helpcmds}")
-        bot.add_response(f"Needs permissions: {helpperm}")
+        
+        # Handle help text that could be a string or a dictionary
+        if isinstance(helptxt, dict):
+            # If it's a dictionary, join the command-specific help texts
+            help_lines = []
+            for cmd, txt in helptxt.items():
+                help_lines.append(f"{cmd}: {txt}")
+            bot.add_response("\n".join(help_lines))
+        else:
+            # If it's a string, just display it
+            bot.add_response(f"{helptxt}")
+        
+        # Display commands and permissions
+        if "commands" in bot.modules[module] and bot.modules[module]["commands"]:
+            helpcmds = ", ".join(bot.modules[module]["commands"])
+            bot.add_response(f"Provides commands: {helpcmds}")
+        
+        if "permissions" in bot.modules[module] and bot.modules[module]["permissions"]:
+            helpperm = ", ".join(bot.modules[module]["permissions"])
+            bot.add_response(f"Needs permissions: {helpperm}")
     except Exception as e:
         bot.logger.error(f"Error displaying help for module {module}: {e}")
+        import traceback
+        bot.logger.error(f"Traceback: {traceback.format_exc()}")
         bot.add_response(
             f"Error displaying help for module {module}. Please check the logs."
         )
