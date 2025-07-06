@@ -15,43 +15,59 @@ def config(pb):
     """Return module configuration"""
     return {
         "events": [],
-        "commands": ["@", "snarf"],
+        "commands": ["url", "snarf"],
         "permissions": ["user"],
         "help": "Fetch the description of a URL.\n"
-                "Usage: !@ <url> - Fetch the description of the given URL\n"
-                "       !snarf <url> - Same as !@",
+                "Usage: !url <url> - Fetch the description of the given URL\n"
+                "       !snarf <url> - Same as !url",
     }
 
 
 def run(pb, event):
     """Handle snarf commands"""
+    pb.logger.info(f"Snarf module called with command: {event['command']}")
+    
     # Get the URL from the command arguments
     url = event["command_args"].strip()
-
+    
+    pb.logger.info(f"URL argument: '{url}'")
+    
     if not url:
+        pb.logger.info("No URL provided")
         pb.add_response("Please provide a URL to fetch the description.")
         return
 
     # Add http:// prefix if missing
     if not url.startswith(("http://", "https://")):
         url = "http://" + url
-
+    
+    pb.logger.info(f"Processing URL: {url}")
+    
     try:
         # Fetch the description
+        pb.logger.info(f"Fetching info for URL: {url}")
         title, description = get_url_info(url)
+        
+        pb.logger.info(f"Retrieved title: {title}")
+        pb.logger.info(f"Retrieved description: {description}")
 
         # Display the results
         if title:
             pb.add_response(f"Title: {title}")
+            pb.logger.info(f"Added title response: {title}")
 
         if description:
             pb.add_response(f"Description: {description}")
+            pb.logger.info(f"Added description response: {description}")
         else:
             pb.add_response("No description found for this URL.")
+            pb.logger.info("No description found")
 
     except Exception as e:
         pb.logger.error(f"Error fetching URL info: {e}")
         pb.add_response(f"Error fetching information from URL: {str(e)}")
+        import traceback
+        pb.logger.error(f"Traceback: {traceback.format_exc()}")
 
 
 def get_url_info(url):
@@ -67,7 +83,7 @@ def get_url_info(url):
 
     # Get the title
     title_tag = soup.find("title")
-    title = title_tag.string.strip() if title_tag else None
+    title = title_tag.string.strip() if title_tag and title_tag.string else None
 
     # Limit title length
     if title and len(title) > 200:
