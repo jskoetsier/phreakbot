@@ -103,8 +103,14 @@ def _claim_ownership(bot, event):
         owner_count = cur.fetchone()[0]
         bot.logger.info(f"Current owner count in database: {owner_count}")
 
-        # If there's already an owner, only the current owner can change ownership
-        if owner_count > 0 and not bot._is_owner(event["hostmask"]):
+        # Check if the user is already the owner
+        if bot._is_owner(event["hostmask"]):
+            bot.add_response(f"You are already the owner, {event['nick']}!")
+            cur.close()
+            return
+        
+        # If there's already an owner and the current user is not the owner, reject the claim
+        if owner_count > 0:
             bot.add_response("This bot already has an owner.")
             cur.close()
             return
@@ -135,8 +141,18 @@ def _claim_ownership(bot, event):
             )
 
             # Add owner and other essential permissions
-            bot.logger.info(f"Adding owner and essential permissions for user ID {user_id}")
-            essential_permissions = ["owner", "admin", "topic", "perm", "join", "part", "autoop"]
+            bot.logger.info(
+                f"Adding owner and essential permissions for user ID {user_id}"
+            )
+            essential_permissions = [
+                "owner",
+                "admin",
+                "topic",
+                "perm",
+                "join",
+                "part",
+                "autoop",
+            ]
             for permission in essential_permissions:
                 cur.execute(
                     "INSERT INTO phreakbot_perms (users_id, permission) VALUES (%s, %s)",
