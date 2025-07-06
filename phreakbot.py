@@ -309,7 +309,7 @@ class PhreakBot(irc.bot.SingleServerIRCBot):
     def _handle_message(self, connection, event, is_private):
         """Process incoming messages and route to appropriate modules"""
         nick = event.source.nick
-        user_host = event.source.userhost
+        user_host = f"{nick}!{event.source.user}@{event.source.host}"
         channel = event.target if not is_private else nick
         message = event.arguments[0]
 
@@ -358,7 +358,7 @@ class PhreakBot(irc.bot.SingleServerIRCBot):
     def _handle_event(self, connection, event, event_type):
         """Handle non-message events like joins, parts, quits"""
         nick = event.source.nick
-        user_host = event.source.userhost
+        user_host = f"{nick}!{event.source.user}@{event.source.host}"
         channel = event.target if hasattr(event, "target") else None
 
         event_obj = {
