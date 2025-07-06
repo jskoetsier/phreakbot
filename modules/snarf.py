@@ -15,59 +15,71 @@ def config(pb):
     """Return module configuration"""
     return {
         "events": [],
-        "commands": ["url", "snarf"],
+        "commands": ["url", "snarf", "@"],
         "permissions": ["user"],
         "help": "Fetch the description of a URL.\n"
-                "Usage: !url <url> - Fetch the description of the given URL\n"
-                "       !snarf <url> - Same as !url",
+                "Usage: !@ <url> - Fetch the description of the given URL\n"
+                "       !url <url> - Same as !@\n"
+                "       !snarf <url> - Same as !@",
     }
 
 
 def run(pb, event):
     """Handle snarf commands"""
-    pb.logger.info(f"Snarf module called with command: {event['command']}")
-    
-    # Get the URL from the command arguments
-    url = event["command_args"].strip()
-    
-    pb.logger.info(f"URL argument: '{url}'")
-    
-    if not url:
-        pb.logger.info("No URL provided")
-        pb.add_response("Please provide a URL to fetch the description.")
-        return
-
-    # Add http:// prefix if missing
-    if not url.startswith(("http://", "https://")):
-        url = "http://" + url
-    
-    pb.logger.info(f"Processing URL: {url}")
-    
     try:
-        # Fetch the description
-        pb.logger.info(f"Fetching info for URL: {url}")
-        title, description = get_url_info(url)
+        pb.logger.info(f"Snarf module called with command: {event['command']}")
         
-        pb.logger.info(f"Retrieved title: {title}")
-        pb.logger.info(f"Retrieved description: {description}")
+        # Get the URL from the command arguments
+        url = event["command_args"].strip()
+        
+        pb.logger.info(f"URL argument: '{url}'")
+        
+        if not url:
+            pb.logger.info("No URL provided")
+            pb.say(event["channel"], "Please provide a URL to fetch the description.")
+            return
 
-        # Display the results
-        if title:
-            pb.add_response(f"Title: {title}")
-            pb.logger.info(f"Added title response: {title}")
+        # Add http:// prefix if missing
+        if not url.startswith(("http://", "https://")):
+            url = "http://" + url
+        
+        pb.logger.info(f"Processing URL: {url}")
+        
+        try:
+            # Fetch the description
+            pb.logger.info(f"Fetching info for URL: {url}")
+            title, description = get_url_info(url)
+            
+            pb.logger.info(f"Retrieved title: {title}")
+            pb.logger.info(f"Retrieved description: {description}")
 
-        if description:
-            pb.add_response(f"Description: {description}")
-            pb.logger.info(f"Added description response: {description}")
-        else:
-            pb.add_response("No description found for this URL.")
-            pb.logger.info("No description found")
+            # Display the results
+            if title:
+                pb.say(event["channel"], f"Title: {title}")
+                pb.logger.info(f"Added title response: {title}")
 
+            if description:
+                pb.say(event["channel"], f"Description: {description}")
+                pb.logger.info(f"Added description response: {description}")
+            else:
+                pb.say(event["channel"], "No description found for this URL.")
+                pb.logger.info("No description found")
+
+        except Exception as e:
+            pb.logger.error(f"Error fetching URL info: {e}")
+            pb.say(event["channel"], f"Error fetching information from URL: {str(e)}")
+            import traceback
+            pb.logger.error(f"Traceback: {traceback.format_exc()}")
+    
     except Exception as e:
-        pb.logger.error(f"Error fetching URL info: {e}")
-        pb.add_response(f"Error fetching information from URL: {str(e)}")
+        # Catch-all exception handler to prevent the bot from crashing
+        pb.logger.error(f"Critical error in snarf module: {e}")
         import traceback
-        pb.logger.error(f"Traceback: {traceback.format_exc()}")
+        pb.logger.error(f"Critical traceback: {traceback.format_exc()}")
+        try:
+            pb.say(event["channel"], "An error occurred while processing the URL.")
+        except:
+            pass
 
 
 def get_url_info(url):
