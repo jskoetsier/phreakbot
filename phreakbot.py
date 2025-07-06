@@ -425,11 +425,8 @@ class PhreakBot(irc.bot.SingleServerIRCBot):
             return False
 
         try:
-            user_info = self.db_get_userinfo_by_userhost(hostmask)
-            if user_info and user_info.get("is_owner"):
-                return True
-
-            # Fallback to config file if no owner in database
+            # First check if the hostmask matches the config file owner
+            # This is for backward compatibility
             if "owner" in self.config and self.config["owner"]:
                 owner_pattern = self.config["owner"]
                 if owner_pattern.startswith("*!"):
@@ -446,12 +443,18 @@ class PhreakBot(irc.bot.SingleServerIRCBot):
                             current_host = hostmask_parts[1]
 
                             # Check if the pattern matches
-                            return (
+                            if (
                                 pattern_user == "*" or pattern_user == current_user
-                            ) and (pattern_host == "*" or pattern_host == current_host)
-
+                            ) and (pattern_host == "*" or pattern_host == current_host):
+                                return True
                 # Legacy format - exact match
-                return hostmask == self.config["owner"]
+                elif hostmask == self.config["owner"]:
+                    return True
+
+            # Then check if the user is an owner in the database
+            user_info = self.db_get_userinfo_by_userhost(hostmask)
+            if user_info and user_info.get("is_owner"):
+                return True
 
             return False
         except Exception as e:

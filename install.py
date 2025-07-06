@@ -51,9 +51,9 @@ def create_config(args):
     print(f"Channel: {args.channel}")
     print(f"Command trigger: {config['trigger']}")
     print(f"Database: {args.db_host}:{args.db_port}/{args.db_name}")
-    print(f"Bot owner: {args.owner}")
+    print(f"Initial bot owner: {args.owner}")
     print(
-        "The owner is set in the configuration file and cannot be changed through commands."
+        "Note: The owner can also be changed using the !owner claim command when no owner exists."
     )
 
 
