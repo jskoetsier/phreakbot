@@ -309,7 +309,15 @@ class PhreakBot(irc.bot.SingleServerIRCBot):
     def _handle_message(self, connection, event, is_private):
         """Process incoming messages and route to appropriate modules"""
         nick = event.source.nick
+        # Debug the event source
+        self.logger.info(f"Event source: {event.source}")
+        self.logger.info(f"Event source nick: {event.source.nick}")
+        self.logger.info(f"Event source user: {event.source.user}")
+        self.logger.info(f"Event source host: {event.source.host}")
+
+        # Format the hostmask correctly
         user_host = f"{nick}!{event.source.user}@{event.source.host}"
+        self.logger.info(f"Formatted hostmask: {user_host}")
         channel = event.target if not is_private else nick
         message = event.arguments[0]
 
