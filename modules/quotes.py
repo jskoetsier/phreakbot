@@ -10,12 +10,12 @@ def config(bot):
     """Return module configuration"""
     return {
         "events": [],
-        "commands": ["quote", "addquote", "delquote"],
+        "commands": ["quote", "q", "addquote", "aq", "delquote", "dq"],
         "permissions": ["user"],
         "help": "Manage and display quotes.\n"
-        "Usage: !quote [id|search term] - Show a random quote or search for quotes\n"
-        "       !addquote <text> - Add a new quote\n"
-        "       !delquote <id> - Delete a quote (owner/admin only)",
+        "Usage: !quote or !q [id|search term] - Show a random quote or search for quotes\n"
+        "       !addquote or !aq <text> - Add a new quote\n"
+        "       !delquote or !dq <id> - Delete a quote (owner/admin only)",
     }
 
 
@@ -26,11 +26,11 @@ def run(bot, event):
         return
 
     try:
-        if event["command"] == "quote":
+        if event["command"] in ["quote", "q"]:
             _show_quote(bot, event)
-        elif event["command"] == "addquote":
+        elif event["command"] in ["addquote", "aq"]:
             _add_quote(bot, event)
-        elif event["command"] == "delquote":
+        elif event["command"] in ["delquote", "dq"]:
             _delete_quote(bot, event)
     except Exception as e:
         bot.logger.error(f"Error in quotes module: {e}")
