@@ -6,17 +6,16 @@ until pg_isready -h postgres -U phreakbot; do
   sleep 1
 done
 
-echo "PostgreSQL is ready. Creating database schema..."
-psql -h postgres -U phreakbot -d phreakbot << 'SQL'
-DROP TABLE IF EXISTS phreakbot_quotes;
-DROP TABLE IF EXISTS phreakbot_karma_who;
-DROP TABLE IF EXISTS phreakbot_karma_why;
-DROP TABLE IF EXISTS phreakbot_karma;
-DROP TABLE IF EXISTS phreakbot_infoitems;
-DROP TABLE IF EXISTS phreakbot_perms;
-DROP TABLE IF EXISTS phreakbot_hostmasks;
-DROP TABLE IF EXISTS phreakbot_users;
-DROP TYPE IF EXISTS phreakbot_karma_direction;
+echo "PostgreSQL is ready. Checking if database schema exists..."
+
+# Check if the phreakbot_users table exists
+TABLE_EXISTS=$(psql -h postgres -U phreakbot -d phreakbot -t -c "SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'phreakbot_users')")
+
+if [[ $TABLE_EXISTS == *"t"* ]]; then
+  echo "Database schema already exists. Skipping initialization."
+else
+  echo "Creating database schema..."
+  psql -h postgres -U phreakbot -d phreakbot << 'SQL'
 
 CREATE TABLE phreakbot_users (
     id SERIAL PRIMARY KEY,
@@ -117,13 +116,21 @@ CREATE TABLE phreakbot_quotes (
       ON UPDATE NO ACTION ON DELETE NO ACTION
 );
 
-INSERT INTO phreakbot_users (username) VALUES ('phreakbot_import_user');
-INSERT INTO phreakbot_hostmasks (users_id, hostmask) VALUES (1, 'phreakbot_import_user');
+-- Only insert the import user if it doesn't exist
+INSERT INTO phreakbot_users (username) 
+SELECT 'phreakbot_import_user' 
+WHERE NOT EXISTS (SELECT 1 FROM phreakbot_users WHERE username = 'phreakbot_import_user');
+
+-- Only insert the hostmask if it doesn't exist
+INSERT INTO phreakbot_hostmasks (users_id, hostmask) 
+SELECT 1, 'phreakbot_import_user' 
+WHERE NOT EXISTS (SELECT 1 FROM phreakbot_hostmasks WHERE hostmask = 'phreakbot_import_user');
 
 SELECT 'Database schema created successfully!' AS result;
 SQL
 
-echo "Verifying tables were created:"
-psql -h postgres -U phreakbot -d phreakbot -c "\dt"
+  echo "Verifying tables were created:"
+  psql -h postgres -U phreakbot -d phreakbot -c "\dt"
+fi
 
 echo "Database initialization complete!"
