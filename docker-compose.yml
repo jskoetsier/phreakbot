@@ -17,12 +17,13 @@ services:
       - DB_USER=phreakbot
       - DB_PASSWORD=phreakbot
       - DB_NAME=phreakbot
+      - IRC_SERVER=${IRC_SERVER:-irc.libera.chat}
+      - IRC_PORT=${IRC_PORT:-6667}
+      - IRC_NICKNAME=${IRC_NICKNAME:-PhreakBot}
+      - IRC_CHANNEL=${IRC_CHANNEL:-#phreakbot}
+      - OWNER_HOSTMASK=${OWNER_HOSTMASK:-*!user@host}
     command: >
-      sh -c "python install.py --server ${IRC_SERVER:-irc.libera.chat}
-             --port ${IRC_PORT:-6667}
-             --nickname ${IRC_NICKNAME:-PhreakBot}
-             --channel ${IRC_CHANNEL:-\#phreakbot}
-             --config /app/config/config.json &&
+      sh -c "python install.py --server \"$$IRC_SERVER\" --port \"$$IRC_PORT\" --nickname \"$$IRC_NICKNAME\" --channel \"$$IRC_CHANNEL\" --owner \"$$OWNER_HOSTMASK\" --config /app/config/config.json &&
              python phreakbot.py --config /app/config/config.json"
 
   postgres:
