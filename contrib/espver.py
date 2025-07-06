@@ -1,24 +1,26 @@
-from datetime import datetime
-import requests
 import json
 import re
+from datetime import datetime
 
-def config(wcb):
+import requests
+
+
+def config(bot):
     return {
-        'commands': ['espver', 'esphomever'],
-        'permissions': ['user'],
-        'events': [],
-        'help': "Fetches latest ESPhome release info."
+        "commands": ["espver", "esphomever"],
+        "permissions": ["user"],
+        "events": [],
+        "help": "Fetches latest ESPhome release info.",
     }
 
 
-def run(wcb, event):
+def run(bot, event):
     # Only run in a specific channel :)
-    if event['channel'] not in ['#nlhomeautomation', '#fdi-status']:
-        return wcb.signal_cont
+    if event["channel"] not in ["#nlhomeautomation", "#fdi-status"]:
+        return bot.signal_cont
 
     showdev = False
-    if event['command_args'] in ['dev', 'devel', 'development']:
+    if event["command_args"] in ["dev", "devel", "development"]:
         showdev = True
 
     req = requests.get("https://api.github.com/repos/esphome/esphome/releases")
@@ -26,20 +28,28 @@ def run(wcb, event):
     try:
         obj = json.loads(jsontxt)
     except Exception as e:
-        wcb.say("Parsing content failed: %s" % e)
-        return wcb.signal_cont
- 
+        bot.say("Parsing content failed: %s" % e)
+        return bot.signal_cont
+
     dev = ""
     rls = ""
     for elem in obj:
-        if not dev and elem['target_commitish'] == 'dev':
-            dev = "ESPHome latest development version %s, released %s, see %s" % (elem['name'], elem['published_at'], elem['html_url'])
-        if not rls and elem['target_commitish'] == 'release':
-            rls = "ESPHome latest release version %s, released %s, see %s" % (elem['name'], elem['published_at'], elem['html_url'])
+        if not dev and elem["target_commitish"] == "dev":
+            dev = "ESPHome latest development version %s, released %s, see %s" % (
+                elem["name"],
+                elem["published_at"],
+                elem["html_url"],
+            )
+        if not rls and elem["target_commitish"] == "release":
+            rls = "ESPHome latest release version %s, released %s, see %s" % (
+                elem["name"],
+                elem["published_at"],
+                elem["html_url"],
+            )
 
     if showdev:
-        wcb.say(dev)
-        return wcb.signal_stop
+        bot.say(dev)
+        return bot.signal_stop
 
-    wcb.say(rls)
-    return wcb.signal_stop
+    bot.say(rls)
+    return bot.signal_stop

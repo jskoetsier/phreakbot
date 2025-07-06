@@ -19,7 +19,7 @@ def create_config(args):
         "nickname": args.nickname,
         "realname": "PhreakBot IRC Bot",
         "channels": [args.channel],
-        "owner": "",
+        "owner": args.owner,
         "trigger": "!",
         "max_output_lines": 3,
         "log_file": "phreakbot.log",
@@ -45,17 +45,10 @@ def create_config(args):
     print(f"Channel: {args.channel}")
     print(f"Command trigger: {config['trigger']}")
     print(f"Database: {args.db_host}:{args.db_port}/{args.db_name}")
-
-    if args.docker:
-        print("\nTo start the bot with Docker, run:")
-        print("docker-compose up -d")
-    else:
-        print("\nTo start the bot, run:")
-        print(f"python3 phreakbot.py -c {args.config}")
-
-    print("\nWhen the bot connects, claim ownership by typing:")
-    print("!owner *!<user>@<hostname>")
-    print("(The bot will suggest an appropriate format based on your connection)")
+    print(f"Bot owner: {args.owner}")
+    print(
+        "The owner is set in the configuration file and cannot be changed through commands."
+    )
 
 
 def create_example_module():
@@ -110,67 +103,17 @@ def run(bot, event):
     print("This module demonstrates how to create plugins for PhreakBot.")
 
 
-def make_executable():
-    """Make the main bot file executable"""
-    bot_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "phreakbot.py")
-    if os.path.exists(bot_path):
-        os.chmod(bot_path, 0o755)
-        print(f"Made {bot_path} executable")
+def check_docker_environment():
+    """Check if running in Docker environment"""
+    # Check for common Docker environment indicators
+    if os.path.exists("/.dockerenv") or os.environ.get("DOCKER_CONTAINER"):
+        return True
 
+    # Check if running in the expected Docker path structure
+    if os.path.exists("/app/phreakbot.py"):
+        return True
 
-def check_dependencies():
-    """Check if required dependencies are installed"""
-    missing_deps = []
-
-    try:
-        import irc.bot
-
-        print("IRC library found.")
-    except ImportError:
-        missing_deps.append("irc")
-
-    try:
-        import psycopg2
-
-        print("PostgreSQL library found.")
-    except ImportError:
-        missing_deps.append("psycopg2-binary")
-
-    if missing_deps:
-        print("ERROR: Required libraries not found:")
-        for dep in missing_deps:
-            print(f"  - {dep}")
-        print("Please install them with: pip install " + " ".join(missing_deps))
-        print("or: pip install -r requirements.txt")
-        return False
-
-    return True
-
-
-def create_requirements():
-    """Create requirements.txt file"""
-    with open("requirements.txt", "w") as f:
-        f.write("irc>=20.0.0\n")
-        f.write("psycopg2-binary>=2.9.3\n")
-    print("Created requirements.txt file")
-
-
-def create_docker_env_file(args):
-    """Create .env file for Docker Compose"""
-    env_content = f"""# PhreakBot Docker environment configuration
-IRC_SERVER={args.server}
-IRC_PORT={args.port}
-IRC_NICKNAME={args.nickname}
-IRC_CHANNEL={args.channel}
-
-# Database configuration
-POSTGRES_USER={args.db_user}
-POSTGRES_PASSWORD={args.db_password}
-POSTGRES_DB={args.db_name}
-"""
-    with open(".env", "w") as f:
-        f.write(env_content)
-    print("Created .env file for Docker Compose")
+    return False
 
 
 def main():
@@ -186,9 +129,12 @@ def main():
     parser.add_argument(
         "-ch", "--channel", default="#phreakbot", help="Initial channel to join"
     )
+    parser.add_argument(
+        "-o", "--owner", default="*!user@host", help="Bot owner in format *!user@host"
+    )
     # Database options
     parser.add_argument(
-        "--db-host", default="localhost", help="PostgreSQL server address"
+        "--db-host", default="postgres", help="PostgreSQL server address"
     )
     parser.add_argument("--db-port", default="5432", help="PostgreSQL server port")
     parser.add_argument("--db-user", default="phreakbot", help="PostgreSQL username")
@@ -198,9 +144,16 @@ def main():
     parser.add_argument(
         "--db-name", default="phreakbot", help="PostgreSQL database name"
     )
-    # Docker option
+    # Docker option (kept for backward compatibility)
     parser.add_argument(
-        "--docker", action="store_true", help="Configure for Docker environment"
+        "--docker",
+        action="store_true",
+        help="Configure for Docker environment",
+        default=True,
+    )
+    # Force non-Docker option (for testing only)
+    parser.add_argument(
+        "--force-non-docker", action="store_true", help=argparse.SUPPRESS
     )
 
     args = parser.parse_args()
@@ -208,28 +161,28 @@ def main():
     print("PhreakBot Installation")
     print("=====================")
 
-    # If Docker mode, adjust database host
-    if args.docker:
-        args.db_host = "postgres"  # Use the service name from docker-compose
+    # Check if running in Docker environment
+    if not check_docker_environment() and not args.force_non_docker:
+        print("\n⚠️  WARNING: PhreakBot is designed to run exclusively in Docker.")
+        print("This script should be run inside the Docker container.")
+        print("Please use the install-docker.sh or install-docker.bat script instead.")
+        print(
+            "\nIf you want to continue anyway (not recommended), run with --force-non-docker"
+        )
+        sys.exit(1)
+
+    # Set Docker-specific configuration
+    args.db_host = "postgres"  # Use the service name from docker-compose
+    if check_docker_environment():
         args.config = "/app/config/config.json"
-        print("Configuring for Docker environment")
-        create_docker_env_file(args)
-    else:
-        # Check dependencies only for non-Docker installation
-        if not check_dependencies():
-            create_requirements()
-            print("Please install the required dependencies and run this script again.")
-            sys.exit(1)
+
+    print("Configuring for Docker environment")
 
     # Create config file
     create_config(args)
 
     # Create example module
     create_example_module()
-
-    # Make bot executable (not needed for Docker)
-    if not args.docker:
-        make_executable()
 
     print("\nInstallation complete!")
 

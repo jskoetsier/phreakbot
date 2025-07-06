@@ -1,28 +1,31 @@
-import requests
 import json
 
-def config(wcb):
+import requests
+
+
+def config(bot):
     return {
-        'events': [],
-        'commands': ['kink'],
-        'permissions': ['user'],
-        'help': "K!NK Now Playing"
+        "events": [],
+        "commands": ["kink"],
+        "permissions": ["user"],
+        "help": "K!NK Now Playing",
     }
 
 
-def run(wcb, event):
+def run(bot, event):
     # Only run in a specific channel :)
-    if event['channel'] not in ['#cistron', '#fdi-status']:
-        return wcb.signal_cont
+    if event["channel"] not in ["#cistron", "#fdi-status"]:
+        return bot.signal_cont
 
     try:
         res = requests.get("https://api.kink.nl/static/now-playing.json")
     except Exception as err:
-        return wcb.reply("i failed: '%s'" % err)
+        return bot.reply(f"i failed: '{err}'")
 
-    obj = json.loads(res.text)
     try:
-        cur = obj['playing']
+        obj = json.loads(res.text)
+        cur = obj["playing"]
     except Exception as err:
-        return wcb.reply("i failed: '%s'" % err)
-    return wcb.reply("ꓘINK is currently playing: '%s'" % cur)
+        return bot.reply(f"i failed: '{err}'")
+
+    return bot.reply(f"ꓘINK is currently playing: '{cur}'")

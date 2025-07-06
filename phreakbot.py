@@ -398,10 +398,37 @@ class PhreakBot(irc.bot.SingleServerIRCBot):
         # Process output
         self._process_output(event)
 
+    def _is_owner(self, hostmask):
+        """Check if a hostmask matches the owner pattern"""
+        if not self.config["owner"]:
+            return False
+
+        owner_pattern = self.config["owner"]
+        if owner_pattern.startswith("*!"):
+            # Extract the user and host parts from the pattern
+            pattern_parts = owner_pattern[2:].split("@")
+            if len(pattern_parts) == 2:
+                pattern_user = pattern_parts[0]
+                pattern_host = pattern_parts[1]
+
+                # Extract the user and host parts from the hostmask
+                hostmask_parts = hostmask.split("@")
+                if len(hostmask_parts) == 2:
+                    current_user = hostmask_parts[0]
+                    current_host = hostmask_parts[1]
+
+                    # Check if the pattern matches
+                    return (pattern_user == "*" or pattern_user == current_user) and (
+                        pattern_host == "*" or pattern_host == current_host
+                    )
+
+        # Legacy format - exact match
+        return hostmask == self.config["owner"]
+
     def _check_permissions(self, event, required_permissions):
         """Check if the user has the required permissions"""
         # Owner always has all permissions
-        if self.config["owner"] and event["hostmask"] == self.config["owner"]:
+        if self.config["owner"] and self._is_owner(event["hostmask"]):
             return True
 
         # Check database permissions if available

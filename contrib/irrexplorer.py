@@ -9,7 +9,8 @@ Written by Teun Vink <teun AT teun DOT tv>
 import requests
 from netaddr import IPNetwork
 
-def config(wcb):
+
+def config(bot):
     return {
         "events": [],
         "commands": ["irr", "irrexplorer"],
@@ -17,7 +18,8 @@ def config(wcb):
         "help": ["Show IRRExplorer information for a prefix"],
     }
 
-def _print_items(wcb, results, status):
+
+def _print_items(bot, results, status):
     """
     Fancy output for statuses.
     """
@@ -30,25 +32,28 @@ def _print_items(wcb, results, status):
 
     for prefix in results.get(status, []):
         for msg in results[status][prefix]:
-            wcb.say(f"[{STATUS[status]}] {prefix}: {msg}")
+            bot.add_response(f"[{STATUS[status]}] {prefix}: {msg}")
 
 
-def run(wcb, event):
+def run(bot, event):
     net = event["command_args"]
     try:
         # typecast to IPNetwork so we know it's a valid IP or prefix
         IPNetwork(net)
     except Exception:
-        return wcb.say(f"{net} is not a valid IP or prefix.")
+        bot.add_response(f"{net} is not a valid IP or prefix.")
+        return
 
     req = requests.get(f"https://irrexplorer.nlnog.net/api/prefixes/prefix/{net}")
     # check results
     if req.status_code != 200:
-        return wc.say(f"Failed to query IRRExplorer: {req.text}")
+        bot.add_response(f"Failed to query IRRExplorer: {req.text}")
+        return
     try:
         data = req.json()
     except Exception:
-        return wcb.say("Failed to parse IRRExplorer answer.")
+        bot.add_response("Failed to parse IRRExplorer answer.")
+        return
 
     # sort the results by category and prefix
     results = {}
@@ -67,17 +72,15 @@ def run(wcb, event):
 
     # always print these categories
     for status in ["success", "danger", "warning"]:
-        _print_items(wcb, results, status)
+        _print_items(bot, results, status)
 
     # some prefixes have MANY info items, only print them if there are 3 or less
     infoitems = results.get("info", {})
     infocount = sum([len(infoitems[p]) for p in infoitems])
     if infocount <= 3:
-        _print_items(wcb, results, "info")
+        _print_items(bot, results, "info")
     else:
-        wcb.say("Too many 'info' items found, not showing them here.")
+        bot.add_response("Too many 'info' items found, not showing them here.")
 
     # print some details
-    return wcb.say(f"More details: https://irrexplorer.nlnog.net/prefix/{net}")
-
-
+    bot.add_response(f"More details: https://irrexplorer.nlnog.net/prefix/{net}")

@@ -2,31 +2,29 @@
 
 PhreakBot is a modular IRC bot written in Python. It's designed to be easy to set up and extend with custom plugins.
 
-This is a modular IRC bot that uses its own Python libraries for IRC connectivity.
+This is a modular IRC bot that runs exclusively in Docker, providing a consistent and isolated environment across different operating systems.
 
 ## Features
 
 - Standalone IRC connectivity using the `irc` Python library
 - Modular plugin system
-- Easy installation with configuration wizard
+- Easy installation with Docker configuration wizard
 - Simple permission system
 - Customizable command trigger
-- PostgreSQL database integration
-- Docker support for easy deployment
+- PostgreSQL database integration (included in Docker setup)
 - Logging support
+- Cross-platform compatibility through Docker
 
 ## Installation
 
 ### Requirements
 
-- Python 3.6 or higher
-- `irc` Python library
-- `psycopg2-binary` Python library (for PostgreSQL support)
-- Docker and Docker Compose (for Docker installation)
+- Docker (https://docs.docker.com/get-docker/)
+- Docker Compose (https://docs.docker.com/compose/install/)
 
-### Docker Installation (Recommended)
+### Docker Installation
 
-The easiest way to run PhreakBot is using Docker and Docker Compose:
+PhreakBot runs exclusively in Docker for consistent deployment across all platforms:
 
 1. Clone the repository:
    ```bash
@@ -34,21 +32,27 @@ The easiest way to run PhreakBot is using Docker and Docker Compose:
    cd phreakbot
    ```
 
-2. Create a `.env` file with your configuration or use the installation script:
+2. Run the installation script:
+
+   **On Linux/macOS:**
    ```bash
-   python install.py --docker
+   chmod +x install-docker.sh
+   ./install-docker.sh
    ```
 
-3. Start the bot using Docker Compose:
-   ```bash
-   docker-compose up -d
+   **On Windows:**
+   ```
+   install-docker.bat
    ```
 
-4. When the bot connects to IRC, claim ownership by typing in the IRC channel:
-   ```
-   !owner *!<user>@<hostname>
-   ```
-   (The bot will suggest an appropriate format based on your connection)
+3. The installation script will:
+   - Check if Docker and Docker Compose are installed
+   - Prompt for IRC server, port, nickname, channel, and owner hostmask
+   - Configure the database settings
+   - Create the necessary configuration files
+   - Build and start the Docker containers
+
+4. The bot will connect to IRC with the owner already set in the configuration file.
 
 5. To view logs:
    ```bash
@@ -60,126 +64,14 @@ The easiest way to run PhreakBot is using Docker and Docker Compose:
    docker-compose down
    ```
 
-### Automatic Setup (Non-Docker)
-
-If you prefer to run without Docker, you can use the provided setup scripts:
-
-#### On Linux/macOS:
-```bash
-# Clone the repository
-git clone https://github.com/yourusername/phreakbot.git
-cd phreakbot
-
-# Make the setup script executable
-chmod +x setup.sh
-
-# Run the setup script
-./setup.sh
-```
-
-#### On Windows:
-```
-# Clone the repository
-git clone https://github.com/yourusername/phreakbot.git
-cd phreakbot
-
-# Run the setup script
-setup.bat
-```
-
-These scripts will:
-1. Check if Python is installed with the correct version
-2. Install the required Python packages
-3. Create necessary directories
-4. Run the installation script to create a configuration file
-
-### Manual Setup
-
-If you prefer to set up manually:
-
-1. Clone the repository:
+7. To start the bot again:
+   ```bash
+   docker-compose up -d
    ```
-   git clone https://github.com/yourusername/phreakbot.git
-   cd phreakbot
-   ```
-
-2. Install dependencies:
-   ```
-   pip install -r requirements.txt
-   ```
-
-3. Run the installation script:
-   ```
-   python install.py
-   ```
-
-   This will create a default configuration file and set up the bot.
-
-4. Start the bot:
-   ```
-   python phreakbot.py
-   ```
-
-5. When the bot connects to IRC, claim ownership by typing in the IRC channel:
-   ```
-   !owner *!<user>@<hostname>
-   ```
-   (The bot will suggest an appropriate format based on your connection)
-
-### Custom Installation
-
-You can customize the installation by providing arguments to the installation script:
-
-```
-python install.py --server irc.example.com --port 6667 --nickname MyBot --channel "#mychannel" --db-host localhost --db-user phreakbot --db-password secret
-```
-
-Run `python install.py --help` for a full list of options.
 
 ## Configuration
 
-The configuration is stored in a JSON file (default: `config.json`). You can edit this file directly to change the bot's settings:
-
-```json
-{
-    "server": "irc.libera.chat",
-    "port": 6667,
-    "nickname": "PhreakBot",
-    "realname": "PhreakBot IRC Bot",
-    "channels": ["#phreakbot"],
-    "owner": "",
-    "trigger": "!",
-    "max_output_lines": 3,
-    "log_file": "phreakbot.log",
-    "db_host": "localhost",
-    "db_port": "5432",
-    "db_user": "phreakbot",
-    "db_password": "phreakbot",
-    "db_name": "phreakbot"
-}
-```
-
-### IRC Configuration
-- `server`: IRC server address
-- `port`: IRC server port
-- `nickname`: Bot's nickname
-- `realname`: Bot's real name
-- `channels`: List of channels to join
-- `owner`: Owner's hostmask in format `*!<user>@<hostname>` (set when claiming ownership)
-- `trigger`: Command trigger character (default: `!`)
-- `max_output_lines`: Maximum number of lines to send to the channel
-- `log_file`: Path to log file
-
-### Database Configuration
-- `db_host`: PostgreSQL server address
-- `db_port`: PostgreSQL server port
-- `db_user`: PostgreSQL username
-- `db_password`: PostgreSQL password
-- `db_name`: PostgreSQL database name
-
-## Docker Configuration
-
-When using Docker, you can configure the bot using environment variables in a `.env` file or by passing them to the `docker-compose up` command:
+The configuration is managed through environment variables in the `.env` file created during installation. You can edit this file directly to change the bot's settings:
 
 ```
 # IRC Configuration
@@ -187,11 +79,32 @@ IRC_SERVER=irc.libera.chat
 IRC_PORT=6667
 IRC_NICKNAME=PhreakBot
 IRC_CHANNEL=#phreakbot
+OWNER_HOSTMASK=*!user@host
 
 # Database Configuration
 POSTGRES_USER=phreakbot
 POSTGRES_PASSWORD=phreakbot
 POSTGRES_DB=phreakbot
+```
+
+### Configuration Options
+
+#### IRC Configuration
+- `IRC_SERVER`: IRC server address
+- `IRC_PORT`: IRC server port
+- `IRC_NICKNAME`: Bot's nickname
+- `IRC_CHANNEL`: Default channel to join
+- `OWNER_HOSTMASK`: Owner's hostmask in format `*!<user>@<hostname>` (e.g., `*!john@example.com` or `*!*@192.168.1.100`)
+
+#### Database Configuration
+- `POSTGRES_USER`: PostgreSQL username
+- `POSTGRES_PASSWORD`: PostgreSQL password
+- `POSTGRES_DB`: PostgreSQL database name
+
+After changing the configuration, restart the containers to apply the changes:
+```bash
+docker-compose down
+docker-compose up -d
 ```
 
 ## Creating Plugins
@@ -263,7 +176,7 @@ Plugins can be placed in two locations:
 1. `modules/`: Core modules
 2. `extra_modules/`: User-created modules
 
-When using Docker, these directories are mounted as volumes, so you can add or modify plugins without rebuilding the container.
+These directories are mounted as volumes in the Docker container, so you can add or modify plugins without rebuilding the container.
 
 ## Available Commands
 
@@ -271,7 +184,22 @@ The bot comes with several built-in commands:
 
 - `!help [module]`: Show help for a module
 - `!avail`: List all available modules
-- `!owner *!<user>@<hostname>`: Claim ownership of the bot or show current owner
+- `!owner`: Show the current bot owner (set in the configuration file)
+
+## Updating PhreakBot
+
+To update PhreakBot to the latest version:
+
+1. Pull the latest changes from the repository:
+   ```bash
+   git pull
+   ```
+
+2. Rebuild and restart the Docker containers:
+   ```bash
+   docker-compose down
+   docker-compose up -d --build
+   ```
 
 ## License
 
