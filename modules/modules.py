@@ -11,10 +11,10 @@ def config(bot):
         "commands": ["load", "reload", "unload", "avail"],
         "permissions": ["owner", "admin", "modules"],
         "help": "Provides module management functionality.\n"
-               "Usage: !avail - List all available modules\n"
-               "       !load <module_path> - Load a module\n"
-               "       !reload <module_path> - Reload a module\n"
-               "       !unload <module_name> - Unload a module",
+        "Usage: !avail - List all available modules\n"
+        "       !load <module_path> - Load a module\n"
+        "       !reload <module_path> - Reload a module\n"
+        "       !unload <module_name> - Unload a module",
     }
 
 
@@ -27,9 +27,10 @@ def run(bot, event):
 
     # Commands below require owner / modules permissions.
     if not bot._is_owner(event["hostmask"]) and not (
-        event["user_info"] and (
-            "modules" in event["user_info"]["permissions"]["global"] or
-            event["user_info"].get("is_admin")
+        event["user_info"]
+        and (
+            "modules" in event["user_info"]["permissions"]["global"]
+            or event["user_info"].get("is_admin")
         )
     ):
         bot.add_response("You don't have permission to manage modules.")
