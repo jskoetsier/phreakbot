@@ -1,5 +1,11 @@
 # Changelog
 
+## [v0.1.3] - 2025-07-09
+- Added snarf module to fetch descriptions from URLs
+- Added multiple command aliases (!at, !url, !snarf) for URL description fetching
+- Improved error handling in modules
+- Fixed compatibility issues between modules
+
 ## [v0.1.2] - 2025-07-08
 - Renamed all references to wcb to pb in the modules directory
 - Removed deploy.py module
