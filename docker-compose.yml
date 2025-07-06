@@ -1,11 +1,31 @@
 version: '3'
 
 services:
+  postgres:
+    image: postgres:14-alpine
+    restart: unless-stopped
+    environment:
+      - POSTGRES_USER=phreakbot
+      - POSTGRES_PASSWORD=phreakbot
+      - POSTGRES_DB=phreakbot
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  db-init:
+    image: postgres:14-alpine
+    depends_on:
+      - postgres
+    volumes:
+      - ./direct-init.sh:/direct-init.sh
+    command: /direct-init.sh
+    environment:
+      - PGPASSWORD=phreakbot
+
   phreakbot:
     build: .
     restart: unless-stopped
     depends_on:
-      - postgres
+      - db-init
     volumes:
       - ./config:/app/config
       - ./modules:/app/modules
@@ -24,17 +44,6 @@ services:
       - IRC_CHANNEL=${IRC_CHANNEL:-#phreakbot}
       - OWNER_HOSTMASK=${OWNER_HOSTMASK:-*!user@host}
     command: /app/startup.sh
-
-  postgres:
-    image: postgres:14-alpine
-    restart: unless-stopped
-    environment:
-      - POSTGRES_USER=phreakbot
-      - POSTGRES_PASSWORD=phreakbot
-      - POSTGRES_DB=phreakbot
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-      - ./dbschema.psql:/docker-entrypoint-initdb.d/dbschema.psql:ro
 
 volumes:
   postgres_data:
