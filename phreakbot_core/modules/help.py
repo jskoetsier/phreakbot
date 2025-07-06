@@ -10,10 +10,11 @@ def config(bot):
 def run(bot, event):
     module = event["command_args"]
     if not module in bot.modules:
-        return bot.reply(
-            "a module named '%s' was not found loaded! Try the 'avail' command!"
+        bot.add_response(
+            "A module named '%s' was not found loaded! Try the 'avail' command!"
             % module
         )
+        return
     helptxt = bot.modules[module]["help"]
     helpcmds = ", ".join(bot.modules[module]["commands"])
     helpperm = ", ".join(bot.modules[module]["permissions"])
