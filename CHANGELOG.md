@@ -1,5 +1,8 @@
 # Changelog
 
+## [v0.1.1] - 2025-07-07
+- Fixed CTCP VERSION reply to show PhreakBot version instead of Python irc.bot
+
 ## [v0.1.0] - 2025-07-07
 - Initial version with database-based owner system
 - Added admin flag for owner
