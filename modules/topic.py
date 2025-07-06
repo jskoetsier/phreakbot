@@ -25,7 +25,7 @@ def run(bot, event):
 
 
 def _show_topic(bot, event):
-    """Show the current topic"""
+    """Show the current topic or set a new one if arguments are provided"""
     channel = event["channel"]
 
     # Check if the channel is in the bot's configured channels
@@ -33,24 +33,48 @@ def _show_topic(bot, event):
         bot.add_response(f"I'm not in channel {channel}")
         return
 
-    # Get the topic using the connection object
+    # If arguments are provided, treat it as a request to set the topic
+    if event["command_args"]:
+        # Reuse the _set_topic function by creating a new event with the settopic command
+        new_event = event.copy()
+        new_event["command"] = "settopic"
+        _set_topic(bot, new_event)
+        return
+
+    # Otherwise, get the topic using the connection object
     bot.connection.topic(channel)
     bot.add_response("Retrieving topic information...")
 
 
 def _set_topic(bot, event):
     """Set a new topic"""
-    # Check if the user has permission to set topics
-    if not bot._is_owner(event["hostmask"]) and not (
-        event["user_info"]
-        and (
-            "topic" in event["user_info"]["permissions"]["global"]
-            or (
-                event["channel"] in event["user_info"]["permissions"]
-                and "topic" in event["user_info"]["permissions"][event["channel"]]
-            )
-        )
-    ):
+    # Add debug logging
+    bot.logger.info(f"Setting topic, checking permissions for {event['nick']} with hostmask {event['hostmask']}")
+    
+    # Check if the user is the owner
+    is_owner = bot._is_owner(event["hostmask"])
+    bot.logger.info(f"Is owner check result: {is_owner}")
+    
+    # Check if the user has the topic permission
+    has_topic_perm = False
+    if event["user_info"] and "permissions" in event["user_info"]:
+        if "global" in event["user_info"]["permissions"] and "topic" in event["user_info"]["permissions"]["global"]:
+            has_topic_perm = True
+            bot.logger.info("User has global topic permission")
+        elif event["channel"] in event["user_info"]["permissions"] and "topic" in event["user_info"]["permissions"][event["channel"]]:
+            has_topic_perm = True
+            bot.logger.info("User has channel-specific topic permission")
+    
+    # Check if the user has the owner permission
+    has_owner_perm = False
+    if event["user_info"] and "permissions" in event["user_info"]:
+        if "global" in event["user_info"]["permissions"] and "owner" in event["user_info"]["permissions"]["global"]:
+            has_owner_perm = True
+            bot.logger.info("User has global owner permission")
+    
+    # Allow if user is owner or has topic permission
+    if not (is_owner or has_owner_perm or has_topic_perm):
+        bot.logger.info("Permission denied for setting topic")
         bot.add_response("You don't have permission to set topics.")
         return
 
