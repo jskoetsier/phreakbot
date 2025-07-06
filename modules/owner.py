@@ -134,12 +134,14 @@ def _claim_ownership(bot, event):
                 (user_id, event["hostmask"].lower()),
             )
 
-            # Add owner permission
-            bot.logger.info(f"Adding owner permission for user ID {user_id}")
-            cur.execute(
-                "INSERT INTO phreakbot_perms (users_id, permission) VALUES (%s, %s)",
-                (user_id, "owner"),
-            )
+            # Add owner and other essential permissions
+            bot.logger.info(f"Adding owner and essential permissions for user ID {user_id}")
+            essential_permissions = ["owner", "admin", "topic", "perm", "join", "part", "autoop"]
+            for permission in essential_permissions:
+                cur.execute(
+                    "INSERT INTO phreakbot_perms (users_id, permission) VALUES (%s, %s)",
+                    (user_id, permission),
+                )
         else:
             # Update existing user
             cur.execute(
