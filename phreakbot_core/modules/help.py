@@ -1,4 +1,4 @@
-def config(wcb):
+def config(bot):
     return {
         'events': [],
         'commands': ['help'],
@@ -7,15 +7,15 @@ def config(wcb):
     }
 
 
-def run(wcb, event):
+def run(bot, event):
     module = event['command_args']
-    if not module in wcb.modules:
-        return wcb.reply("a module named '%s' was not found loaded! Try the 'avail' command!" % module)
-    helptxt = wcb.modules[module]['help']
-    helpcmds = ", ".join(wcb.modules[module]['commands'])
-    helpperm = ", ".join(wcb.modules[module]['permissions'])
+    if not module in bot.modules:
+        return bot.reply("a module named '%s' was not found loaded! Try the 'avail' command!" % module)
+    helptxt = bot.modules[module]['help']
+    helpcmds = ", ".join(bot.modules[module]['commands'])
+    helpperm = ", ".join(bot.modules[module]['permissions'])
 
-    wcb.say("%s" % (helptxt))
-    wcb.say("Provides commands: %s" % (helpcmds))
-    wcb.say("Needs permissions: %s" % (helpperm))
+    bot.add_response("%s" % (helptxt))
+    bot.add_response("Provides commands: %s" % (helpcmds))
+    bot.add_response("Needs permissions: %s" % (helpperm))
     return
