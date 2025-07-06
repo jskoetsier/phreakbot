@@ -475,6 +475,16 @@ class PhreakBot(irc.bot.SingleServerIRCBot):
             # Log the hostmask for debugging
             self.logger.info(f"Checking owner status for hostmask: {hostmask}")
 
+            # Extract the nick from the hostmask
+            nick = hostmask.split("!")[0] if "!" in hostmask else hostmask
+            self.logger.info(f"Extracted nick: {nick}")
+
+            # First try the exact hostmask
+            user_info = self.db_get_userinfo_by_userhost(hostmask)
+            if user_info and user_info.get("is_owner"):
+                self.logger.info(f"User with hostmask {hostmask} is an owner in the database")
+                return True
+
             # Try to normalize the hostmask by removing the caret if present
             normalized_hostmask = hostmask
             if "!" in hostmask:
@@ -482,23 +492,25 @@ class PhreakBot(irc.bot.SingleServerIRCBot):
                 if len(parts) == 2 and parts[1].startswith("^"):
                     normalized_hostmask = f"{parts[0]}!{parts[1][1:]}"
                     self.logger.info(f"Normalized hostmask: {normalized_hostmask}")
+                    
+                    # Try with normalized hostmask
+                    user_info = self.db_get_userinfo_by_userhost(normalized_hostmask)
+                    if user_info and user_info.get("is_owner"):
+                        self.logger.info(f"User with normalized hostmask {normalized_hostmask} is an owner in the database")
+                        return True
 
-            # Check if the user is an owner in the database
-            user_info = self.db_get_userinfo_by_userhost(hostmask)
-            if user_info and user_info.get("is_owner"):
-                self.logger.info(
-                    f"User with hostmask {hostmask} is an owner in the database"
-                )
-                return True
-
-            # Try with normalized hostmask if different
-            if normalized_hostmask != hostmask:
-                user_info = self.db_get_userinfo_by_userhost(normalized_hostmask)
-                if user_info and user_info.get("is_owner"):
-                    self.logger.info(
-                        f"User with normalized hostmask {normalized_hostmask} is an owner in the database"
-                    )
+            # If we still haven't found an owner, check by username
+            try:
+                cur = self.db_connection.cursor()
+                cur.execute("SELECT is_owner FROM phreakbot_users WHERE username = %s", (nick.lower(),))
+                result = cur.fetchone()
+                cur.close()
+                
+                if result and result[0]:
+                    self.logger.info(f"User with nick {nick} is an owner in the database")
                     return True
+            except Exception as e:
+                self.logger.error(f"Error checking owner status by username: {e}")
 
             self.logger.info(f"User with hostmask {hostmask} is not an owner")
             return False
@@ -514,7 +526,7 @@ class PhreakBot(irc.bot.SingleServerIRCBot):
         )
 
         # Skip permission checks for the bot itself
-        if event['nick'] == self.connection.get_nickname():
+        if event["nick"] == self.connection.get_nickname():
             self.logger.info("Skipping permission check for the bot itself")
             return True
 
