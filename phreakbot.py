@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 #
-# PhreakBot, based on WeeChatBot (WCB), ©2020 Sander Smeenk <github@freshdot.net>
+# PhreakBot - A modular IRC bot
 #
 import argparse
 import importlib.util
@@ -58,8 +58,10 @@ class PhreakBot(irc.bot.SingleServerIRCBot):
 
         # Load modules
         self.bot_base = os.path.dirname(os.path.abspath(__file__))
-        self.modules_dir = os.path.join(self.bot_base, "modules")
-        self.extra_modules_dir = os.path.join(self.bot_base, "extra_modules")
+        self.modules_dir = os.path.join(self.bot_base, "phreakbot_core", "modules")
+        self.extra_modules_dir = os.path.join(
+            self.bot_base, "phreakbot_core", "extra_modules"
+        )
 
         # Create directories if they don't exist
         for path in [self.modules_dir, self.extra_modules_dir]:
@@ -152,7 +154,7 @@ class PhreakBot(irc.bot.SingleServerIRCBot):
             cur = self.db_connection.cursor(cursor_factory=psycopg2.extras.DictCursor)
 
             # Get user info
-            sql = "SELECT h.hostmask AS current_hostmask, u.* FROM wcb_hostmasks h, wcb_users u WHERE h.users_id = u.id AND h.hostmask = %s"
+            sql = "SELECT h.hostmask AS current_hostmask, u.* FROM phreakbot_hostmasks h, phreakbot_users u WHERE h.users_id = u.id AND h.hostmask = %s"
             cur.execute(sql, (host,))
             db_res = cur.fetchall()
             if not db_res:
@@ -165,7 +167,7 @@ class PhreakBot(irc.bot.SingleServerIRCBot):
             # Get permissions
             ret["permissions"] = {"global": []}
 
-            sql = "SELECT permission, channel FROM wcb_perms WHERE users_id = %s"
+            sql = "SELECT permission, channel FROM phreakbot_perms WHERE users_id = %s"
             cur.execute(sql, (ret["id"],))
             db_res = cur.fetchall()
             for row in db_res:
@@ -178,7 +180,7 @@ class PhreakBot(irc.bot.SingleServerIRCBot):
 
             # Get hostmasks
             ret["hostmasks"] = []
-            sql = "SELECT hostmask FROM wcb_hostmasks WHERE users_id = %s"
+            sql = "SELECT hostmask FROM phreakbot_hostmasks WHERE users_id = %s"
             cur.execute(sql, (ret["id"],))
             db_res = cur.fetchall()
             for row in db_res:

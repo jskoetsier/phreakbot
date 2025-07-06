@@ -109,7 +109,7 @@ python install.py
 echo.
 echo Setup complete!
 echo You can now start PhreakBot by running: python phreakbot.py
-echo When the bot connects to IRC, claim ownership by typing: !owner ^<unique_id^>
-echo (The bot will display the unique ID when it starts)
+echo When the bot connects to IRC, claim ownership by typing: !owner *!^<user^>@^<hostname^>
+echo (The bot will suggest an appropriate format based on your connection)
 
 pause

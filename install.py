@@ -54,8 +54,8 @@ def create_config(args):
         print(f"python3 phreakbot.py -c {args.config}")
 
     print("\nWhen the bot connects, claim ownership by typing:")
-    print("!owner <unique_id>")
-    print("(The bot will display the unique_id when it starts)")
+    print("!owner *!<user>@<hostname>")
+    print("(The bot will suggest an appropriate format based on your connection)")
 
 
 def create_example_module():

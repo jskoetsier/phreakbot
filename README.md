@@ -2,7 +2,7 @@
 
 PhreakBot is a modular IRC bot written in Python. It's designed to be easy to set up and extend with custom plugins.
 
-This bot is a refactored version of WeeChatBot (WCB), removing the dependency on WeeChat and using its own Python libraries for IRC connectivity.
+This is a modular IRC bot that uses its own Python libraries for IRC connectivity.
 
 ## Features
 
@@ -279,4 +279,4 @@ This project is licensed under the GPL v3 License - see the LICENSE file for det
 
 ## Acknowledgments
 
-- Original WeeChatBot (WCB) by Sander Smeenk
+- Created by PhreakBot Team

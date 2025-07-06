@@ -98,5 +98,5 @@ $PYTHON_CMD install.py
 
 echo -e "\n${BOLD}${GREEN}Setup complete!${RESET}"
 echo -e "You can now start PhreakBot by running: ${BOLD}./phreakbot.py${RESET}"
-echo -e "When the bot connects to IRC, claim ownership by typing: ${BOLD}!owner <unique_id>${RESET}"
-echo -e "(The bot will display the unique ID when it starts)"
+echo -e "When the bot connects to IRC, claim ownership by typing: ${BOLD}!owner *!<user>@<hostname>${RESET}"
+echo -e "(The bot will suggest an appropriate format based on your connection)"
