@@ -31,7 +31,8 @@ def _show_topic(bot, event):
     """Show the current topic"""
     channel = event["channel"]
 
-    if channel not in bot.connection.channels:
+    # Check if the channel is in the bot's configured channels
+    if channel not in bot.config["channels"]:
         bot.add_response(f"I'm not in channel {channel}")
         return
 
@@ -62,7 +63,8 @@ def _set_topic(bot, event):
         return
 
     channel = event["channel"]
-    if channel not in bot.connection.channels:
+    # Check if the channel is in the bot's configured channels
+    if channel not in bot.config["channels"]:
         bot.add_response(f"I'm not in channel {channel}")
         return
 
@@ -92,7 +94,8 @@ def _add_topic(bot, event):
         return
 
     channel = event["channel"]
-    if channel not in bot.connection.channels:
+    # Check if the channel is in the bot's configured channels
+    if channel not in bot.config["channels"]:
         bot.add_response(f"I'm not in channel {channel}")
         return
 
