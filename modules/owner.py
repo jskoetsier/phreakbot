@@ -26,13 +26,20 @@ def run(bot, event):
     command = event["command"]
     args = event["command_args"].split() if event["command_args"] else []
 
+    # Log the command for debugging
+    bot.logger.info(f"Owner module received command: {command} with args: {args}")
+    bot.logger.info(f"User: {event['nick']} with hostmask: {event['hostmask']}")
+
     # Handle owner commands
     if command == "owner":
+        bot.logger.info("Processing owner command")
         if not args:
             # Show current owner
+            bot.logger.info("Showing current owner")
             _show_owner(bot, event)
         elif args[0] == "claim":
             # Claim ownership
+            bot.logger.info(f"User {event['nick']} is attempting to claim ownership")
             _claim_ownership(bot, event)
 
     # Handle admin commands
@@ -105,9 +112,11 @@ def _claim_ownership(bot, event):
         # Get user info or create new user
         user_info = event["user_info"]
         bot.logger.info(f"User info from event: {user_info}")
-        
+
         if not user_info:
-            bot.logger.info(f"Creating new user for {event['nick']} with hostmask {event['hostmask']}")
+            bot.logger.info(
+                f"Creating new user for {event['nick']} with hostmask {event['hostmask']}"
+            )
             # Create new user
             cur.execute(
                 "INSERT INTO phreakbot_users (username, is_owner) VALUES (%s, TRUE) RETURNING id",
@@ -117,7 +126,9 @@ def _claim_ownership(bot, event):
             bot.logger.info(f"Created new user with ID: {user_id}")
 
             # Add hostmask
-            bot.logger.info(f"Adding hostmask {event['hostmask']} for user ID {user_id}")
+            bot.logger.info(
+                f"Adding hostmask {event['hostmask']} for user ID {user_id}"
+            )
             cur.execute(
                 "INSERT INTO phreakbot_hostmasks (users_id, hostmask) VALUES (%s, %s)",
                 (user_id, event["hostmask"].lower()),
