@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 import os
 
-def config(wcb):
+def config(pb):
     return {
         'events': ['irc_in2_VERSION'],
         'commands': ['version'],
@@ -20,13 +20,13 @@ def get_version():
     except Exception:
         return "unknown"
 
-def version(wcb, event):
+def version(pb, event):
     """Display the bot version."""
     version = get_version()
-    wcb.reply(event, f"PhreakBot v{version} - https://github.com/jskoetsier/phreakbot")
+    pb.reply(event, f"PhreakBot v{version} - https://github.com/jskoetsier/phreakbot")
 
-def irc_in2_VERSION(wcb, event):
+def irc_in2_VERSION(pb, event):
     """Handle CTCP VERSION requests."""
     version = get_version()
     # Override the default Python irc.bot VERSION reply with our own
-    wcb.connection.ctcp_reply(event.source.nick, f"PhreakBot v{version} - https://github.com/jskoetsier/phreakbot")
+    pb.connection.ctcp_reply(event.source.nick, f"PhreakBot v{version} - https://github.com/jskoetsier/phreakbot")

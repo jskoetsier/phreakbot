@@ -1,5 +1,12 @@
 # Changelog
 
+## [v0.1.2] - 2025-07-08
+- Renamed all references to wcb to pb in the modules directory
+- Removed deploy.py module
+- Fixed CTCP version issue to reflect the name Phreakbot + current version
+- Synced to git repo with a oneliner
+- Added pull and restart functionality for remote server
+
 ## [v0.1.1] - 2025-07-07
 - Fixed CTCP VERSION reply to show PhreakBot version instead of Python irc.bot
 
