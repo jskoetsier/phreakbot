@@ -10,12 +10,12 @@ def config(bot):
     """Return module configuration"""
     return {
         "events": [],
-        "commands": ["quote", "q", "sq", "addquote", "aq", "delquote", "dq"],
+        "commands": ["quote", "q", "addquote", "aq", "delquote", "dq", "searchquote", "sq"],
         "permissions": ["user"],
-        "help": "Manage and display quotes.\n"
-        "Usage: !quote, !q, or !sq [id|search term] - Show a random quote or search for quotes\n"
-        "       !addquote or !aq <text> - Add a new quote\n"
-        "       !delquote or !dq <id> - Delete a quote (owner/admin only)",
+        "help": "Quote management. Usage: !quote/!q [id] - Show a random quote or a specific quote by ID.\n"
+                "       !addquote or !aq <text> - Add a new quote\n"
+                "       !delquote or !dq <id> - Delete a quote (owner/admin only)\n"
+                "       !searchquote or !sq <text> - Search for quotes containing text",
     }
 
 
@@ -26,12 +26,14 @@ def run(bot, event):
         return
 
     try:
-        if event["command"] in ["quote", "q", "sq"]:
+        if event["command"] in ["quote", "q"]:
             _show_quote(bot, event)
         elif event["command"] in ["addquote", "aq"]:
             _add_quote(bot, event)
         elif event["command"] in ["delquote", "dq"]:
             _delete_quote(bot, event)
+        elif event["command"] in ["searchquote", "sq"]:
+            _search_quotes(bot, event)
     except Exception as e:
         bot.logger.error(f"Error in quotes module: {e}")
         bot.add_response("Error processing quote command.")
@@ -84,12 +86,44 @@ def _show_quote(bot, event):
     )
 
 
+def _search_quotes(bot, event):
+    """Search for quotes containing a specific string"""
+    if not event["command_args"]:
+        bot.add_response("Please provide a search term.")
+        return
+    
+    bot.logger.info(f"Searching quotes for: {event['command_args']}")
+    search_term = event["command_args"]
+
+    cur = bot.db_connection.cursor()
+    cur.execute(
+        "SELECT q.id, q.quote, u.username, q.channel, q.insert_time FROM phreakbot_quotes q "
+        "JOIN phreakbot_users u ON q.users_id = u.id "
+        "WHERE q.quote ILIKE %s "
+        "ORDER BY q.id LIMIT 5",
+        (f"%{search_term}%",),
+    )
+
+    quotes = cur.fetchall()
+    cur.close()
+
+    if not quotes:
+        bot.add_response(f"No quotes found matching '{search_term}'.")
+        return
+
+    bot.add_response(f"Found {len(quotes)} quotes matching '{search_term}':")
+    for quote in quotes:
+        quote_id, quote_text, username, channel, timestamp = quote
+        bot.add_response(
+            f"Quote #{quote_id}: {quote_text} (added by {username} in {channel} on {timestamp.strftime('%Y-%m-%d')})"
+        )
+
 def _add_quote(bot, event):
     """Add a new quote to the database"""
     quote_text = event["command_args"]
-
+    
     if not quote_text:
-        bot.add_response("Please provide the text for the quote.")
+        bot.add_response("Please provide a quote to add.")
         return
 
     # Get the user's ID
@@ -127,7 +161,7 @@ def _add_quote(bot, event):
 def _delete_quote(bot, event):
     """Delete a quote from the database"""
     # Check if the user has permission to delete quotes
-    if not bot._is_owner(event["hostmask"]) and not (
+    if not bot._is_owner(event["source"]) and not (
         event["user_info"] and event["user_info"].get("is_admin")
     ):
         bot.add_response("Only the bot owner and admins can delete quotes.")

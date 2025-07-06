@@ -51,4 +51,6 @@ def run(bot, event):
         bot.add_response(f"Needs permissions: {helpperm}")
     except Exception as e:
         bot.logger.error(f"Error displaying help for module {module}: {e}")
-        bot.add_response(f"Error displaying help for module {module}. Please check the logs.")
+        bot.add_response(
+            f"Error displaying help for module {module}. Please check the logs."
+        )
