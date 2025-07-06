@@ -203,10 +203,12 @@ class PhreakBot(irc.bot.SingleServerIRCBot):
         """Load all modules from the modules directory"""
         self.logger.info("Loading modules...")
 
-        # Load core modules
-        for filename in os.listdir(self.modules_dir):
-            if filename.endswith(".py") and not filename.startswith("__"):
-                self.load_module(os.path.join(self.modules_dir, filename))
+        # Load modules from the modules directory
+        modules_dir = os.path.join(self.bot_base, "modules")
+        if os.path.exists(modules_dir):
+            for filename in os.listdir(modules_dir):
+                if filename.endswith(".py") and not filename.startswith("__"):
+                    self.load_module(os.path.join(modules_dir, filename))
 
         # Load extra modules
         if os.path.exists(self.extra_modules_dir):
