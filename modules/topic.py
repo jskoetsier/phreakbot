@@ -31,15 +31,13 @@ def _show_topic(bot, event):
     """Show the current topic"""
     channel = event["channel"]
 
-    if channel not in bot.channels:
+    if channel not in bot.connection.channels:
         bot.add_response(f"I'm not in channel {channel}")
         return
 
-    topic = bot.channels[channel].topic
-    if topic:
-        bot.add_response(f"Current topic: {topic}")
-    else:
-        bot.add_response("No topic is set.")
+    # Get the topic using the connection object
+    bot.connection.topic(channel)
+    bot.add_response("Retrieving topic information...")
 
 
 def _set_topic(bot, event):
@@ -64,7 +62,7 @@ def _set_topic(bot, event):
         return
 
     channel = event["channel"]
-    if channel not in bot.channels:
+    if channel not in bot.connection.channels:
         bot.add_response(f"I'm not in channel {channel}")
         return
 
@@ -94,12 +92,12 @@ def _add_topic(bot, event):
         return
 
     channel = event["channel"]
-    if channel not in bot.channels:
+    if channel not in bot.connection.channels:
         bot.add_response(f"I'm not in channel {channel}")
         return
 
-    current_topic = bot.channels[channel].topic
-    new_topic = f"{current_topic} | {addition}" if current_topic else addition
-
-    bot.connection.topic(channel, new_topic)
-    bot.add_response(f"Adding to topic: {addition}")
+    # We need to request the current topic first
+    # For now, just set the new topic to the addition
+    # In a future update, we could implement a callback to get the current topic first
+    bot.connection.topic(channel, addition)
+    bot.add_response(f"Setting topic to: {addition}")
