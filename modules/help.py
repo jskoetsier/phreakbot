@@ -46,14 +46,14 @@ def run(bot, event):
         
         # Handle help text that could be a string or a dictionary
         if isinstance(helptxt, dict):
-            # If it's a dictionary, join the command-specific help texts
-            help_lines = []
+            # If it's a dictionary, send each command-specific help text as a separate message
             for cmd, txt in helptxt.items():
-                help_lines.append(f"{cmd}: {txt}")
-            bot.add_response("\n".join(help_lines))
+                bot.add_response(f"{cmd}: {txt}")
         else:
-            # If it's a string, just display it
-            bot.add_response(f"{helptxt}")
+            # If it's a string, split by newlines and send each line as a separate message
+            for line in helptxt.split("\n"):
+                if line.strip():  # Only send non-empty lines
+                    bot.add_response(line)
         
         # Display commands and permissions
         if "commands" in bot.modules[module] and bot.modules[module]["commands"]:
