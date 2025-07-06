@@ -34,6 +34,10 @@ class PhreakBot(irc.bot.SingleServerIRCBot):
         self.db_connection = None
         self.re = re  # Expose re module for modules to use
         self.state = {}  # State dictionary for modules to use
+        
+        # Set up trigger regex for modules to use
+        self.trigger_re = re.compile(f'^{re.escape(self.config["trigger"])}')
+        self.bot_trigger_re = re.compile(f'^{re.escape(self.config["trigger"])}')
 
         # Set up logging
         logging.basicConfig(
