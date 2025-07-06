@@ -44,16 +44,18 @@ def run(bot, event):
         for channel_name, channel in bot.channels.items():
             # Get the users in the channel
             try:
-                # Get the channel's users dictionary
-                users_dict = channel.users()
-                bot.logger.info(f"Channel {channel_name} users: {list(users_dict.keys())}")
+                # Get the channel's users
+                users = channel.users()
+                bot.logger.info(f"Channel {channel_name} users: {list(users)}")
                 
-                # Directly access the channel's users dictionary
-                for nick, hostmask in users_dict.items():
-                    bot.logger.info(f"Checking user: {nick} with hostmask: {hostmask}")
-                    if nick.lower() == tnick.lower():
-                        tuserhost = hostmask
-                        bot.logger.info(f"Found user '{nick}' with hostmask '{tuserhost}'")
+                # Check if the user is in this channel (case insensitive)
+                for user in users:
+                    bot.logger.info(f"Checking user: {user}")
+                    if user.lower() == tnick.lower():
+                        # Get the user's hostmask from the channel
+                        # In the irc library, we need to use the channel's get_hostmask method
+                        tuserhost = f"{user}!{channel.get_hostmask(user)}"
+                        bot.logger.info(f"Found user '{user}' with hostmask '{tuserhost}'")
                         break
                 
                 if tuserhost:
