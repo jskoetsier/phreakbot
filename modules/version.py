@@ -11,7 +11,7 @@ def config(bot):
         "commands": ["v", "version"],
         "permissions": ["user"],
         "help": "Shows information about the bot.\n"
-               "Usage: !version - Display bot version and repository information",
+        "Usage: !version - Display bot version and repository information",
     }
 
 
