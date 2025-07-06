@@ -24,8 +24,12 @@ def run(bot, event):
         return
 
     if event["command"] == "load" or event["command"] == "reload":
-        result = bot.load_module(event["command_args"])
-        bot.add_response(result)
+        module_path = event["command_args"]
+        success = bot.load_module(module_path)
+        if success:
+            bot.add_response(f"Successfully loaded module: {module_path}")
+        else:
+            bot.add_response(f"Failed to load module: {module_path}")
         return
 
     if event["command"] == "unload":
