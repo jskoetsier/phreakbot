@@ -34,7 +34,7 @@ class PhreakBot(irc.bot.SingleServerIRCBot):
         self.db_connection = None
         self.re = re  # Expose re module for modules to use
         self.state = {}  # State dictionary for modules to use
-        
+
         # Set up trigger regex for modules to use
         self.trigger_re = re.compile(f'^{re.escape(self.config["trigger"])}')
         self.bot_trigger_re = re.compile(f'^{re.escape(self.config["trigger"])}')
@@ -222,8 +222,20 @@ class PhreakBot(irc.bot.SingleServerIRCBot):
 
         try:
             spec = importlib.util.spec_from_file_location(module_name, module_path)
+            if spec is None:
+                self.logger.error(
+                    f"Failed to load module {module_name}: Could not create spec from file location"
+                )
+                return False
+
             module_object = importlib.util.module_from_spec(spec)
             sys.modules[module_name] = module_object
+            if spec.loader is None:
+                self.logger.error(
+                    f"Failed to load module {module_name}: Spec loader is None"
+                )
+                return False
+
             spec.loader.exec_module(module_object)
 
             # Check if module has required functions
