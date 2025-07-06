@@ -1,12 +1,14 @@
 # Changelog
 
 ## [v0.1.0] - 2025-07-07
-- Replaced hardcoded owner in config file with database-based owner system
-- Added admin flag for the owner and ability to add additional admins
-- Implemented `!owner claim` command for claiming ownership
-- Fixed permission system to properly check user permissions
-- Added database persistence for user data and permissions
-- Rewrote all modules to use the new module structure
+- Initial version with database-based owner system
+- Added admin flag for owner
+- Added ability to add additional admins
+- Code cleanup
+- Fixed permission issues in various modules
+- Added database persistence
+- Improved version module to read from VERSION file
+- Updated CTCP VERSION reply to include GitHub URL
 - Added detailed logging throughout the application
 - Fixed topic module to work with the IRC library
 - Added command aliases for quotes module (q, aq, dq, sq)
