@@ -1,0 +1,136 @@
+DROP TABLE IF EXISTS wcb_quotes;
+DROP TABLE IF EXISTS wcb_karma_who;
+DROP TABLE IF EXISTS wcb_karma_why;
+DROP TABLE IF EXISTS wcb_karma;
+DROP TABLE IF EXISTS wcb_infoitems;
+DROP TABLE IF EXISTS wcb_perms;
+DROP TABLE IF EXISTS wcb_hostmasks;
+DROP TABLE IF EXISTS wcb_users;
+DROP TYPE wcb_karma_direction;
+
+CREATE TABLE wcb_users (
+    id SERIAL PRIMARY KEY,
+    username VARCHAR(64) UNIQUE NOT NULL,
+    dob DATE
+-- add more info?
+);
+
+CREATE TABLE wcb_hostmasks (
+    id SERIAL,
+
+    users_id INT NOT NULL,
+    hostmask VARCHAR(255) NOT NULL,
+
+    PRIMARY KEY (id, users_id, hostmask),
+
+    UNIQUE (hostmask),
+
+    CONSTRAINT wcb_users_id_fkey FOREIGN KEY (users_id)
+      REFERENCES wcb_users (id) MATCH SIMPLE
+      ON UPDATE NO ACTION ON DELETE NO ACTION
+);
+
+CREATE TABLE wcb_perms (
+    id SERIAL,
+
+    users_id INT NOT NULL,
+    permission VARCHAR(50) NOT NULL,
+    -- empty channel = global permission
+    channel VARCHAR(150) NOT NULL DEFAULT '',
+
+    PRIMARY KEY (id, users_id, permission, channel),
+
+    UNIQUE (users_id, permission), 
+
+    CONSTRAINT wcb_users_id_fkey FOREIGN KEY (users_id)
+      REFERENCES wcb_users (id) MATCH SIMPLE
+      ON UPDATE NO ACTION ON DELETE NO ACTION
+);
+
+CREATE TABLE wcb_infoitems (
+    id SERIAL,
+
+    users_id INT NOT NULL,
+
+    item TEXT NOT NULL,
+    value TEXT NOT NULL,
+    channel VARCHAR(150) NOT NULL,
+    insert_time timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    PRIMARY KEY (id),
+    UNIQUE (item, value, channel),
+    CONSTRAINT wcb_users_id_fkey FOREIGN KEY (users_id)
+      REFERENCES wcb_users (id) MATCH SIMPLE
+      ON UPDATE NO ACTION ON DELETE NO ACTION
+);
+
+CREATE TABLE wcb_karma (
+    id SERIAL UNIQUE,
+
+    item TEXT NOT NULL,
+    karma INT NOT NULL DEFAULT 0,
+    channel VARCHAR(150) NOT NULL,
+
+    PRIMARY KEY (id),
+    UNIQUE (item, channel)
+);
+
+CREATE TYPE wcb_karma_direction AS ENUM ('up', 'down');
+CREATE TABLE wcb_karma_why (
+    id SERIAL,
+
+    karma_id INT NOT NULL,
+
+    direction wcb_karma_direction NOT NULL,
+    reason TEXT NOT NULL,
+    channel VARCHAR(150) NOT NULL,
+
+    update_time TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    PRIMARY KEY (id, direction, reason, channel),
+    UNIQUE (karma_id, direction, reason, channel),
+
+    CONSTRAINT wcb_karma_id_fkey FOREIGN KEY (karma_id)
+      REFERENCES wcb_karma (id) MATCH SIMPLE
+      ON UPDATE NO ACTION ON DELETE NO ACTION
+);
+
+CREATE TABLE wcb_karma_who (
+    id SERIAL,
+
+    karma_id INT NOT NULL,
+    users_id INT NOT NULL,
+
+    direction wcb_karma_direction NOT NULL,
+    amount INT NOT NULL,
+
+    update_time timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    PRIMARY KEY (id, karma_id),
+    UNIQUE (karma_id, users_id, direction),
+
+    CONSTRAINT wcb_karma_id_fkey FOREIGN KEY (karma_id)
+      REFERENCES wcb_karma (id) MATCH SIMPLE
+      ON UPDATE NO ACTION ON DELETE NO ACTION,
+    CONSTRAINT wcb_users_id_fkey FOREIGN KEY (users_id)
+      REFERENCES wcb_users (id) MATCH SIMPLE
+      ON UPDATE NO ACTION ON DELETE NO ACTION
+);
+
+CREATE TABLE wcb_quotes (
+    id SERIAL,
+
+    users_id INT NOT NULL,
+    quote TEXT NOT NULL,
+    channel VARCHAR(150) NOT NULL,
+
+    insert_time timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    PRIMARY KEY (id),
+    CONSTRAINT wcb_users_id_fkey FOREIGN KEY (users_id)
+      REFERENCES wcb_users (id) MATCH SIMPLE
+      ON UPDATE NO ACTION ON DELETE NO ACTION
+);
+
+INSERT INTO wcb_users (username) VALUES ('gozerbot_import_user');
+INSERT INTO wcb_hostmasks (users_id, hostmask) VALUES (1, 'gozerbot_import_user');

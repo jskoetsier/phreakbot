@@ -1,0 +1,40 @@
+version: '3'
+
+services:
+  phreakbot:
+    build: .
+    restart: unless-stopped
+    depends_on:
+      - postgres
+    volumes:
+      - ./config:/app/config
+      - ./modules:/app/modules
+      - ./extra_modules:/app/extra_modules
+      - ./logs:/app/logs
+    environment:
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_USER=phreakbot
+      - DB_PASSWORD=phreakbot
+      - DB_NAME=phreakbot
+    command: >
+      sh -c "python install.py --server ${IRC_SERVER:-irc.libera.chat}
+             --port ${IRC_PORT:-6667}
+             --nickname ${IRC_NICKNAME:-PhreakBot}
+             --channel ${IRC_CHANNEL:-\#phreakbot}
+             --config /app/config/config.json &&
+             python phreakbot.py --config /app/config/config.json"
+
+  postgres:
+    image: postgres:14-alpine
+    restart: unless-stopped
+    environment:
+      - POSTGRES_USER=phreakbot
+      - POSTGRES_PASSWORD=phreakbot
+      - POSTGRES_DB=phreakbot
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./dbschema.psql:/docker-entrypoint-initdb.d/dbschema.psql:ro
+
+volumes:
+  postgres_data:
