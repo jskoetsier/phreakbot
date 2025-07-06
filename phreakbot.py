@@ -32,6 +32,7 @@ class PhreakBot(irc.bot.SingleServerIRCBot):
         self.modules = {}
         self.output = []
         self.db_connection = None
+        self.re = re  # Expose re module for modules to use
 
         # Set up logging
         logging.basicConfig(
