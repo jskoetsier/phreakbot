@@ -17,6 +17,8 @@ python install.py \
   --nickname "$IRC_NICKNAME" \
   --channel "$IRC_CHANNEL" \
   --owner "$OWNER_HOSTMASK" \
+  --remote-ssh "${REMOTE_SSH_COMMAND:-}" \
+  --remote-dir "${REMOTE_DIRECTORY:-/opt/phreakbot}" \
   --config /app/config/config.json
 
 # Start the bot

@@ -19,7 +19,6 @@ def create_config(args):
         "nickname": args.nickname,
         "realname": "PhreakBot IRC Bot",
         "channels": [args.channel],
-        "owner": args.owner,
         "trigger": "!",
         "max_output_lines": 3,
         "log_file": "phreakbot.log",
@@ -29,7 +28,14 @@ def create_config(args):
         "db_user": args.db_user,
         "db_password": args.db_password,
         "db_name": args.db_name,
+        # Remote deployment configuration
+        "remote_ssh_command": args.remote_ssh,
+        "remote_directory": args.remote_dir,
     }
+
+    # Add owner to config for backward compatibility if specified
+    if args.owner and args.owner != "*!user@host":
+        config["owner"] = args.owner
 
     # Create config directory if it doesn't exist
     os.makedirs(os.path.dirname(os.path.abspath(args.config)), exist_ok=True)
@@ -143,6 +149,17 @@ def main():
     )
     parser.add_argument(
         "--db-name", default="phreakbot", help="PostgreSQL database name"
+    )
+    # Remote deployment options
+    parser.add_argument(
+        "--remote-ssh",
+        default="",
+        help="SSH command for remote deployment (e.g., 'ssh user@server')",
+    )
+    parser.add_argument(
+        "--remote-dir",
+        default="/opt/phreakbot",
+        help="Remote directory path for deployment",
     )
     # Docker option (kept for backward compatibility)
     parser.add_argument(

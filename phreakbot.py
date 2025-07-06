@@ -420,31 +420,43 @@ class PhreakBot(irc.bot.SingleServerIRCBot):
         self._process_output(event)
 
     def _is_owner(self, hostmask):
-        """Check if a hostmask matches the owner pattern"""
-        if not self.config["owner"]:
+        """Check if a hostmask matches an owner in the database"""
+        if not self.db_connection:
             return False
 
-        owner_pattern = self.config["owner"]
-        if owner_pattern.startswith("*!"):
-            # Extract the user and host parts from the pattern
-            pattern_parts = owner_pattern[2:].split("@")
-            if len(pattern_parts) == 2:
-                pattern_user = pattern_parts[0]
-                pattern_host = pattern_parts[1]
+        try:
+            user_info = self.db_get_userinfo_by_userhost(hostmask)
+            if user_info and user_info.get("is_owner"):
+                return True
 
-                # Extract the user and host parts from the hostmask
-                hostmask_parts = hostmask.split("@")
-                if len(hostmask_parts) == 2:
-                    current_user = hostmask_parts[0]
-                    current_host = hostmask_parts[1]
+            # Fallback to config file if no owner in database
+            if "owner" in self.config and self.config["owner"]:
+                owner_pattern = self.config["owner"]
+                if owner_pattern.startswith("*!"):
+                    # Extract the user and host parts from the pattern
+                    pattern_parts = owner_pattern[2:].split("@")
+                    if len(pattern_parts) == 2:
+                        pattern_user = pattern_parts[0]
+                        pattern_host = pattern_parts[1]
 
-                    # Check if the pattern matches
-                    return (pattern_user == "*" or pattern_user == current_user) and (
-                        pattern_host == "*" or pattern_host == current_host
-                    )
+                        # Extract the user and host parts from the hostmask
+                        hostmask_parts = hostmask.split("@")
+                        if len(hostmask_parts) == 2:
+                            current_user = hostmask_parts[0]
+                            current_host = hostmask_parts[1]
 
-        # Legacy format - exact match
-        return hostmask == self.config["owner"]
+                            # Check if the pattern matches
+                            return (
+                                pattern_user == "*" or pattern_user == current_user
+                            ) and (pattern_host == "*" or pattern_host == current_host)
+
+                # Legacy format - exact match
+                return hostmask == self.config["owner"]
+
+            return False
+        except Exception as e:
+            self.logger.error(f"Error checking owner status: {e}")
+            return False
 
     def _check_permissions(self, event, required_permissions):
         """Check if the user has the required permissions"""

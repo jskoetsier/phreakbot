@@ -21,7 +21,9 @@ DROP TYPE IF EXISTS phreakbot_karma_direction;
 CREATE TABLE phreakbot_users (
     id SERIAL PRIMARY KEY,
     username VARCHAR(64) UNIQUE NOT NULL,
-    dob DATE
+    dob DATE,
+    is_admin BOOLEAN NOT NULL DEFAULT FALSE,
+    is_owner BOOLEAN NOT NULL DEFAULT FALSE
 );
 
 CREATE TABLE phreakbot_hostmasks (

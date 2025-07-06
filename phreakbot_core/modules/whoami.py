@@ -13,8 +13,12 @@ def run(bot, event):
 
     rtxt = f"You are {event['nick']} at {event['hostmask']}"
 
-    if event["hostmask"] == bot.config["owner"]:
+    if bot._is_owner(event["hostmask"]):
         rtxt += ", and YOU are my owner!"
+    elif event["user_info"] and event["user_info"].get("is_admin"):
+        rtxt += (
+            f", registered user {event['user_info']['username']} and you are an admin!"
+        )
     else:
         if event["user_info"] and event["user_info"].get("username"):
             rtxt += f", registered user {event['user_info']['username']}"
