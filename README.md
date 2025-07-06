@@ -1,6 +1,6 @@
-# PhreakBot
+# PhreakBot (v0.0.1)
 
-PhreakBot is a modular IRC bot written in Python. It's designed to be easy to set up and extend with custom plugins.
+PhreakBot is a modular IRC bot written in Python with database-based user management.
 
 This is a modular IRC bot that runs exclusively in Docker, providing a consistent and isolated environment across different operating systems.
 

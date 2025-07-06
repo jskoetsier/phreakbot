@@ -28,10 +28,12 @@ def run(bot, event):
     if event["command"] == "join":
         # Check permissions
         if not bot.check_permission(event, "join"):
-            bot.logger.info(f"Permission denied for {event['nick']} to use join command")
+            bot.logger.info(
+                f"Permission denied for {event['nick']} to use join command"
+            )
             bot.add_response("You don't have permission to make the bot join channels.")
             return
-            
+
         chan = event["command_args"]
         if not chan:
             bot.add_response("Please specify a channel to join.")
@@ -46,10 +48,14 @@ def run(bot, event):
     if event["command"] == "part":
         # Check permissions
         if not bot.check_permission(event, "part"):
-            bot.logger.info(f"Permission denied for {event['nick']} to use part command")
-            bot.add_response("You don't have permission to make the bot leave channels.")
+            bot.logger.info(
+                f"Permission denied for {event['nick']} to use part command"
+            )
+            bot.add_response(
+                "You don't have permission to make the bot leave channels."
+            )
             return
-            
+
         chan = event["command_args"]
         if not chan:
             chan = event["channel"]
