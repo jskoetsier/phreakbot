@@ -15,12 +15,9 @@ def config(pb):
     """Return module configuration"""
     return {
         "events": [],
-        "commands": ["url", "snarf", "@"],
+        "commands": ["url", "snarf", "at"],
         "permissions": ["user"],
-        "help": "Fetch the description of a URL.\n"
-                "Usage: !@ <url> - Fetch the description of the given URL\n"
-                "       !url <url> - Same as !@\n"
-                "       !snarf <url> - Same as !@",
+        "help": "Fetch the description of a URL",
     }
 
 
@@ -36,7 +33,7 @@ def run(pb, event):
         
         if not url:
             pb.logger.info("No URL provided")
-            pb.say(event["channel"], "Please provide a URL to fetch the description.")
+            pb.add_response("Please provide a URL to fetch the description.")
             return
 
         # Add http:// prefix if missing
@@ -55,19 +52,19 @@ def run(pb, event):
 
             # Display the results
             if title:
-                pb.say(event["channel"], f"Title: {title}")
+                pb.add_response(f"Title: {title}")
                 pb.logger.info(f"Added title response: {title}")
 
             if description:
-                pb.say(event["channel"], f"Description: {description}")
+                pb.add_response(f"Description: {description}")
                 pb.logger.info(f"Added description response: {description}")
             else:
-                pb.say(event["channel"], "No description found for this URL.")
+                pb.add_response("No description found for this URL.")
                 pb.logger.info("No description found")
 
         except Exception as e:
             pb.logger.error(f"Error fetching URL info: {e}")
-            pb.say(event["channel"], f"Error fetching information from URL: {str(e)}")
+            pb.add_response(f"Error fetching information from URL: {str(e)}")
             import traceback
             pb.logger.error(f"Traceback: {traceback.format_exc()}")
     
@@ -77,7 +74,7 @@ def run(pb, event):
         import traceback
         pb.logger.error(f"Critical traceback: {traceback.format_exc()}")
         try:
-            pb.say(event["channel"], "An error occurred while processing the URL.")
+            pb.add_response("An error occurred while processing the URL.")
         except:
             pass
 
