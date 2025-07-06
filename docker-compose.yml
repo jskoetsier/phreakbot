@@ -11,6 +11,7 @@ services:
       - ./modules:/app/modules
       - ./extra_modules:/app/extra_modules
       - ./logs:/app/logs
+      - ./startup.sh:/app/startup.sh
     environment:
       - DB_HOST=postgres
       - DB_PORT=5432
@@ -22,9 +23,7 @@ services:
       - IRC_NICKNAME=${IRC_NICKNAME:-PhreakBot}
       - IRC_CHANNEL=${IRC_CHANNEL:-#phreakbot}
       - OWNER_HOSTMASK=${OWNER_HOSTMASK:-*!user@host}
-    command: >
-      sh -c "python install.py --server \"$$IRC_SERVER\" --port \"$$IRC_PORT\" --nickname \"$$IRC_NICKNAME\" --channel \"$$IRC_CHANNEL\" --owner \"$$OWNER_HOSTMASK\" --config /app/config/config.json &&
-             python phreakbot.py --config /app/config/config.json"
+    command: /app/startup.sh
 
   postgres:
     image: postgres:14-alpine
