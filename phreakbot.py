@@ -513,6 +513,11 @@ class PhreakBot(irc.bot.SingleServerIRCBot):
             f"Checking permissions: {required_permissions} for user {event['nick']}"
         )
 
+        # Skip permission checks for the bot itself
+        if event['nick'] == self.connection.get_nickname():
+            self.logger.info("Skipping permission check for the bot itself")
+            return True
+
         # Special case: Always allow the owner claim command
         if (
             event["trigger"] == "command"
