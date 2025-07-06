@@ -445,7 +445,7 @@ class PhreakBot(irc.bot.SingleServerIRCBot):
     def _check_permissions(self, event, required_permissions):
         """Check if the user has the required permissions"""
         # Owner always has all permissions
-        if self.config["owner"] and self._is_owner(event["hostmask"]):
+        if self._is_owner(event["hostmask"]):
             return True
 
         # Check database permissions if available

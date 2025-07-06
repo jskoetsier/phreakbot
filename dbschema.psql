@@ -41,7 +41,7 @@ CREATE TABLE phreakbot_perms (
 
     PRIMARY KEY (id, users_id, permission, channel),
 
-    UNIQUE (users_id, permission),
+    UNIQUE (users_id, permission, channel),
 
     CONSTRAINT phreakbot_users_id_fkey FOREIGN KEY (users_id)
       REFERENCES phreakbot_users (id) MATCH SIMPLE
