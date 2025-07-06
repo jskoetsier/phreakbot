@@ -52,10 +52,11 @@ def run(bot, event):
                 for user in users:
                     bot.logger.info(f"Checking user: {user}")
                     if user.lower() == tnick.lower():
-                        # Get the user's hostmask from the channel
-                        # In the irc library, we need to use the channel's get_hostmask method
-                        tuserhost = f"{user}!{channel.get_hostmask(user)}"
-                        bot.logger.info(f"Found user '{user}' with hostmask '{tuserhost}'")
+                        # Since we can't get the hostmask directly, we'll create a generic one
+                        # Format: nickname!username@hostname
+                        # We'll use the nickname for both the nickname and username parts
+                        tuserhost = f"{user}!{user}@{bot.connection.server}"
+                        bot.logger.info(f"Found user '{user}' with generated hostmask '{tuserhost}'")
                         break
                 
                 if tuserhost:
