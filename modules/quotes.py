@@ -10,10 +10,10 @@ def config(bot):
     """Return module configuration"""
     return {
         "events": [],
-        "commands": ["quote", "q", "addquote", "aq", "delquote", "dq"],
+        "commands": ["quote", "q", "sq", "addquote", "aq", "delquote", "dq"],
         "permissions": ["user"],
         "help": "Manage and display quotes.\n"
-        "Usage: !quote or !q [id|search term] - Show a random quote or search for quotes\n"
+        "Usage: !quote, !q, or !sq [id|search term] - Show a random quote or search for quotes\n"
         "       !addquote or !aq <text> - Add a new quote\n"
         "       !delquote or !dq <id> - Delete a quote (owner/admin only)",
     }
@@ -26,7 +26,7 @@ def run(bot, event):
         return
 
     try:
-        if event["command"] in ["quote", "q"]:
+        if event["command"] in ["quote", "q", "sq"]:
             _show_quote(bot, event)
         elif event["command"] in ["addquote", "aq"]:
             _add_quote(bot, event)
