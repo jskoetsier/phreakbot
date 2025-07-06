@@ -16,25 +16,25 @@ echo ""
 echo "Connecting to remote server..."
 ssh $REMOTE_SERVER << 'EOF'
     cd /opt/phreakbot
-    
+
     echo "===== Pulling latest changes from GitHub ====="
     git pull
-    
+
     echo "===== Stopping containers ====="
     docker-compose down
-    
+
     echo "===== Rebuilding PhreakBot container ====="
     docker-compose build --no-cache phreakbot
-    
+
     echo "===== Starting containers ====="
     docker-compose up -d
-    
+
     echo "===== Waiting for containers to start ====="
     sleep 5
-    
+
     echo "===== Container status ====="
     docker-compose ps
-    
+
     echo "===== Recent logs ====="
     docker-compose logs --tail 20 phreakbot
 EOF

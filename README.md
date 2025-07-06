@@ -107,6 +107,25 @@ docker-compose down
 docker-compose up -d
 ```
 
+### Setting the Owner Hostmask
+
+To set yourself as the owner of the bot, you need to know your IRC hostmask. You can find this by:
+
+1. Joining the same channel as the bot
+2. Using the `!whoami` command to see your current hostmask
+3. Using the provided script to set yourself as the owner:
+
+```bash
+./set-owner.sh '*!your_user@your.host'
+```
+
+For example, if your hostmask is `^phreak@vuurstorm.nl`, you would run:
+```bash
+./set-owner.sh '*!^phreak@vuurstorm.nl'
+```
+
+This will update the environment variable and restart the bot with you as the owner.
+
 ## Creating Plugins
 
 Plugins (or modules) are Python files that define two functions:
@@ -185,6 +204,7 @@ The bot comes with several built-in commands:
 - `!help [module]`: Show help for a module
 - `!avail`: List all available modules
 - `!owner`: Show the current bot owner (set in the configuration file)
+- `!whoami`: Show your current hostmask (useful for setting up ownership)
 
 ## Updating PhreakBot
 

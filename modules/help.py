@@ -35,7 +35,9 @@ def run(bot, event):
         return
 
     if module not in bot.modules:
-        bot.add_response(f"A module named '{module}' was not found! Try the !avail command!")
+        bot.add_response(
+            f"A module named '{module}' was not found! Try the !avail command!"
+        )
         return
 
     # Display module help information
