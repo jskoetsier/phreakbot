@@ -1,5 +1,12 @@
 # Changelog
 
+## [v0.1.4] - 2025-07-10
+- Fixed meet module to properly handle user registration
+- Improved user detection in channels
+- Added robust error handling for IRC library interactions
+- Fixed snarf module to support direct !@ command for URL descriptions
+- Enhanced logging throughout the application for better debugging
+
 ## [v0.1.3] - 2025-07-09
 - Added snarf module to fetch descriptions from URLs
 - Added multiple command aliases (!at, !url, !snarf) for URL description fetching

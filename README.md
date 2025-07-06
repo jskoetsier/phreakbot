@@ -1,14 +1,18 @@
-# PhreakBot (v0.1.0)
+# PhreakBot (v0.1.4)
 
 PhreakBot is a modular IRC bot written in Python.
 
 ## Features
 
-- Modular design
-- Permission system
-- Quote database
-- URL title fetching
-- Channel management
+- Modular design with easy-to-add modules
+- Permission system with owner, admin, and user levels
+- Quote database with search functionality
+- URL title and description fetching
+- Channel management (join, part, topic)
+- User registration and management
+- Auto-op functionality
+- CTCP version support
+- Robust error handling and logging
 - And more!
 
 ## Installation
