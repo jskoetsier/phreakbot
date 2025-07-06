@@ -14,7 +14,7 @@ def config(bot):
         "permissions": ["user"],
         "help": "Manage bot ownership and admin privileges.\n"
         "Usage: !owner - Show current owner\n"
-        "       !owner claim <unique_id> - Claim ownership of the bot\n"
+        "       !owner claim - Claim ownership of the bot (if no owner exists)\n"
         "       !admin list - List all admins\n"
         "       !admin add <username> - Add a user as admin (owner only)\n"
         "       !admin remove <username> - Remove admin privileges (owner only)",
@@ -31,9 +31,9 @@ def run(bot, event):
         if not args:
             # Show current owner
             _show_owner(bot, event)
-        elif args[0] == "claim" and len(args) > 1:
+        elif args[0] == "claim":
             # Claim ownership
-            _claim_ownership(bot, event, args[1])
+            _claim_ownership(bot, event)
 
     # Handle admin commands
     elif command == "admin":
@@ -71,14 +71,14 @@ def _show_owner(bot, event):
                 bot.add_response(f"I am owned by {bot.config['owner']} (legacy config)")
             else:
                 bot.add_response(
-                    "This bot has no owner. Use !owner claim <unique_id> to claim ownership."
+                    "This bot has no owner. Use !owner claim to claim ownership."
                 )
     except Exception as e:
         bot.logger.error(f"Database error in _show_owner: {e}")
         bot.add_response("Error retrieving owner information.")
 
 
-def _claim_ownership(bot, event, unique_id):
+def _claim_ownership(bot, event):
     """Claim ownership of the bot"""
     # Check if there's already an owner in the database
     if not bot.db_connection:
@@ -95,24 +95,6 @@ def _claim_ownership(bot, event, unique_id):
             bot.add_response("This bot already has an owner.")
             cur.close()
             return
-
-        # Verify unique ID if this is a new owner claim
-        if owner_count == 0:
-            # Generate a unique ID if it doesn't exist
-            if not bot.state.get("bot_uniqueid"):
-                bot.state["bot_uniqueid"] = "".join(
-                    random.choices(
-                        "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789",
-                        k=16,
-                    )
-                )
-
-            if unique_id != bot.state["bot_uniqueid"]:
-                bot.add_response(
-                    "Sorry, that is not the correct ID to claim ownership."
-                )
-                cur.close()
-                return
 
         # Get user info or create new user
         user_info = event["user_info"]
