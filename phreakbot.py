@@ -382,7 +382,10 @@ class PhreakBot(irc.bot.SingleServerIRCBot):
                             module["object"].run(self, event)
                             handled = True
                         except Exception as e:
+                            import traceback
+
                             self.logger.error(f"Error in module {module_name}: {e}")
+                            self.logger.error(f"Traceback: {traceback.format_exc()}")
 
         # Then try modules that handle events
         if not handled and event["trigger"] == "event":
