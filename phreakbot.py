@@ -349,12 +349,22 @@ class PhreakBot(irc.bot.SingleServerIRCBot):
             f'^{re.escape(self.config["trigger"])}([-a-zA-Z0-9]+)(?:\\s(.*))?$'
         )
 
+        # Debug message parsing
+        self.logger.info(f"Processing message: '{message}'")
+        self.logger.info(f"Trigger regex: '{trigger_re.pattern}'")
+        self.logger.info(f"Command regex: '{command_re.pattern}'")
+        self.logger.info(f"Trigger match: {bool(trigger_re.match(message))}")
+
         if trigger_re.match(message):
             match = command_re.match(message)
+            self.logger.info(f"Command match: {bool(match)}")
             if match:
                 event_obj["command"] = match.group(1).lower()
                 event_obj["command_args"] = match.group(2) or ""
                 event_obj["trigger"] = "command"
+                self.logger.info(
+                    f"Parsed command: '{event_obj['command']}' with args: '{event_obj['command_args']}'"
+                )
 
                 # Find modules that handle this command
                 self._route_to_modules(event_obj)
@@ -436,6 +446,14 @@ class PhreakBot(irc.bot.SingleServerIRCBot):
             # Log the hostmask for debugging
             self.logger.info(f"Checking owner status for hostmask: {hostmask}")
 
+            # Try to normalize the hostmask by removing the caret if present
+            normalized_hostmask = hostmask
+            if "!" in hostmask:
+                parts = hostmask.split("!")
+                if len(parts) == 2 and parts[1].startswith("^"):
+                    normalized_hostmask = f"{parts[0]}!{parts[1][1:]}"
+                    self.logger.info(f"Normalized hostmask: {normalized_hostmask}")
+
             # Check if the user is an owner in the database
             user_info = self.db_get_userinfo_by_userhost(hostmask)
             if user_info and user_info.get("is_owner"):
@@ -443,6 +461,15 @@ class PhreakBot(irc.bot.SingleServerIRCBot):
                     f"User with hostmask {hostmask} is an owner in the database"
                 )
                 return True
+
+            # Try with normalized hostmask if different
+            if normalized_hostmask != hostmask:
+                user_info = self.db_get_userinfo_by_userhost(normalized_hostmask)
+                if user_info and user_info.get("is_owner"):
+                    self.logger.info(
+                        f"User with normalized hostmask {normalized_hostmask} is an owner in the database"
+                    )
+                    return True
 
             self.logger.info(f"User with hostmask {hostmask} is not an owner")
             return False
