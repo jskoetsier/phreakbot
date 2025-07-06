@@ -10,10 +10,7 @@ def config(bot):
         "events": [],
         "commands": ["topic", "settopic", "addtopic"],
         "permissions": ["user", "topic"],
-        "help": "Manage channel topics.\n"
-        "Usage: !topic - Show the current topic\n"
-        "       !settopic <text> - Set a new topic (requires topic permission)\n"
-        "       !addtopic <text> - Add text to the current topic (requires topic permission)",
+        "help": "Manage channel topics. Usage: !topic - Show the current topic. !settopic <text> - Set a new topic (requires topic permission). !addtopic <text> - Add text to the current topic (requires topic permission).",
     }
 
 
