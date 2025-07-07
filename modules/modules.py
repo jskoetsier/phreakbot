@@ -42,12 +42,28 @@ def run(bot, event):
         return
 
     if event["command"] == "load" or event["command"] == "reload":
-        module_path = event["command_args"]
+        module_name = event["command_args"]
+        
+        # Check if this is a reload and the module is already loaded
+        if event["command"] == "reload" and module_name in bot.modules:
+            # Unload the module first
+            bot.unload_module(module_name)
+            
+        # Construct the full path to the module
+        import os
+        module_path = os.path.join(bot.bot_base, "modules", f"{module_name}.py")
+        
+        # Check if the file exists
+        if not os.path.exists(module_path):
+            bot.add_response(f"Module file not found: {module_path}")
+            return
+            
+        # Try to load the module
         success = bot.load_module(module_path)
         if success:
-            bot.add_response(f"Successfully loaded module: {module_path}")
+            bot.add_response(f"Successfully loaded module: {module_name}")
         else:
-            bot.add_response(f"Failed to load module: {module_path}")
+            bot.add_response(f"Failed to load module: {module_name}")
         return
 
     if event["command"] == "unload":
