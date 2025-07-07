@@ -1,5 +1,12 @@
 # Changelog
 
+## [v0.1.8] - 2025-07-14
+- Added lockdown module for emergency channel security
+- Enhanced channel security with comprehensive lockdown features
+- Added ability to kick unregistered users during security incidents
+- Added automatic operator status for admins and owners during lockdown
+- Added channel key setting for additional security during incidents
+
 ## [v0.1.7] - 2025-07-13
 - Added autovoice module to automatically give voice status to users when they join
 - Added IP lookup module with detailed information about IP addresses and hostnames
