@@ -11,13 +11,15 @@ def config(bot):
     """Return module configuration"""
     return {
         "events": ["join"],  # Check birthdays when users join
-        "commands": ["bd", "bd-set"],
+        "commands": ["bd", "bd-set", "age"],
         "permissions": ["user"],
         "help": "Birthday management and notifications.\n"
         "Usage: !bd - List upcoming birthdays\n"
         "       !bd <nickname> - Show a specific user's birthday\n"
         "       !bd-set DD-MM-YYYY - Set your own birthday\n"
-        "       !bd-today - Show today's birthdays",
+        "       !bd-today - Show today's birthdays\n"
+        "       !age - Show your age in years, weeks, and days\n"
+        "       !age <nickname> - Show someone else's age in years, weeks, and days",
     }
 
 
@@ -29,7 +31,9 @@ def run(bot, event):
             _set_birthday(bot, event)
         elif event["command"] == "bd":
             _show_birthdays(bot, event)
-    
+        elif event["command"] == "age":
+            _show_age(bot, event)
+
     # Handle events - check for birthdays when users join
     elif event["trigger"] == "event" and event["signal"] == "join":
         # Only check once per day per channel when the bot joins
@@ -46,23 +50,23 @@ def _set_birthday(bot, event):
 
     # Get the date from the command arguments
     date_str = event["command_args"].strip()
-    
+
     # Validate the date format (DD-MM-YYYY)
     if not re.match(r"^\d{2}-\d{2}-\d{4}$", date_str):
         bot.add_response("Invalid date format. Please use DD-MM-YYYY format (e.g., 31-12-1990).")
         return
-    
+
     try:
         # Parse the date
         day, month, year = map(int, date_str.split("-"))
         dob = datetime.date(year, month, day)
-        
+
         # Check if the date is valid and not in the future
         today = datetime.date.today()
         if dob > today:
             bot.add_response("Birthday cannot be in the future.")
             return
-        
+
         # Update the user's birthday in the database
         if bot.db_connection:
             try:
@@ -73,7 +77,7 @@ def _set_birthday(bot, event):
                 )
                 bot.db_connection.commit()
                 cur.close()
-                
+
                 bot.add_response(f"Your birthday has been set to {dob.strftime('%d-%m-%Y')}.")
             except Exception as e:
                 bot.logger.error(f"Database error in birthday module: {e}")
@@ -89,12 +93,12 @@ def _show_birthdays(bot, event):
     if not bot.db_connection:
         bot.add_response("Database connection is not available.")
         return
-    
+
     args = event["command_args"].strip()
-    
+
     try:
         cur = bot.db_connection.cursor()
-        
+
         # If a nickname is provided, show that user's birthday
         if args:
             cur.execute(
@@ -102,17 +106,17 @@ def _show_birthdays(bot, event):
                 (args,)
             )
             user = cur.fetchone()
-            
+
             if user:
                 username, dob = user
                 bot.add_response(f"{username}'s birthday is on {dob.strftime('%d-%m-%Y')}.")
             else:
                 bot.add_response(f"No birthday information found for '{args}'.")
-        
+
         # Otherwise, show upcoming birthdays
         else:
             today = datetime.date.today()
-            
+
             # Get users with birthdays in the next 30 days
             cur.execute(
                 """
@@ -121,38 +125,38 @@ def _show_birthdays(bot, event):
                        EXTRACT(MONTH FROM dob) as month
                 FROM phreakbot_users
                 WHERE dob IS NOT NULL
-                ORDER BY 
+                ORDER BY
                     EXTRACT(MONTH FROM dob),
                     EXTRACT(DAY FROM dob)
                 """
             )
-            
+
             users = cur.fetchall()
-            
+
             if users:
                 upcoming = []
                 today_month = today.month
                 today_day = today.day
-                
+
                 for username, dob, day, month in users:
                     # Calculate days until next birthday
                     next_birthday = datetime.date(today.year, int(month), int(day))
                     if next_birthday < today:
                         next_birthday = datetime.date(today.year + 1, int(month), int(day))
-                    
+
                     days_until = (next_birthday - today).days
-                    
+
                     if days_until <= 30:
                         age = today.year - dob.year
                         if today < datetime.date(today.year, dob.month, dob.day):
                             age -= 1
-                        
+
                         upcoming.append((username, dob, days_until, age + 1))
-                
+
                 if upcoming:
                     # Sort by days until birthday
                     upcoming.sort(key=lambda x: x[2])
-                    
+
                     bot.add_response("Upcoming birthdays in the next 30 days:")
                     for username, dob, days, next_age in upcoming:
                         if days == 0:
@@ -163,9 +167,95 @@ def _show_birthdays(bot, event):
                     bot.add_response("No upcoming birthdays in the next 30 days.")
             else:
                 bot.add_response("No birthdays have been set yet.")
-        
+
         cur.close()
-    
+
+    except Exception as e:
+        bot.logger.error(f"Database error in birthday module: {e}")
+        bot.add_response("Error retrieving birthday information.")
+
+
+def _show_age(bot, event):
+    """Show a user's age in years, weeks, and days"""
+    if not bot.db_connection:
+        bot.add_response("Database connection is not available.")
+        return
+
+    args = event["command_args"].strip()
+
+    try:
+        cur = bot.db_connection.cursor()
+
+        # If a nickname is provided, show that user's age
+        if args:
+            cur.execute(
+                "SELECT username, dob FROM phreakbot_users WHERE username ILIKE %s AND dob IS NOT NULL",
+                (args,)
+            )
+            user = cur.fetchone()
+        # Otherwise, show the requester's age
+        elif event["user_info"]:
+            cur.execute(
+                "SELECT username, dob FROM phreakbot_users WHERE id = %s AND dob IS NOT NULL",
+                (event["user_info"]["id"],)
+            )
+            user = cur.fetchone()
+        else:
+            bot.add_response("You need to be a registered user to use this command. Use !meet to register.")
+            cur.close()
+            return
+
+        if user:
+            username, dob = user
+            today = datetime.date.today()
+
+            # Calculate age in years
+            years = today.year - dob.year
+            if today.month < dob.month or (today.month == dob.month and today.day < dob.day):
+                years -= 1
+
+            # Calculate the exact date difference
+            birth_date_this_year = datetime.date(today.year, dob.month, dob.day)
+            if birth_date_this_year > today:
+                birth_date_this_year = datetime.date(today.year - 1, dob.month, dob.day)
+
+            # Calculate days since last birthday
+            days_since_birthday = (today - birth_date_this_year).days
+
+            # Calculate weeks and remaining days
+            weeks = days_since_birthday // 7
+            remaining_days = days_since_birthday % 7
+
+            # Format the age string
+            age_str = f"{years} years"
+            if weeks > 0:
+                age_str += f", {weeks} weeks"
+            if remaining_days > 0:
+                age_str += f", {remaining_days} days"
+
+            bot.add_response(f"{username} is {age_str} old.")
+
+            # Calculate days until next birthday
+            next_birthday = datetime.date(today.year, dob.month, dob.day)
+            if next_birthday < today:
+                next_birthday = datetime.date(today.year + 1, dob.month, dob.day)
+
+            days_until = (next_birthday - today).days
+
+            if days_until == 0:
+                bot.add_response(f"🎂 Today is {username}'s birthday! 🎉")
+            elif days_until == 1:
+                bot.add_response(f"Tomorrow is {username}'s birthday!")
+            else:
+                bot.add_response(f"{username}'s next birthday is in {days_until} days.")
+        else:
+            if args:
+                bot.add_response(f"No birthday information found for '{args}'.")
+            else:
+                bot.add_response("You haven't set your birthday yet. Use !bd-set DD-MM-YYYY to set it.")
+
+        cur.close()
+
     except Exception as e:
         bot.logger.error(f"Database error in birthday module: {e}")
         bot.add_response("Error retrieving birthday information.")
@@ -175,32 +265,32 @@ def _check_todays_birthdays(bot, channel):
     """Check for birthdays today and send congratulations"""
     if not bot.db_connection:
         return
-    
+
     try:
         today = datetime.date.today()
-        
+
         cur = bot.db_connection.cursor()
         cur.execute(
             """
             SELECT username, dob
             FROM phreakbot_users
-            WHERE 
+            WHERE
                 dob IS NOT NULL AND
                 EXTRACT(DAY FROM dob) = %s AND
                 EXTRACT(MONTH FROM dob) = %s
             """,
             (today.day, today.month)
         )
-        
+
         birthday_users = cur.fetchall()
         cur.close()
-        
+
         if birthday_users:
             bot.add_response(f"🎂 Today's Birthdays 🎂", private=False)
-            
+
             for username, dob in birthday_users:
                 age = today.year - dob.year
                 bot.add_response(f"Happy {age}th Birthday to {username}! 🎉🎈🎁", private=False)
-    
+
     except Exception as e:
         bot.logger.error(f"Error checking today's birthdays: {e}")
