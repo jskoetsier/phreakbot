@@ -34,7 +34,7 @@ def run(bot, event):
             # Get the users in the channel
             users = channel.users()
             bot.logger.info(f"Channel {channel_name} users: {list(users)}")
-            
+
             # Check if the user is in this channel (case insensitive)
             for user in users:
                 if user.lower() == tnick.lower():
@@ -44,7 +44,7 @@ def run(bot, event):
                     tuserhost = f"{user}!{user}@{bot.connection.server}"
                     bot.logger.info(f"Found user '{user}' with generated hostmask '{tuserhost}'")
                     break
-            
+
             if tuserhost:
                 break
         except Exception as e:
@@ -64,10 +64,7 @@ def run(bot, event):
         return
 
     try:
-        # Check by hostmask
-        user_by_hostmask = bot.db_get_userinfo_by_userhost(tuserhost)
-
-        # Check by username
+        # First check by username since we know the generated hostmask might not match
         cur = bot.db_connection.cursor()
         cur.execute(
             "SELECT * FROM phreakbot_users WHERE username ILIKE %s", (tnick.lower(),)
@@ -75,32 +72,91 @@ def run(bot, event):
         user_by_username = cur.fetchone()
         cur.close()
 
-        if user_by_hostmask:
-            bot.add_response(
-                f"Recognized by hostmask as user '{user_by_hostmask['username']}'"
+        if user_by_username:
+            # Get full user info by ID
+            cur = bot.db_connection.cursor()
+            cur.execute(
+                "SELECT * FROM phreakbot_users WHERE id = %s", (user_by_username[0],)
             )
+            user_info = cur.fetchone()
+            cur.close()
+
+            # Get user permissions
+            cur = bot.db_connection.cursor()
+            cur.execute(
+                "SELECT permission, channel FROM phreakbot_perms WHERE users_id = %s",
+                (user_info[0],),
+            )
+            permissions = cur.fetchall()
+            cur.close()
+
+            # Get user hostmasks
+            cur = bot.db_connection.cursor()
+            cur.execute(
+                "SELECT hostmask FROM phreakbot_hostmasks WHERE users_id = %s",
+                (user_info[0],),
+            )
+            hostmasks = [row[0] for row in cur.fetchall()]
+            cur.close()
+
+            # Display user info
+            bot.add_response(f"Recognized as user '{user_info[1]}'")
 
             # Show permissions
-            perms_text = "With "
-            if user_by_hostmask["permissions"]["global"]:
-                perms_text += f"global perms ({', '.join(user_by_hostmask['permissions']['global'])})"
+            global_perms = []
+            channel_perms = {}
+            for perm in permissions:
+                if not perm[1] or perm[1] == "":
+                    global_perms.append(perm[0])
+                else:
+                    if perm[1] not in channel_perms:
+                        channel_perms[perm[1]] = []
+                    channel_perms[perm[1]].append(perm[0])
 
-                channel = event["channel"]
-                if channel in user_by_hostmask["permissions"]:
-                    perms_text += f" and '{channel}' perms ({', '.join(user_by_hostmask['permissions'][channel])})"
+            if global_perms:
+                bot.add_response(f"Global permissions: {', '.join(global_perms)}")
 
-            bot.add_response(perms_text)
+            channel = event["channel"]
+            if channel in channel_perms:
+                bot.add_response(
+                    f"Channel permissions for {channel}: {', '.join(channel_perms[channel])}"
+                )
 
             # Show hostmasks
-            hostmasks_text = f"Hostmasks: {', '.join(user_by_hostmask['hostmasks'])}"
-            bot.add_response(hostmasks_text)
+            if hostmasks:
+                bot.add_response(f"Hostmasks: {', '.join(hostmasks)}")
 
-        elif not user_by_hostmask and user_by_username:
-            bot.add_response(
-                f"Unrecognized user. But a user named '{tnick}' exists. Perhaps use !merge?"
-            )
+            # Show owner/admin status
+            if user_info[4]:  # is_owner
+                bot.add_response("This user is the bot owner.")
+            elif user_info[3]:  # is_admin
+                bot.add_response("This user is a bot admin.")
+
         else:
-            bot.add_response("Unrecognized user.")
+            # Try by hostmask as a fallback
+            user_by_hostmask = bot.db_get_userinfo_by_userhost(tuserhost)
+            
+            if user_by_hostmask:
+                bot.add_response(
+                    f"Recognized by hostmask as user '{user_by_hostmask['username']}'"
+                )
+
+                # Show permissions
+                perms_text = "With "
+                if user_by_hostmask["permissions"]["global"]:
+                    perms_text += f"global perms ({', '.join(user_by_hostmask['permissions']['global'])})"
+
+                    channel = event["channel"]
+                    if channel in user_by_hostmask["permissions"]:
+                        perms_text += f" and '{channel}' perms ({', '.join(user_by_hostmask['permissions'][channel])})"
+
+                bot.add_response(perms_text)
+
+                # Show hostmasks
+                hostmasks_text = f"Hostmasks: {', '.join(user_by_hostmask['hostmasks'])}"
+                bot.add_response(hostmasks_text)
+            else:
+                bot.add_response("Unrecognized user.")
 
     except Exception as e:
         bot.logger.error(f"Database error in whois module: {e}")
