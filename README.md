@@ -1,4 +1,4 @@
-# PhreakBot (v0.1.4)
+# PhreakBot (v0.1.5)
 
 PhreakBot is a modular IRC bot written in Python.
 
@@ -50,13 +50,16 @@ Edit `config.json` to configure the bot:
 
 When the bot first starts, use the `!owner claim` command to claim ownership of the bot. This will grant you admin privileges and allow you to manage the bot.
 
-## Adding Modules
+## Module Development
 
 Modules are stored in the `modules` directory. Each module should have a `config` function that returns a dictionary with the following keys:
 
 - `events`: List of IRC events to listen for
 - `commands`: List of commands the module provides
+- `permissions`: List of permissions required to use the module
 - `help`: Help text for the module
+
+For detailed information on how to create your own modules, see the [Module Development Guide](MODULE_DEVELOPMENT_GUIDE.md).
 
 ## Contributing
 
