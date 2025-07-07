@@ -1,5 +1,12 @@
 # Changelog
 
+## [v0.1.7] - 2025-07-13
+- Added autovoice module to automatically give voice status to users when they join
+- Added IP lookup module with detailed information about IP addresses and hostnames
+- Added ASN lookup module for network information
+- Updated database schema to include phreakbot_autovoice table
+- Improved error handling in network-related modules
+
 ## [v0.1.6] - 2025-07-12
 - Added birthday module with comprehensive birthday tracking and management
 - Added !bd-set command to allow users to set their birthday in DD-MM-YYYY format
