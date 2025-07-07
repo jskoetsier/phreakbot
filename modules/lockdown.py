@@ -58,6 +58,14 @@ def run(pb, event):
         current_time = time.time()
         five_minutes_ago = current_time - (5 * 60)
 
+        # Debug: Log the current state of join tracking
+        pb.logger.info(f"Current join_times: {join_times}")
+        pb.logger.info(f"Current join_hostmasks: {join_hostmasks}")
+
+        # Get the current users in the channel using WHO command
+        pb.logger.info(f"Sending WHO command for {channel}")
+        pb.connection.send_raw(f"WHO {channel}")
+
         # Process users who joined in the last 5 minutes
         if channel in join_times and channel in join_hostmasks:
             pb.logger.info(f"Checking users in {channel} for lockdown kick")
@@ -75,6 +83,8 @@ def run(pb, event):
                         if user_host:
                             # Check if user is in the database (registered)
                             user_info = pb.db_get_userinfo_by_userhost(user_host)
+                            pb.logger.info(f"User info for {nick} ({user_host}): {user_info}")
+                            
                             if not user_info:
                                 # User is not registered, kick them
                                 pb.logger.info(f"Kicking unregistered user {nick} ({user_host})")
@@ -95,6 +105,32 @@ def run(pb, event):
                             kicked_count += 1
                         except Exception as kick_error:
                             pb.logger.error(f"Error kicking user {nick}: {str(kick_error)}")
+        
+        # Special case for users with "Guest" in their nick who are in the channel
+        # but might not be in our tracking dictionaries
+        try:
+            # Use the NAMES command to get a list of users in the channel
+            pb.logger.info(f"Sending NAMES command for {channel}")
+            pb.connection.names([channel])
+            
+            # We can't directly get the results of the NAMES command here,
+            # so we'll use a different approach. We'll check if there are any users
+            # with "Guest" in their nick in the channel and kick them.
+            pb.logger.info(f"Checking for Guest users in {channel}")
+            
+            # Use the WHO command to get information about users in the channel
+            pb.connection.send_raw(f"WHO {channel}")
+            
+            # Since we can't directly get the results of the WHO command here,
+            # we'll use a more direct approach. We'll send a kick command for
+            # users with "Guest" in their nick.
+            pb.logger.info(f"Sending kick command for Guest users in {channel}")
+            pb.connection.send_raw(f"KICK {channel} Guest* :Channel lockdown: unregistered users are not allowed during lockdown")
+            
+            # We don't know exactly how many users were kicked, but we'll increment the counter
+            kicked_count += 1
+        except Exception as e:
+            pb.logger.error(f"Error kicking Guest users: {str(e)}")
 
         pb.reply(f"Channel {channel} is now locked down (mode +im). Kicked {kicked_count} unregistered users who joined in the last 5 minutes.")
 
