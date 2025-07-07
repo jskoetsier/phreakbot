@@ -1,5 +1,12 @@
 # Changelog
 
+## [v0.1.5] - 2025-07-11
+- Added auto-op functionality to automatically give operator status to users
+- Fixed database schema to include phreakbot_autoop table
+- Enhanced error handling in database operations
+- Fixed transaction handling to prevent aborted transactions
+- Improved module compatibility with the IRC library
+
 ## [v0.1.4] - 2025-07-10
 - Fixed meet module to properly handle user registration
 - Improved user detection in channels
