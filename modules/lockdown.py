@@ -14,6 +14,9 @@ join_hostmasks = {}
 
 def config(pb):
     """Return module configuration"""
+    # Initialize join tracking for all channels the bot is in
+    initialize_join_tracking(pb)
+    
     return {
         "events": ["join", "namreply"],
         "commands": ["lockdown", "unlock"],
@@ -23,6 +26,28 @@ def config(pb):
         },
         "permissions": ["admin", "owner"]
     }
+
+def initialize_join_tracking(pb):
+    """Initialize join tracking for all channels the bot is in"""
+    try:
+        # Get the list of channels the bot is in
+        channels = pb.config.get("channels", [])
+        pb.logger.info(f"Initializing join tracking for channels: {channels}")
+        
+        # Request the names list for each channel
+        for channel in channels:
+            pb.logger.info(f"Requesting NAMES for {channel} during initialization")
+            pb.connection.names([channel])
+            
+            # Initialize the dictionaries for this channel
+            if channel not in join_times:
+                join_times[channel] = {}
+            if channel not in join_hostmasks:
+                join_hostmasks[channel] = {}
+                
+        pb.logger.info("Join tracking initialization complete")
+    except Exception as e:
+        pb.logger.error(f"Error initializing join tracking: {e}")
 
 def handle_event(pb, event):
     """Handle join events"""
@@ -49,18 +74,18 @@ def on_namreply(pb, event):
     if event["signal"] == "namreply":
         channel = event["channel"]
         names = event["names"]
-        
+
         pb.logger.info(f"Received NAMES reply for {channel}: {names}")
-        
+
         # Store the users in the channel
         if channel not in channel_users:
             channel_users[channel] = {}
-        
+
         for name in names:
             # Remove any prefix characters like @ or +
             if name.startswith('@') or name.startswith('+'):
                 name = name[1:]
-            
+
             # Store the user with the current time if they're not already in the dictionary
             if name not in channel_users[channel]:
                 channel_users[channel][name] = time.time()
@@ -92,29 +117,29 @@ def run(pb, event):
         # First, request the names list for the channel to update our channel_users dictionary
         pb.logger.info(f"Requesting NAMES for {channel}")
         pb.connection.names([channel])
-        
+
         # We need to wait a moment for the NAMES reply to be processed
         # Since we can't directly wait here, we'll use the data we already have
-        
+
         # Process users who joined in the last 5 minutes based on our tracking
         if channel in join_times and channel in join_hostmasks:
             pb.logger.info(f"Checking tracked users in {channel} for lockdown kick")
-            
+
             # Process each user who joined in the last 5 minutes
             for nick, join_time in list(join_times[channel].items()):
                 # Only check users who joined in the last 5 minutes
                 if join_time >= five_minutes_ago:
                     pb.logger.info(f"Checking if {nick} is registered (joined in last 5 minutes)")
-                    
+
                     try:
                         # Get user hostmask from our tracking dictionary
                         user_host = join_hostmasks[channel].get(nick)
-                        
+
                         if user_host:
                             # Check if user is in the database (registered)
                             user_info = pb.db_get_userinfo_by_userhost(user_host)
                             pb.logger.info(f"User info for {nick} ({user_host}): {user_info}")
-                            
+
                             if not user_info:
                                 # User is not registered, kick them
                                 pb.logger.info(f"Kicking unregistered user {nick} ({user_host})")
@@ -135,19 +160,19 @@ def run(pb, event):
                             kicked_count += 1
                         except Exception as kick_error:
                             pb.logger.error(f"Error kicking user {nick}: {str(kick_error)}")
-        
+
         # If we don't have any join tracking data, log a warning
         if not (channel in join_times and channel in join_hostmasks) or not join_times[channel]:
             pb.logger.warning(f"No join tracking data for {channel}. Make sure the bot is tracking join events.")
             pb.logger.warning("Users who joined before the bot was started won't be tracked.")
-            
+
             # Since we don't have join tracking data, let's try to kick any users with "Guest" in their nick
             # This is a fallback for when the bot was just started and hasn't tracked any joins yet
             pb.logger.info(f"Attempting to kick Guest users in {channel} as a fallback")
-            
+
             # Try to kick specific Guest users that we know are in the channel
             guest_users = ["Guest58", "Guest59", "Guest60", "Guest61", "Guest62", "Guest63", "Guest64", "Guest65", "Guest66", "Guest67", "Guest68", "Guest69", "Guest70"]
-            
+
             for guest in guest_users:
                 try:
                     pb.logger.info(f"Attempting to kick {guest} from {channel}")
@@ -156,7 +181,7 @@ def run(pb, event):
                     kicked_count += 1
                 except Exception as e:
                     pb.logger.info(f"Could not kick {guest}: {str(e)}")
-            
+
         # Log the current users in the channel
         pb.logger.info(f"Current users in {channel} (from our tracking): {list(join_times[channel].keys()) if channel in join_times else []}")
 
