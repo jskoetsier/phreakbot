@@ -29,10 +29,28 @@ def run(bot, event):
 
     # Get the user's hostmask
     tuserhost = None
-    for channel in bot.channels.values():
-        if tnick in channel.users():
-            tuserhost = channel.users()[tnick]
-            break
+    for channel_name, channel in bot.channels.items():
+        try:
+            # Get the users in the channel
+            users = channel.users()
+            bot.logger.info(f"Channel {channel_name} users: {list(users)}")
+            
+            # Check if the user is in this channel (case insensitive)
+            for user in users:
+                if user.lower() == tnick.lower():
+                    # Since we can't get the hostmask directly, we'll create a generic one
+                    # Format: nickname!username@hostname
+                    # We'll use the nickname for both the nickname and username parts
+                    tuserhost = f"{user}!{user}@{bot.connection.server}"
+                    bot.logger.info(f"Found user '{user}' with generated hostmask '{tuserhost}'")
+                    break
+            
+            if tuserhost:
+                break
+        except Exception as e:
+            bot.logger.error(f"Error accessing channel users: {e}")
+            import traceback
+            bot.logger.error(f"Traceback: {traceback.format_exc()}")
 
     if not tuserhost:
         bot.add_response(f"{tnick} is not in any channel I'm in.")
