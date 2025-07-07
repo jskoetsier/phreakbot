@@ -11,7 +11,7 @@ import requests
 from bs4 import BeautifulSoup
 
 
-def config(pb):
+def config(bot):
     """Return module configuration"""
     return {
         "events": ["pubmsg"],  # Listen for public messages for !@ command
@@ -21,84 +21,84 @@ def config(pb):
     }
 
 
-def run(pb, event):
+def run(bot, event):
     """Handle snarf commands and events"""
     try:
         # Handle !@ command through event processing
         if event["trigger"] == "event" and event["signal"] == "pubmsg":
             message = event["text"]
-            pb.logger.info(f"Checking message for !@ command: {message}")
+            bot.logger.info(f"Checking message for !@ command: {message}")
 
             # Check if message starts with !@
             if message.startswith("!@"):
-                pb.logger.info("Found !@ command in message")
+                bot.logger.info("Found !@ command in message")
                 # Extract URL (everything after !@)
                 url = message[2:].strip()
                 if url:
-                    pb.logger.info(f"Processing URL from !@ command: {url}")
-                    process_url(pb, event, url)
+                    bot.logger.info(f"Processing URL from !@ command: {url}")
+                    process_url(bot, event, url)
                 return
 
         # Handle regular commands
         if event["trigger"] == "command":
-            pb.logger.info(f"Snarf module called with command: {event['command']}")
+            bot.logger.info(f"Snarf module called with command: {event['command']}")
 
             # Get the URL from the command arguments
             url = event["command_args"].strip()
 
-            pb.logger.info(f"URL argument: '{url}'")
+            bot.logger.info(f"URL argument: '{url}'")
 
             if not url:
-                pb.logger.info("No URL provided")
-                pb.add_response("Please provide a URL to fetch the description.")
+                bot.logger.info("No URL provided")
+                bot.add_response("Please provide a URL to fetch the description.")
                 return
 
-            process_url(pb, event, url)
+            process_url(bot, event, url)
 
     except Exception as e:
         # Catch-all exception handler to prevent the bot from crashing
-        pb.logger.error(f"Critical error in snarf module: {e}")
+        bot.logger.error(f"Critical error in snarf module: {e}")
         import traceback
-        pb.logger.error(f"Critical traceback: {traceback.format_exc()}")
+        bot.logger.error(f"Critical traceback: {traceback.format_exc()}")
         try:
-            pb.add_response("An error occurred while processing the URL.")
+            bot.add_response("An error occurred while processing the URL.")
         except:
             pass
 
 
-def process_url(pb, event, url):
+def process_url(bot, event, url):
     """Process a URL and display its title and description"""
     try:
         # Add http:// prefix if missing
         if not url.startswith(("http://", "https://")):
             url = "http://" + url
 
-        pb.logger.info(f"Processing URL: {url}")
+        bot.logger.info(f"Processing URL: {url}")
 
         # Fetch the description
-        pb.logger.info(f"Fetching info for URL: {url}")
+        bot.logger.info(f"Fetching info for URL: {url}")
         title, description = get_url_info(url)
 
-        pb.logger.info(f"Retrieved title: {title}")
-        pb.logger.info(f"Retrieved description: {description}")
+        bot.logger.info(f"Retrieved title: {title}")
+        bot.logger.info(f"Retrieved description: {description}")
 
         # Display the results
         if title:
-            pb.add_response(f"Title: {title}")
-            pb.logger.info(f"Added title response: {title}")
+            bot.add_response(f"Title: {title}")
+            bot.logger.info(f"Added title response: {title}")
 
         if description:
-            pb.add_response(f"Description: {description}")
-            pb.logger.info(f"Added description response: {description}")
+            bot.add_response(f"Description: {description}")
+            bot.logger.info(f"Added description response: {description}")
         else:
-            pb.add_response("No description found for this URL.")
-            pb.logger.info("No description found")
+            bot.add_response("No description found for this URL.")
+            bot.logger.info("No description found")
 
     except Exception as e:
-        pb.logger.error(f"Error fetching URL info: {e}")
-        pb.add_response(f"Error fetching information from URL: {str(e)}")
+        bot.logger.error(f"Error fetching URL info: {e}")
+        bot.add_response(f"Error fetching information from URL: {str(e)}")
         import traceback
-        pb.logger.error(f"Traceback: {traceback.format_exc()}")
+        bot.logger.error(f"Traceback: {traceback.format_exc()}")
 
 
 def get_url_info(url):
