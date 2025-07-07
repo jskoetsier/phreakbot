@@ -26,7 +26,7 @@ def config(pb):
 
 def handle_event(pb, event):
     """Handle join events"""
-    if event["signal"] == "join":
+    if event["trigger"] == "event" and event["signal"] == "join":
         # Track when users join channels and their hostmasks
         channel = event["channel"]
         nick = event["nick"]
