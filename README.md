@@ -1,4 +1,4 @@
-# PhreakBot (v0.1.5)
+# PhreakBot (v0.1.6)
 
 PhreakBot is a modular IRC bot written in Python.
 

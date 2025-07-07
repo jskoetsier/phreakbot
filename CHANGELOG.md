@@ -1,5 +1,15 @@
 # Changelog
 
+## [v0.1.6] - 2025-07-12
+- Added birthday module with comprehensive birthday tracking and management
+- Added !bd-set command to allow users to set their birthday in DD-MM-YYYY format
+- Added !bd command to list upcoming birthdays or show a specific user's birthday
+- Added !age command to calculate and display a person's age in years, weeks, and days
+- Added automatic birthday congratulations when the bot joins a channel
+- Fixed reload command to properly handle module paths
+- Fixed parameter naming consistency in the snarf module
+- Added comprehensive Module Development Guide with examples
+
 ## [v0.1.5] - 2025-07-11
 - Added auto-op functionality to automatically give operator status to users
 - Fixed database schema to include phreakbot_autoop table
