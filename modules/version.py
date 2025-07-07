@@ -21,12 +21,12 @@ def run(bot, event):
     try:
         # Get the bot version
         version = get_version()
-        
+
         # Handle command
         if event["trigger"] == "command" and event["command"] == "version":
             bot.add_response(f"PhreakBot v{version} - https://github.com/jskoetsier/phreakbot")
             return
-            
+
         # Handle CTCP VERSION requests
         if event["trigger"] == "event" and event["signal"] == "irc_in2_VERSION":
             # Override the default Python irc.bot VERSION reply with our own

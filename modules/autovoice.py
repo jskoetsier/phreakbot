@@ -114,10 +114,10 @@ def _manage_autovoice(bot, event):
                 (channel.lower(),),
             )
             bot.db_connection.commit()
-            
+
             # Set the channel to moderated mode (+m)
             bot.connection.mode(channel, "+m")
-            
+
             bot.add_response(f"Autovoice enabled for {channel}. Channel set to moderated mode (+m).")
 
         elif action == "off":
@@ -128,10 +128,10 @@ def _manage_autovoice(bot, event):
                 (channel.lower(),),
             )
             bot.db_connection.commit()
-            
+
             # Remove moderated mode (-m)
             bot.connection.mode(channel, "-m")
-            
+
             bot.add_response(f"Autovoice disabled for {channel}. Channel moderated mode removed (-m).")
 
         elif action == "status":

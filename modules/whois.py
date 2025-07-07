@@ -135,7 +135,7 @@ def run(bot, event):
         else:
             # Try by hostmask as a fallback
             user_by_hostmask = bot.db_get_userinfo_by_userhost(tuserhost)
-            
+
             if user_by_hostmask:
                 bot.add_response(
                     f"Recognized by hostmask as user '{user_by_hostmask['username']}'"

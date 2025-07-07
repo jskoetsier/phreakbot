@@ -1,5 +1,13 @@
 # Changelog
 
+## [v0.1.9] - 2025-07-15
+- Enhanced lockdown module with unlock command to remove lockdown
+- Added confirmation before executing lockdown
+- Added voice for all registered users during lockdown
+- Added delays between operations to ensure proper processing
+- Improved error handling and logging in lockdown module
+- Added display of current channel modes during lockdown operations
+
 ## [v0.1.8] - 2025-07-14
 - Added lockdown module for emergency channel security
 - Enhanced channel security with comprehensive lockdown features

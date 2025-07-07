@@ -19,9 +19,9 @@ def run(bot, event):
     """Handle meet commands"""
     # Strip whitespace from the nickname
     tnick = event["command_args"].strip() if event["command_args"] else ""
-    
+
     bot.logger.info(f"Meet command called with nickname: '{tnick}'")
-    
+
     if not tnick:
         bot.add_response("Please specify who you want me to meet.")
         return
@@ -38,7 +38,7 @@ def run(bot, event):
     try:
         # Get the user's hostmask
         tuserhost = None
-        
+
         # Log all channels and users for debugging
         bot.logger.info(f"Looking for user '{tnick}' in channels:")
         for channel_name, channel in bot.channels.items():
@@ -47,7 +47,7 @@ def run(bot, event):
                 # Get the channel's users
                 users = channel.users()
                 bot.logger.info(f"Channel {channel_name} users: {list(users)}")
-                
+
                 # Check if the user is in this channel (case insensitive)
                 for user in users:
                     bot.logger.info(f"Checking user: {user}")
@@ -58,7 +58,7 @@ def run(bot, event):
                         tuserhost = f"{user}!{user}@{bot.connection.server}"
                         bot.logger.info(f"Found user '{user}' with generated hostmask '{tuserhost}'")
                         break
-                
+
                 if tuserhost:
                     break
             except Exception as e:

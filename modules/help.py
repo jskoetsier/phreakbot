@@ -43,7 +43,7 @@ def run(bot, event):
     try:
         # Display module help information
         helptxt = bot.modules[module]["help"]
-        
+
         # Handle help text that could be a string or a dictionary
         if isinstance(helptxt, dict):
             # If it's a dictionary, send each command-specific help text as a separate message
@@ -54,12 +54,12 @@ def run(bot, event):
             for line in helptxt.split("\n"):
                 if line.strip():  # Only send non-empty lines
                     bot.add_response(line)
-        
+
         # Display commands and permissions
         if "commands" in bot.modules[module] and bot.modules[module]["commands"]:
             helpcmds = ", ".join(bot.modules[module]["commands"])
             bot.add_response(f"Provides commands: {helpcmds}")
-        
+
         if "permissions" in bot.modules[module] and bot.modules[module]["permissions"]:
             helpperm = ", ".join(bot.modules[module]["permissions"])
             bot.add_response(f"Needs permissions: {helpperm}")

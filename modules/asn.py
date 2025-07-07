@@ -101,7 +101,7 @@ def lookup_asn_by_number(bot, asn):
         # Get country information
         country_code = asn_data.get("country_code", "")
         country = asn_data.get("rir_allocation", {}).get("country_name", "Unknown")
-        
+
         # Get some prefixes if available
         prefix_info = ""
         prefixes = asn_data.get("prefixes", [])
@@ -110,7 +110,7 @@ def lookup_asn_by_number(bot, asn):
             sample_prefixes = [p.get("prefix", "") for p in prefixes[:3]]
             if sample_prefixes:
                 prefix_info = f" | Sample Prefixes ({prefix_count} total): {', '.join(sample_prefixes)}"
-        
+
         # Combine all information into a single line
         result = f"ASN Lookup for AS{asn}: {name} | Description: {description} | Country: {country} ({country_code}){prefix_info}"
         bot.add_response(result)
