@@ -16,7 +16,7 @@ def config(pb):
     """Return module configuration"""
     # Initialize join tracking for all channels the bot is in
     initialize_join_tracking(pb)
-    
+
     return {
         "events": ["join", "namreply"],
         "commands": ["lockdown", "unlock"],
@@ -33,24 +33,28 @@ def initialize_join_tracking(pb):
         # Get the list of channels the bot is in
         channels = pb.config.get("channels", [])
         pb.logger.info(f"Initializing join tracking for channels: {channels}")
-        
+
         # Request the names list for each channel
         for channel in channels:
             pb.logger.info(f"Requesting NAMES for {channel} during initialization")
             pb.connection.names([channel])
-            
+
             # Initialize the dictionaries for this channel
             if channel not in join_times:
                 join_times[channel] = {}
             if channel not in join_hostmasks:
                 join_hostmasks[channel] = {}
-                
+
         pb.logger.info("Join tracking initialization complete")
     except Exception as e:
         pb.logger.error(f"Error initializing join tracking: {e}")
 
+# Dictionary to store channel users and their join times
+# This will be populated by the namreply event handler
+channel_users = {}
+
 def handle_event(pb, event):
-    """Handle join events"""
+    """Handle join and namreply events"""
     if event["trigger"] == "event" and event["signal"] == "join":
         # Track when users join channels and their hostmasks
         channel = event["channel"]
@@ -64,14 +68,9 @@ def handle_event(pb, event):
         join_times[channel][nick] = time.time()
         join_hostmasks[channel][nick] = hostmask
         pb.logger.info(f"Tracked join: {nick} ({hostmask}) in {channel} at {time.time()}")
-
-# Dictionary to store channel users and their join times
-# This will be populated by the on_namreply event handler
-channel_users = {}
-
-def on_namreply(pb, event):
-    """Handle NAMES reply events"""
-    if event["signal"] == "namreply":
+    
+    elif event["signal"] == "namreply":
+        # Handle NAMES reply events
         channel = event["channel"]
         names = event["names"]
 
@@ -80,6 +79,12 @@ def on_namreply(pb, event):
         # Store the users in the channel
         if channel not in channel_users:
             channel_users[channel] = {}
+            
+        # Also initialize join tracking for this channel if needed
+        if channel not in join_times:
+            join_times[channel] = {}
+        if channel not in join_hostmasks:
+            join_hostmasks[channel] = {}
 
         for name in names:
             # Remove any prefix characters like @ or +
@@ -90,6 +95,11 @@ def on_namreply(pb, event):
             if name not in channel_users[channel]:
                 channel_users[channel][name] = time.time()
                 pb.logger.info(f"Added {name} to channel_users for {channel}")
+                
+            # Also add to join_times if not already there
+            if name not in join_times[channel]:
+                join_times[channel][name] = time.time()
+                pb.logger.info(f"Added {name} to join_times for {channel} from NAMES reply")
 
 def run(pb, event):
     """Handle lockdown commands"""
