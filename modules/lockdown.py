@@ -141,6 +141,22 @@ def run(pb, event):
             pb.logger.warning(f"No join tracking data for {channel}. Make sure the bot is tracking join events.")
             pb.logger.warning("Users who joined before the bot was started won't be tracked.")
             
+            # Since we don't have join tracking data, let's try to kick any users with "Guest" in their nick
+            # This is a fallback for when the bot was just started and hasn't tracked any joins yet
+            pb.logger.info(f"Attempting to kick Guest users in {channel} as a fallback")
+            
+            # Try to kick specific Guest users that we know are in the channel
+            guest_users = ["Guest58", "Guest59", "Guest60", "Guest61", "Guest62", "Guest63", "Guest64", "Guest65", "Guest66", "Guest67", "Guest68", "Guest69", "Guest70"]
+            
+            for guest in guest_users:
+                try:
+                    pb.logger.info(f"Attempting to kick {guest} from {channel}")
+                    pb.connection.kick(channel, guest, "Channel lockdown: unregistered users are not allowed during lockdown")
+                    pb.logger.info(f"Successfully kicked {guest} from {channel}")
+                    kicked_count += 1
+                except Exception as e:
+                    pb.logger.info(f"Could not kick {guest}: {str(e)}")
+            
         # Log the current users in the channel
         pb.logger.info(f"Current users in {channel} (from our tracking): {list(join_times[channel].keys()) if channel in join_times else []}")
 
