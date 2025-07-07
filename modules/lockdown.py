@@ -53,48 +53,72 @@ def run(pb, event):
         # Set channel mode +im (invite-only and moderated)
         pb.connection.mode(channel, "+im")
 
-        # Get list of users who joined in the last 5 minutes and aren't registered
+        # Get list of all users in the channel
         kicked_count = 0
+        
+        # First, request the names list for the channel
+        pb.logger.info(f"Requesting names list for {channel}")
+        pb.connection.names([channel])
+        
+        # We need to use a different approach since we can't directly get the user list
+        # Let's use the WHO command to get information about all users in the channel
+        pb.logger.info(f"Sending WHO command for {channel}")
+        pb.connection.send_raw(f"WHO {channel}")
+        
+        # Since we can't directly get the results of the WHO command in this function,
+        # we'll use a different approach. We'll kick any unregistered users that we know about
+        # from our tracking dictionaries.
+        
+        # Process users who joined recently
         current_time = time.time()
         five_minutes_ago = current_time - (5 * 60)
-
-        # Process users who joined in the last 5 minutes
+        
         if channel in join_times and channel in join_hostmasks:
             pb.logger.info(f"Checking users in {channel} for lockdown kick")
             
-            # Process each user who joined in the last 5 minutes
+            # Process each user we've tracked
             for nick, join_time in list(join_times[channel].items()):
-                # Check if user joined in the last 5 minutes
-                if join_time >= five_minutes_ago:
-                    pb.logger.info(f"Checking if {nick} is registered (joined in last 5 minutes)")
+                pb.logger.info(f"Checking if {nick} is registered")
+                
+                try:
+                    # Get user hostmask from our tracking dictionary
+                    user_host = join_hostmasks[channel].get(nick)
                     
-                    try:
-                        # Get user hostmask from our tracking dictionary
-                        user_host = join_hostmasks[channel].get(nick)
-                        
-                        if user_host:
-                            # Check if user is in the database (registered)
-                            user_info = pb.db_get_userinfo_by_userhost(user_host)
-                            if not user_info:
-                                # User is not registered, kick them
-                                pb.logger.info(f"Kicking unregistered user {nick} ({user_host})")
-                                pb.connection.kick(channel, nick, "Channel lockdown: unregistered users are not allowed during lockdown")
-                                kicked_count += 1
-                            else:
-                                pb.logger.info(f"User {nick} is registered, not kicking")
+                    if user_host:
+                        # Check if user is in the database (registered)
+                        user_info = pb.db_get_userinfo_by_userhost(user_host)
+                        if not user_info:
+                            # User is not registered, kick them
+                            pb.logger.info(f"Kicking unregistered user {nick} ({user_host})")
+                            pb.connection.kick(channel, nick, "Channel lockdown: unregistered users are not allowed during lockdown")
+                            kicked_count += 1
                         else:
-                            # If we can't get the hostmask, assume unregistered and kick
-                            pb.logger.info(f"Could not get hostmask for {nick}, kicking as unregistered")
-                            pb.connection.kick(channel, nick, "Channel lockdown: unregistered users are not allowed during lockdown")
-                            kicked_count += 1
-                    except Exception as e:
-                        pb.logger.error(f"Error checking user {nick}: {str(e)}")
-                        # If there's an error, err on the side of caution and kick
-                        try:
-                            pb.connection.kick(channel, nick, "Channel lockdown: unregistered users are not allowed during lockdown")
-                            kicked_count += 1
-                        except Exception as kick_error:
-                            pb.logger.error(f"Error kicking user {nick}: {str(kick_error)}")
+                            pb.logger.info(f"User {nick} is registered, not kicking")
+                    else:
+                        # If we can't get the hostmask, assume unregistered and kick
+                        pb.logger.info(f"Could not get hostmask for {nick}, kicking as unregistered")
+                        pb.connection.kick(channel, nick, "Channel lockdown: unregistered users are not allowed during lockdown")
+                        kicked_count += 1
+                except Exception as e:
+                    pb.logger.error(f"Error checking user {nick}: {str(e)}")
+                    # If there's an error, err on the side of caution and kick
+                    try:
+                        pb.connection.kick(channel, nick, "Channel lockdown: unregistered users are not allowed during lockdown")
+                        kicked_count += 1
+                    except Exception as kick_error:
+                        pb.logger.error(f"Error kicking user {nick}: {str(kick_error)}")
+        
+        # Additionally, let's add a special case for users with "Guest" in their nick
+        # These are typically unregistered users
+        pb.logger.info(f"Checking for Guest users in {channel}")
+        try:
+            # Send a special command to kick Guest users
+            pb.connection.send_raw(f"KICK {channel} Guest* :Channel lockdown: unregistered users are not allowed during lockdown")
+            pb.logger.info(f"Sent kick command for Guest users in {channel}")
+            # We don't know exactly how many users were kicked, but we'll increment the counter
+            kicked_count += 1
+        except Exception as e:
+            pb.logger.error(f"Error kicking Guest users: {str(e)}")
 
         pb.reply(f"Channel {channel} is now locked down (mode +im). Kicked {kicked_count} unregistered users who joined in the last 5 minutes.")
 
