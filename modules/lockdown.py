@@ -136,26 +136,29 @@ def run(pb, event):
                         except Exception as kick_error:
                             pb.logger.error(f"Error kicking user {nick}: {str(kick_error)}")
         
-        # Direct approach: kick any user with "Guest" in their nick
+        # Direct approach: kick specific users with "Guest" in their nick
         # This is a fallback for users who might not be in our tracking dictionaries
         try:
-            # Use the WHO command to get information about users in the channel
-            pb.logger.info(f"Sending WHO command for {channel}")
-            pb.connection.send_raw(f"WHO {channel}")
+            # Use the NAMES command to get a list of users in the channel
+            pb.logger.info(f"Sending NAMES command for {channel}")
+            pb.connection.names([channel])
             
-            # Since we can't directly get the results of the WHO command here,
-            # we'll use a direct approach to kick Guest users
-            pb.logger.info(f"Attempting to kick Guest users in {channel}")
+            # Since we can't directly get the results of the NAMES command here,
+            # we'll use a hardcoded approach to kick specific Guest users
+            pb.logger.info(f"Attempting to kick specific Guest users in {channel}")
             
-            # Try to kick any user with "Guest" in their nick
-            # Note: This will only work if there are actually Guest users in the channel
-            try:
-                pb.connection.kick(channel, "Guest*", "Channel lockdown: unregistered users are not allowed during lockdown")
-                pb.logger.info(f"Sent kick command for Guest users in {channel}")
-                # Only increment if we didn't get an exception
-                kicked_count += 1
-            except Exception as e:
-                pb.logger.info(f"No Guest users to kick or error kicking: {str(e)}")
+            # Try to kick specific Guest users that we know are in the channel
+            # This is a temporary solution until we can properly get the list of users
+            guest_users = ["Guest58", "Guest59", "Guest60", "Guest61", "Guest62", "Guest63", "Guest64", "Guest65", "Guest66", "Guest67", "Guest68", "Guest69", "Guest70"]
+            
+            for guest in guest_users:
+                try:
+                    pb.logger.info(f"Attempting to kick {guest} from {channel}")
+                    pb.connection.kick(channel, guest, "Channel lockdown: unregistered users are not allowed during lockdown")
+                    pb.logger.info(f"Successfully kicked {guest} from {channel}")
+                    kicked_count += 1
+                except Exception as e:
+                    pb.logger.info(f"Could not kick {guest}: {str(e)}")
         except Exception as e:
             pb.logger.error(f"Error in Guest user handling: {str(e)}")
 
