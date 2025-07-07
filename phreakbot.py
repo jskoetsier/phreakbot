@@ -381,6 +381,14 @@ class PhreakBot(irc.bot.SingleServerIRCBot):
         user_host = f"{nick}!{event.source.user}@{event.source.host}"
         channel = event.target if hasattr(event, "target") else None
 
+        # Log join and part events
+        if event_type == "join":
+            self.logger.info(f"JOIN: {nick} ({user_host}) joined {channel}")
+        elif event_type == "part":
+            self.logger.info(f"PART: {nick} ({user_host}) left {channel}")
+        elif event_type == "quit":
+            self.logger.info(f"QUIT: {nick} ({user_host}) quit")
+
         event_obj = {
             "server": self.connection.get_server_name(),
             "signal": event_type,
