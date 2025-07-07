@@ -136,31 +136,13 @@ def run(pb, event):
                         except Exception as kick_error:
                             pb.logger.error(f"Error kicking user {nick}: {str(kick_error)}")
         
-        # Direct approach: kick specific users with "Guest" in their nick
-        # This is a fallback for users who might not be in our tracking dictionaries
-        try:
-            # Use the NAMES command to get a list of users in the channel
-            pb.logger.info(f"Sending NAMES command for {channel}")
-            pb.connection.names([channel])
+        # If we don't have any join tracking data, log a warning
+        if not (channel in join_times and channel in join_hostmasks) or not join_times[channel]:
+            pb.logger.warning(f"No join tracking data for {channel}. Make sure the bot is tracking join events.")
+            pb.logger.warning("Users who joined before the bot was started won't be tracked.")
             
-            # Since we can't directly get the results of the NAMES command here,
-            # we'll use a hardcoded approach to kick specific Guest users
-            pb.logger.info(f"Attempting to kick specific Guest users in {channel}")
-            
-            # Try to kick specific Guest users that we know are in the channel
-            # This is a temporary solution until we can properly get the list of users
-            guest_users = ["Guest58", "Guest59", "Guest60", "Guest61", "Guest62", "Guest63", "Guest64", "Guest65", "Guest66", "Guest67", "Guest68", "Guest69", "Guest70"]
-            
-            for guest in guest_users:
-                try:
-                    pb.logger.info(f"Attempting to kick {guest} from {channel}")
-                    pb.connection.kick(channel, guest, "Channel lockdown: unregistered users are not allowed during lockdown")
-                    pb.logger.info(f"Successfully kicked {guest} from {channel}")
-                    kicked_count += 1
-                except Exception as e:
-                    pb.logger.info(f"Could not kick {guest}: {str(e)}")
-        except Exception as e:
-            pb.logger.error(f"Error in Guest user handling: {str(e)}")
+        # Log the current users in the channel
+        pb.logger.info(f"Current users in {channel} (from our tracking): {list(join_times[channel].keys()) if channel in join_times else []}")
 
         pb.reply(f"Channel {channel} is now locked down (mode +im). Kicked {kicked_count} unregistered users who joined in the last 5 minutes.")
 
