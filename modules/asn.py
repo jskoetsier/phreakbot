@@ -72,10 +72,9 @@ def lookup_asn_by_ip(bot, ip):
         company = data.get("org", data.get("asname", "Unknown"))
         location = format_location(data.get("country"), data.get("regionName"), data.get("city"))
 
-        bot.add_response(f"ASN Lookup for {ip}:")
-        bot.add_response(f"AS Number: AS{asn}")
-        bot.add_response(f"Organization: {company}")
-        bot.add_response(f"Location: {location}")
+        # Combine all information into a single line
+        result = f"ASN Lookup for {ip}: AS{asn} | Organization: {company} | Location: {location}"
+        bot.add_response(result)
 
     except Exception as e:
         bot.logger.error(f"Error looking up ASN for IP {ip}: {e}")
@@ -102,19 +101,19 @@ def lookup_asn_by_number(bot, asn):
         # Get country information
         country_code = asn_data.get("country_code", "")
         country = asn_data.get("rir_allocation", {}).get("country_name", "Unknown")
-
-        bot.add_response(f"ASN Lookup for AS{asn}:")
-        bot.add_response(f"Name: {name}")
-        bot.add_response(f"Description: {description}")
-        bot.add_response(f"Country: {country} ({country_code})")
-
-        # Show some prefixes if available
+        
+        # Get some prefixes if available
+        prefix_info = ""
         prefixes = asn_data.get("prefixes", [])
         if prefixes and len(prefixes) > 0:
             prefix_count = len(prefixes)
             sample_prefixes = [p.get("prefix", "") for p in prefixes[:3]]
             if sample_prefixes:
-                bot.add_response(f"Sample Prefixes ({prefix_count} total): {', '.join(sample_prefixes)}")
+                prefix_info = f" | Sample Prefixes ({prefix_count} total): {', '.join(sample_prefixes)}"
+        
+        # Combine all information into a single line
+        result = f"ASN Lookup for AS{asn}: {name} | Description: {description} | Country: {country} ({country_code}){prefix_info}"
+        bot.add_response(result)
 
     except Exception as e:
         bot.logger.error(f"Error looking up ASN {asn}: {e}")
