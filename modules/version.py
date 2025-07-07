@@ -1,47 +1,42 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 #
-# Version module for PhreakBot
+# PhreakBot IRC Bot
+# https://github.com/johansebastiaan/phreakbot
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
 
 import os
+import sys
+import platform
+import irc.client
 
+def config(pb):
+    pb.register_command('version', version_command)
+    pb.register_ctcp_handler('VERSION', ctcp_version_handler)
 
-def config(bot):
-    """Return module configuration"""
-    return {
-        "events": ["irc_in2_VERSION"],
-        "commands": ["version"],
-        "permissions": ["user"],
-        "help": "Display the bot version and GitHub URL",
-    }
+def version_command(pb, event, args):
+    """Display version information about the bot."""
+    with open(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'VERSION'), 'r') as f:
+        version = f.read().strip()
 
+    pb.privmsg(event.target, f"PhreakBot v{version} running on Python {platform.python_version()} ({platform.system()} {platform.release()})")
 
-def run(bot, event):
-    """Handle version commands and events"""
-    try:
-        # Get the bot version
-        version = get_version()
+def ctcp_version_handler(pb, event):
+    """Handle CTCP VERSION requests."""
+    with open(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'VERSION'), 'r') as f:
+        version = f.read().strip()
 
-        # Handle command
-        if event["trigger"] == "command" and event["command"] == "version":
-            bot.add_response(f"PhreakBot v{version} - https://github.com/jskoetsier/phreakbot")
-            return
-
-        # Handle CTCP VERSION requests
-        if event["trigger"] == "event" and event["signal"] == "irc_in2_VERSION":
-            # Override the default Python irc.bot VERSION reply with our own
-            bot.connection.ctcp_reply(event["nick"], f"PhreakBot v{version} - https://github.com/jskoetsier/phreakbot")
-            return
-    except Exception as e:
-        bot.logger.error(f"Error in version module: {e}")
-        bot.add_response("Error retrieving version information.")
-
-
-def get_version():
-    """Get the bot version from the VERSION file."""
-    version_file = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "VERSION")
-    try:
-        with open(version_file, "r") as f:
-            return f.read().strip()
-    except Exception:
-        return "unknown"
+    pb.ctcp_reply(event.source.nick, 'VERSION', f"PhreakBot v{version} running on Python {platform.python_version()} ({platform.system()} {platform.release()})")
