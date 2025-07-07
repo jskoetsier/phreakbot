@@ -12,7 +12,8 @@ def config(bot):
         "permissions": ["owner", "admin", "autovoice"],
         "help": "Automatically give voice status to all registered users when they join.\n"
         "Usage: !autovoice on|off [channel] - Enable or disable autovoice for a channel\n"
-        "       !autovoice status [channel] - Check if autovoice is enabled for a channel",
+        "       !autovoice status [channel] - Check if autovoice is enabled for a channel\n"
+        "When autovoice is enabled, the channel is set to moderated mode (+m).",
     }
 
 
@@ -113,7 +114,11 @@ def _manage_autovoice(bot, event):
                 (channel.lower(),),
             )
             bot.db_connection.commit()
-            bot.add_response(f"Autovoice enabled for {channel}.")
+            
+            # Set the channel to moderated mode (+m)
+            bot.connection.mode(channel, "+m")
+            
+            bot.add_response(f"Autovoice enabled for {channel}. Channel set to moderated mode (+m).")
 
         elif action == "off":
             # Disable autovoice for the channel
@@ -123,7 +128,11 @@ def _manage_autovoice(bot, event):
                 (channel.lower(),),
             )
             bot.db_connection.commit()
-            bot.add_response(f"Autovoice disabled for {channel}.")
+            
+            # Remove moderated mode (-m)
+            bot.connection.mode(channel, "-m")
+            
+            bot.add_response(f"Autovoice disabled for {channel}. Channel moderated mode removed (-m).")
 
         elif action == "status":
             # Check if autovoice is enabled for the channel
