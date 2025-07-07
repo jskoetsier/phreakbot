@@ -1,54 +1,44 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""
-Lockdown module for PhreakBot
-Allows channel operators to quickly set the channel to invite-only mode (+i)
-"""
-
-import logging
+#
+# PhreakBot - A modular IRC bot
+# Lockdown module - Allows channel operators to lock down a channel
+#
 
 def config(pb):
-    """Configure the lockdown module"""
+    """Return module configuration"""
     return {
-        'commands': ['lockdown', 'unlock'],
-        'help': {
-            'lockdown': 'Set the channel to invite-only mode (+i)',
-            'unlock': 'Remove invite-only mode (-i) from the channel'
-        }
+        "events": [],
+        "commands": ["lockdown", "unlock"],
+        "help": {
+            "lockdown": "Lock down the channel (set +im). Usage: !lockdown",
+            "unlock": "Unlock the channel (set -im). Usage: !unlock"
+        },
+        "permissions": ["admin", "owner"]
     }
 
-def lockdown(pb, event, args):
-    """Set the channel to invite-only mode (+i)"""
-    channel = event.target
-    nick = event.source.nick
-    
-    # Check if the user has permission (is op or higher)
-    if not pb.is_op_or_higher(channel, nick):
-        pb.msg(channel, f"{nick}: You don't have permission to use this command.")
-        return
-    
-    try:
-        pb.connection.mode(channel, '+i')
-        pb.msg(channel, f"Channel {channel} is now in lockdown mode (invite-only).")
-        logging.info(f"User {nick} set {channel} to invite-only mode")
-    except Exception as e:
-        pb.msg(channel, f"Error setting channel mode: {str(e)}")
-        logging.error(f"Error setting channel mode: {str(e)}")
-
-def unlock(pb, event, args):
-    """Remove invite-only mode (-i) from the channel"""
-    channel = event.target
-    nick = event.source.nick
-    
-    # Check if the user has permission (is op or higher)
-    if not pb.is_op_or_higher(channel, nick):
-        pb.msg(channel, f"{nick}: You don't have permission to use this command.")
-        return
-    
-    try:
-        pb.connection.mode(channel, '-i')
-        pb.msg(channel, f"Channel {channel} is now unlocked (removed invite-only mode).")
-        logging.info(f"User {nick} removed invite-only mode from {channel}")
-    except Exception as e:
-        pb.msg(channel, f"Error setting channel mode: {str(e)}")
-        logging.error(f"Error setting channel mode: {str(e)}")
+def run(pb, event):
+    """Handle lockdown commands"""
+    if event["command"] == "lockdown":
+        channel = event["channel"]
+        
+        # Check if this is a channel
+        if not channel.startswith("#"):
+            pb.reply("This command can only be used in a channel.")
+            return
+        
+        # Set channel mode +im (invite-only and moderated)
+        pb.connection.mode(channel, "+im")
+        pb.reply(f"Channel {channel} is now locked down (mode +im).")
+        
+    elif event["command"] == "unlock":
+        channel = event["channel"]
+        
+        # Check if this is a channel
+        if not channel.startswith("#"):
+            pb.reply("This command can only be used in a channel.")
+            return
+        
+        # Set channel mode -im (remove invite-only and moderated)
+        pb.connection.mode(channel, "-im")
+        pb.reply(f"Channel {channel} is now unlocked (mode -im).")
