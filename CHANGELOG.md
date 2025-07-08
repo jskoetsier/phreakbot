@@ -1,5 +1,13 @@
 # Changelog
 
+## [v0.1.10] - 2025-07-16
+- Added kickban module with kick, kickban, and unban commands
+- Added auto-unban timer functionality for temporary bans
+- Added IRRExplorer module for checking routing information and ROA status
+- Enhanced lockdown module to kick unregistered users who joined in the last 5 minutes
+- Added join/part tracking for better user management
+- Improved hostname-based banning in kickban module
+
 ## [v0.1.9] - 2025-07-15
 - Enhanced lockdown module with unlock command to remove lockdown
 - Added confirmation before executing lockdown
