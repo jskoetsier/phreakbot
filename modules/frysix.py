@@ -78,20 +78,12 @@ class FrysIX:
     def __init__(self, bot):
         """Initialize the module"""
         self.bot = bot
-        # API URLs - Note: Based on testing, these APIs are not publicly accessible
-        # We'll keep the URLs for future reference, but we'll use mock data for now
-        self.api_urls = [
-            "https://ixpmanager.frys-ix.net/api/v4",
-            "https://www.frys-ix.net/api/v4",
-            "https://api.frys-ix.net/v4",
-            "https://ixpmanager.frys-ix.net/api",
-            "https://www.frys-ix.net/api"
-        ]
-        self.api_url = self.api_urls[0]  # Default to first URL
+        # The correct API endpoint for Frys-IX
+        self.api_url = "https://ixpmanager.frys-ix.net/api/v4/member-export/ixf/1.0"
         
         # Flag to indicate whether to attempt API calls
-        # Set to False since our testing shows the API is not publicly accessible
-        self.try_api = False
+        # Set to True since we now have the correct API endpoint
+        self.try_api = True
         self.members = {}
         self.last_update = 0
         self.update_interval = 3600  # Update every hour
@@ -147,68 +139,60 @@ class FrysIX:
             return True
 
         # If we get here, we're going to try API calls
-        self.bot.logger.info("Attempting to fetch Frys-IX member data from API")
+        self.bot.logger.info(f"Attempting to fetch Frys-IX member data from API: {self.api_url}")
         
-        # Try each API endpoint until one works
-        success = False
-        for api_url in self.api_urls:
-            # Try different endpoints for the member list
-            endpoints = [
-                "/member/list",
-                "/members",
-                "/members/list",
-                "/public/member/list",
-                "/public/members"
-            ]
+        try:
+            # Add User-Agent header to avoid potential blocks
+            headers = {
+                'User-Agent': 'PhreakBot/1.0 (IRC Bot; +https://github.com/jskoetsier/phreakbot)'
+            }
 
-            for endpoint in endpoints:
+            # Try with a longer timeout
+            response = requests.get(self.api_url, headers=headers, timeout=30)
+            
+            if response.status_code == 200:
                 try:
-                    full_url = f"{api_url}{endpoint}"
-                    self.bot.logger.info(f"Trying: {full_url}")
-
-                    # Add User-Agent header to avoid potential blocks
-                    headers = {
-                        'User-Agent': 'PhreakBot/1.0 (IRC Bot; +https://github.com/jskoetsier/phreakbot)'
-                    }
-
-                    # Try with a longer timeout
-                    response = requests.get(full_url, headers=headers, timeout=30)
+                    # Try to parse as JSON
+                    data = response.json()
                     
-                    if response.status_code == 200:
-                        try:
-                            # Try to parse as JSON
-                            data = response.json()
-                            
-                            # Check for members in different formats
-                            if "members" in data:
-                                self.members = {str(member["autsys"]): member for member in data["members"]}
-                                self.last_update = current_time
-                                self.bot.logger.info(f"Updated Frys-IX member list with API data, found {len(self.members)} members")
-                                success = True
-                                break
-                            elif "data" in data and isinstance(data["data"], list):
-                                # Try alternative format where members might be in a "data" key
-                                self.members = {str(member.get("autsys", member.get("asn", "0"))): member for member in data["data"]}
-                                self.last_update = current_time
-                                self.bot.logger.info(f"Updated Frys-IX member list with API data (data format), found {len(self.members)} members")
-                                success = True
-                                break
-                        except ValueError:
-                            # Failed to parse JSON, continue to next endpoint
-                            pass
-                except Exception:
-                    # Any error, continue to next endpoint
-                    pass
+                    # Check for member_list in the IXF format
+                    if "member_list" in data and isinstance(data["member_list"], list):
+                        # Process members from the IXF format
+                        members_dict = {}
+                        for member in data["member_list"]:
+                            if "asnum" in member:
+                                asn = str(member["asnum"])
+                                # Convert IXF format to our internal format
+                                members_dict[asn] = {
+                                    "autsys": member["asnum"],
+                                    "name": member.get("name", "Unknown"),
+                                    "shortname": member.get("name", "Unknown")[:10],  # Use first 10 chars of name as shortname
+                                    "city": "Unknown",  # IXF format doesn't include city
+                                    "country": "Unknown",  # IXF format doesn't include country directly
+                                    "url": member.get("url", "Unknown"),
+                                    "joined_at": member.get("member_since", "Unknown"),
+                                    "peeringpolicy": member.get("peering_policy", "Unknown")
+                                }
+                        
+                        if members_dict:
+                            self.members = members_dict
+                            self.last_update = current_time
+                            self.bot.logger.info(f"Updated Frys-IX member list with API data, found {len(self.members)} members")
+                            return True
+                        else:
+                            self.bot.logger.warning("No valid members found in API response")
+                    else:
+                        self.bot.logger.warning("API response doesn't contain member_list")
+                except ValueError as e:
+                    self.bot.logger.error(f"Failed to parse JSON from API response: {e}")
+            else:
+                self.bot.logger.error(f"API request failed with status code: {response.status_code}")
+        except Exception as e:
+            import traceback
+            self.bot.logger.error(f"Error fetching Frys-IX members: {e}")
+            self.bot.logger.debug(f"Traceback: {traceback.format_exc()}")
 
-            # If we found data with this API URL, break the loop
-            if success:
-                self.api_url = api_url  # Remember the successful URL for next time
-                break
-
-        # If we couldn't get data from any API endpoint, log a message
-        if not success:
-            self.bot.logger.info("Could not fetch Frys-IX members from API, using mock data")
-
+        self.bot.logger.info("Using mock data as fallback")
         return True
 
     def cmd_member(self, bot, user, channel, args):
