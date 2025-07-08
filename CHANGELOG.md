@@ -1,13 +1,17 @@
 # Changelog
 
 ## [v0.1.12] - 2025-07-08
-- Added Frys-IX module for importing and displaying member information from Frys-IX peering LAN
-- Enhanced network information capabilities with peering exchange data
-
-## [v0.1.11] - 2025-07-08
+- Added Frys-IX module for peering LAN member information
+- Added IRRExplorer module for better routing information and ROA validation
+- Deprecated old ROA module in favor of IRRExplorer
+- Enhanced kickban module to use hostname-based banning
+- Added userinfo module as a more reliable alternative to whois
 - Simplified lockdown module to use direct channel user lookup
-- Fixed kickban module to properly use hostname-based banning
-- Enhanced whois module to correctly detect users in channels
+- Fixed whois module to correctly detect users in channels
+- Added detailed logging for joins and parts
+
+- Added join/part tracking for better user management
+
 - Added userinfo module as a more reliable alternative to whois
 - Added comprehensive join/part tracking for better user management
 - Added detailed debugging and error logging throughout the application
