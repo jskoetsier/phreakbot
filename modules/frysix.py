@@ -14,7 +14,7 @@ try:
 except ImportError:
     requests = None
 
-def config():
+def config(bot=None):
     """Return the configuration for this module"""
     return {
         "name": "frysix",
