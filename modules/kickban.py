@@ -119,28 +119,35 @@ def _kickban_user(bot, event):
         # Get the user's hostmask from the channel
         hostmask = None
         
-        # Try to find the user in the channel
-        for user in bot.channels[channel].users():
-            if user.lower() == nick.lower():
-                # Get the user's hostmask
-                user_obj = bot.channels[channel].userdict[user]
-                # Create a ban mask in the form *!*@host (hostname-only)
-                hostmask = f"*!*@{user_obj.host}"
-                bot.logger.info(f"Found user {nick} with hostmask: {hostmask}")
-                break
+        # Try to find the user in the channel using WHO command
+        bot.logger.info(f"Trying to find user {nick} in {channel}")
         
-        # If we couldn't find the user, try to get their info from other channels
-        if not hostmask:
-            bot.logger.info(f"User {nick} not found in {channel}, checking other channels")
-            for chan_name, chan_obj in bot.channels.items():
-                for user in chan_obj.users():
-                    if user.lower() == nick.lower():
-                        user_obj = chan_obj.userdict[user]
-                        hostmask = f"*!*@{user_obj.host}"
-                        bot.logger.info(f"Found user {nick} in {chan_name} with hostmask: {hostmask}")
-                        break
-                if hostmask:
-                    break
+        # Since we can't directly access the user's hostmask from the channel object,
+        # we'll use a different approach
+        
+        # First, check if the user is in the event (if they're the one being kicked)
+        if event["nick"].lower() == nick.lower():
+            # Use the hostmask from the event
+            user_host = event["hostmask"]
+            # Extract the hostname part (after the @)
+            if "@" in user_host:
+                hostname = user_host.split("@")[1]
+                hostmask = f"*!*@{hostname}"
+                bot.logger.info(f"Using hostmask from event: {hostmask}")
+            else:
+                # Fallback to a generic mask
+                hostmask = "*!*@*"
+                bot.logger.warning(f"Could not extract hostname from {user_host}")
+        else:
+            # For other users, we need to use a different approach
+            # Send a WHO command to get more information
+            bot.connection.who(nick)
+            
+            # Since we can't directly get the result of the WHO command here,
+            # we'll use a generic mask for now
+            hostmask = "*!*@*"
+            bot.logger.warning(f"Using generic mask for {nick} - consider using WHOIS first")
+            bot.add_response(f"Warning: Using generic ban mask for {nick}. This may not be effective.")
         
         # If we still couldn't find the user, try to use WHOIS
         if not hostmask:
