@@ -1,5 +1,9 @@
 # Changelog
 
+## [v0.1.12] - 2025-07-08
+- Added Frys-IX module for importing and displaying member information from Frys-IX peering LAN
+- Enhanced network information capabilities with peering exchange data
+
 ## [v0.1.11] - 2025-07-08
 - Simplified lockdown module to use direct channel user lookup
 - Fixed kickban module to properly use hostname-based banning

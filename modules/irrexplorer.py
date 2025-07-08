@@ -43,7 +43,7 @@ def run(bot, event):
     if not net:
         bot.add_response("Please specify an IP address or prefix to check.")
         return
-        
+
     try:
         # typecast to IPNetwork so we know it's a valid IP or prefix
         IPNetwork(net)
@@ -54,12 +54,12 @@ def run(bot, event):
     try:
         bot.logger.info(f"Querying IRRExplorer for {net}")
         req = requests.get(f"https://irrexplorer.nlnog.net/api/prefixes/prefix/{net}")
-        
+
         # check results
         if req.status_code != 200:
             bot.add_response(f"Failed to query IRRExplorer: {req.text}")
             return
-            
+
         try:
             data = req.json()
         except Exception:
@@ -100,7 +100,7 @@ def run(bot, event):
 
         # print some details
         bot.add_response(f"More details: https://irrexplorer.nlnog.net/prefix/{net}")
-        
+
     except Exception as e:
         bot.logger.error(f"Error checking routing information for {net}: {str(e)}")
         bot.add_response(f"Error checking routing information for {net}: {str(e)}")

@@ -34,13 +34,13 @@ def run(bot, event):
 
     # Check if the input is a CIDR prefix
     is_prefix = "/" in query
-    
+
     if is_prefix:
         # Validate prefix format
         if not _is_valid_prefix(query):
             bot.add_response(f"Invalid prefix format: {query}")
             return
-        
+
         # Use the prefix directly
         prefix = query
         ip_address = query.split('/')[0]  # Extract the network address
@@ -49,11 +49,11 @@ def run(bot, event):
         if not _is_valid_ip(query):
             bot.add_response(f"Invalid IP address format: {query}")
             return
-        
+
         # Find the prefix that contains this IP
         ip_address = query
         prefix = _find_prefix_for_ip(bot, ip_address)
-        
+
         if not prefix:
             bot.add_response(f"Could not find a prefix containing {ip_address}")
             return
@@ -92,29 +92,29 @@ def _find_prefix_for_ip(bot, ip_address):
         bot.logger.info(f"Looking up prefix for IP {ip_address} using BGPView API")
         response = requests.get(f"https://api.bgpview.io/ip/{ip_address}", timeout=10)
         response.raise_for_status()
-        
+
         data = response.json()
-        
+
         if data.get("status") == "ok" and "data" in data:
             prefixes = data["data"].get("prefixes", [])
             if prefixes:
                 # Sort prefixes by prefix length (most specific first)
                 prefixes.sort(key=lambda x: int(x.get("prefix", "0/0").split("/")[1]), reverse=True)
-                
+
                 # Get the most specific prefix
                 prefix = prefixes[0].get("prefix")
                 bot.logger.info(f"Found prefix {prefix} for IP {ip_address}")
                 return prefix
-        
+
         # If BGPView fails, try to use a default prefix
         ip_obj = ipaddress.ip_address(ip_address)
         default_prefix = f"{ip_address}/24" if ip_obj.version == 4 else f"{ip_address}/48"
         bot.logger.warning(f"Could not find prefix for {ip_address}, using default {default_prefix}")
         return default_prefix
-        
+
     except Exception as e:
         bot.logger.error(f"Error finding prefix for {ip_address}: {str(e)}")
-        
+
         # Use a default prefix as fallback
         try:
             ip_obj = ipaddress.ip_address(ip_address)
@@ -130,18 +130,18 @@ def _check_roa(ip_address, prefix):
     try:
         # Query RPKI validation API (using RIPE's API)
         api_url = f"https://rpki-validator.ripe.net/api/v1/validity/{prefix}"
-        
+
         response = requests.get(api_url, timeout=10)
         response.raise_for_status()  # Raise exception for HTTP errors
-        
+
         data = response.json()
-        
+
         # Process the response
         if "validated_route" in data and "validity" in data:
             validity = data["validity"]["state"]
             validated_prefix = data["validated_route"]["route"]["prefix"]
             origin_asn = data["validated_route"]["route"]["origin_asn"]
-            
+
             if validity == "valid":
                 return f"✅ {ip_address} (in prefix {prefix}) has a valid ROA. Validated prefix: {validated_prefix}, Origin ASN: {origin_asn}"
             elif validity == "invalid":
@@ -154,12 +154,12 @@ def _check_roa(ip_address, prefix):
         else:
             # Try alternative API (CloudFlare's API)
             api_url = f"https://rpki.cloudflare.com/api/v1/validity/{prefix}"
-            
+
             response = requests.get(api_url, timeout=10)
             response.raise_for_status()
-            
+
             data = response.json()
-            
+
             if "valid" in data:
                 if data["valid"]:
                     return f"✅ {ip_address} (in prefix {prefix}) has a valid ROA according to CloudFlare RPKI Validator."
@@ -172,12 +172,12 @@ def _check_roa(ip_address, prefix):
         # If the first API fails, try the alternative API
         try:
             api_url = f"https://rpki.cloudflare.com/api/v1/validity/{prefix}"
-            
+
             response = requests.get(api_url, timeout=10)
             response.raise_for_status()
-            
+
             data = response.json()
-            
+
             if "valid" in data:
                 if data["valid"]:
                     return f"✅ {ip_address} (in prefix {prefix}) has a valid ROA according to CloudFlare RPKI Validator."

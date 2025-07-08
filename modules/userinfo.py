@@ -35,14 +35,14 @@ def run(bot, event):
 
         # Debug: Log all channels and their users
         bot.logger.info(f"All channels: {list(bot.channels.keys())}")
-        
+
         # Check current channel first
         current_channel = event['channel']
         if current_channel in bot.channels:
             try:
                 users = list(bot.channels[current_channel].users())
                 bot.logger.info(f"Current channel {current_channel} users: {users}")
-                
+
                 # Check if the user is in this channel (case insensitive)
                 for user in users:
                     if user.lower() == tnick.lower():
@@ -55,17 +55,17 @@ def run(bot, event):
                 bot.logger.error(f"Error checking current channel {current_channel}: {e}")
                 import traceback
                 bot.logger.error(f"Traceback: {traceback.format_exc()}")
-        
+
         # If not found in current channel, check all other channels
         if not found_user:
             for channel_name, channel in bot.channels.items():
                 if channel_name == current_channel:
                     continue  # Skip current channel as we already checked it
-                
+
                 try:
                     users = list(channel.users())
                     bot.logger.info(f"Channel {channel_name} users: {users}")
-                    
+
                     # Check if the user is in this channel (case insensitive)
                     for user in users:
                         if user.lower() == tnick.lower():
@@ -74,21 +74,21 @@ def run(bot, event):
                             found_user = True
                             bot.logger.info(f"Found user '{user}' in channel '{channel_name}'")
                             break
-                    
+
                     if found_user:
                         break
                 except Exception as e:
                     bot.logger.error(f"Error checking channel {channel_name}: {e}")
                     import traceback
                     bot.logger.error(f"Traceback: {traceback.format_exc()}")
-        
+
         if not found_user:
             bot.add_response(f"{tnick} is not in any channel I'm in.")
             return
-        
+
         # User found, display information
         bot.add_response(f"{tnick} is on channel {found_channel} as {user_hostmask}.")
-        
+
         # Check if the user exists in the database
         if bot.db_connection:
             try:
@@ -99,7 +99,7 @@ def run(bot, event):
                 )
                 user_by_username = cur.fetchone()
                 cur.close()
-                
+
                 if user_by_username:
                     # Get full user info by ID
                     cur = bot.db_connection.cursor()
@@ -108,7 +108,7 @@ def run(bot, event):
                     )
                     user_info = cur.fetchone()
                     cur.close()
-                    
+
                     # Get user permissions
                     cur = bot.db_connection.cursor()
                     cur.execute(
@@ -117,7 +117,7 @@ def run(bot, event):
                     )
                     permissions = cur.fetchall()
                     cur.close()
-                    
+
                     # Get user hostmasks
                     cur = bot.db_connection.cursor()
                     cur.execute(
@@ -126,10 +126,10 @@ def run(bot, event):
                     )
                     hostmasks = [row[0] for row in cur.fetchall()]
                     cur.close()
-                    
+
                     # Display user info
                     bot.add_response(f"Recognized as user '{user_info[1]}'")
-                    
+
                     # Show permissions
                     global_perms = []
                     channel_perms = {}
@@ -140,20 +140,20 @@ def run(bot, event):
                             if perm[1] not in channel_perms:
                                 channel_perms[perm[1]] = []
                             channel_perms[perm[1]].append(perm[0])
-                    
+
                     if global_perms:
                         bot.add_response(f"Global permissions: {', '.join(global_perms)}")
-                    
+
                     channel = event["channel"]
                     if channel in channel_perms:
                         bot.add_response(
                             f"Channel permissions for {channel}: {', '.join(channel_perms[channel])}"
                         )
-                    
+
                     # Show hostmasks
                     if hostmasks:
                         bot.add_response(f"Hostmasks: {', '.join(hostmasks)}")
-                    
+
                     # Show owner/admin status
                     if user_info[4]:  # is_owner
                         bot.add_response("This user is the bot owner.")
@@ -162,23 +162,23 @@ def run(bot, event):
                 else:
                     # Try by hostmask as a fallback
                     user_by_hostmask = bot.db_get_userinfo_by_userhost(user_hostmask)
-                    
+
                     if user_by_hostmask:
                         bot.add_response(
                             f"Recognized by hostmask as user '{user_by_hostmask['username']}'"
                         )
-                        
+
                         # Show permissions
                         perms_text = "With "
                         if user_by_hostmask["permissions"]["global"]:
                             perms_text += f"global perms ({', '.join(user_by_hostmask['permissions']['global'])})"
-                            
+
                             channel = event["channel"]
                             if channel in user_by_hostmask["permissions"]:
                                 perms_text += f" and '{channel}' perms ({', '.join(user_by_hostmask['permissions'][channel])})"
-                        
+
                         bot.add_response(perms_text)
-                        
+
                         # Show hostmasks
                         hostmasks_text = f"Hostmasks: {', '.join(user_by_hostmask['hostmasks'])}"
                         bot.add_response(hostmasks_text)

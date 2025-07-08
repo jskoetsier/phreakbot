@@ -1,4 +1,4 @@
-# PhreakBot (v0.1.11)
+# PhreakBot (v0.1.12)
 
 PhreakBot is a modular IRC bot written in Python.
 
@@ -13,6 +13,8 @@ PhreakBot is a modular IRC bot written in Python.
 - Auto-op functionality
 - CTCP version support
 - Robust error handling and logging
+- Frys-IX peering LAN member information
+- ROA validation and routing information
 - And more!
 
 ## Installation
