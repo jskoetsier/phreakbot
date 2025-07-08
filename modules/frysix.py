@@ -20,6 +20,15 @@ class FrysIX:
     Provides information about members on the Frys-IX peering LAN
     """
 
+    def config(self):
+        """Return the configuration for this module"""
+        return {
+            "name": "frysix",
+            "description": "Frys-IX module for PhreakBot",
+            "author": "PhreakBot",
+            "version": "1.0.0"
+        }
+        
     def __init__(self, bot):
         """Initialize the module"""
         self.bot = bot
