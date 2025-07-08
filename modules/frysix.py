@@ -37,6 +37,24 @@ def init(bot):
     """Initialize the module"""
     return FrysIX(bot)
 
+def run(bot, event):
+    """Handle frysix commands"""
+    # Get the module instance
+    module = bot.modules.get("frysix")
+    if not module:
+        bot.logger.error("Frysix module not found in bot.modules")
+        return
+
+    # Handle commands
+    if event["trigger"] == "command" and event["command"] in module.commands:
+        command = event["command"]
+        args = event["command_args"].split() if event["command_args"] else []
+        user = event["nick"]
+        channel = event["channel"]
+
+        # Call the appropriate command handler
+        module.commands[command](bot, user, channel, args)
+
 class FrysIX:
     """
     Frys-IX module for PhreakBot
