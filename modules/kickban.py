@@ -13,7 +13,7 @@ scheduled_unbans = {}
 def config(bot):
     """Return module configuration"""
     return {
-        "events": ["namreply"],  # Add namreply event to track users in channels
+        "events": ["whoisuser"],  # Add whoisuser event to get user hostmasks
         "commands": ["kick", "kickban", "unban"],
         "permissions": ["owner", "admin", "op"],
         "help": "Kick and ban users from a channel.\n"
@@ -22,14 +22,14 @@ def config(bot):
         "       !unban <hostmask> - Manually unban a hostmask from the channel",
     }
 
-# Dictionary to track users and their hostmasks in each channel
-channel_users = {}
+# Dictionary to track pending kickbans
+pending_kickbans = {}
 
 
 def run(bot, event):
     """Handle kick and kickban commands"""
-    if event["trigger"] == "event" and event["signal"] == "namreply":
-        _handle_namreply(bot, event)
+    if event["trigger"] == "event" and event["signal"] == "whoisuser":
+        _handle_whois_reply(bot, event)
         return
         
     if event["command"] == "kick":
@@ -39,34 +39,48 @@ def run(bot, event):
     elif event["command"] == "unban":
         _unban_user(bot, event)
 
-def _handle_namreply(bot, event):
-    """Handle NAMES reply events to track users in channels"""
+def _handle_whois_reply(bot, event):
+    """Handle WHOIS reply events to get user hostmasks"""
     try:
-        channel = event["channel"]
-        names = event["names"]
+        # Extract information from the WHOIS reply
+        nick = event["nick"]
+        user = event["user"]
+        host = event["host"]
         
-        bot.logger.info(f"Received NAMES reply for {channel}: {names}")
+        # Create the full hostmask
+        hostmask = f"{nick}!{user}@{host}"
+        bot.logger.info(f"Received WHOIS reply for {nick}: {hostmask}")
         
-        # Initialize the channel in our tracking dictionary if needed
-        if channel not in channel_users:
-            channel_users[channel] = {}
+        # Check if there's a pending kickban for this user
+        if nick.lower() in pending_kickbans:
+            kickban_info = pending_kickbans[nick.lower()]
             
-        # Process each name in the list
-        for name in names:
-            # Remove any prefix characters like @ or +
-            clean_name = name
-            if name.startswith('@') or name.startswith('+'):
-                clean_name = name[1:]
+            # Create a ban mask using the hostname
+            ban_mask = f"*!*@{host}"
+            bot.logger.info(f"Creating ban mask for {nick}: {ban_mask}")
+            
+            # Set the ban
+            channel = kickban_info["channel"]
+            bot.logger.info(f"Setting ban on {ban_mask} in {channel}")
+            bot.connection.mode(channel, f"+b {ban_mask}")
+            
+            # Kick the user
+            reason = kickban_info["reason"]
+            bot.logger.info(f"Kicking {nick} from {channel} with reason: {reason}")
+            bot.connection.kick(channel, nick, reason)
+            
+            # Schedule unban if minutes are specified
+            if kickban_info["unban_minutes"]:
+                _schedule_unban(bot, channel, ban_mask, kickban_info["unban_minutes"])
+                bot.add_response(f"Kicked and banned {nick} ({ban_mask}) from {channel} for {kickban_info['unban_minutes']} minutes: {reason}")
+            else:
+                bot.add_response(f"Kicked and banned {nick} ({ban_mask}) from {channel}: {reason}")
                 
-            # Store the user in our tracking dictionary
-            # We'll update the hostmask when we get more information
-            if clean_name not in channel_users[channel]:
-                channel_users[channel][clean_name] = {"joined": time.time(), "hostmask": None}
-                bot.logger.info(f"Added {clean_name} to channel_users for {channel}")
-                
-        bot.logger.info(f"Updated channel_users for {channel}: {channel_users[channel]}")
+            # Remove the pending kickban
+            del pending_kickbans[nick.lower()]
+            
     except Exception as e:
-        bot.logger.error(f"Error handling namreply event: {str(e)}")
+        bot.logger.error(f"Error handling WHOIS reply: {str(e)}")
 
 
 def _kick_user(bot, event):
@@ -145,74 +159,23 @@ def _kickban_user(bot, event):
         return
 
     try:
-        # Get the user's hostmask
-        hostmask = None
+        # Store the kickban information for when we get the WHOIS reply
+        pending_kickbans[nick.lower()] = {
+            "channel": channel,
+            "reason": reason,
+            "unban_minutes": unban_minutes
+        }
         
-        # First, check if the user is in our tracking dictionary
-        if channel in channel_users and nick.lower() in [n.lower() for n in channel_users[channel]]:
-            # Find the exact nick with correct case
-            for tracked_nick in channel_users[channel]:
-                if tracked_nick.lower() == nick.lower():
-                    user_data = channel_users[channel][tracked_nick]
-                    if user_data.get("hostmask"):
-                        # Extract the hostname part (after the @)
-                        if "@" in user_data["hostmask"]:
-                            hostname = user_data["hostmask"].split("@")[1]
-                            hostmask = f"*!*@{hostname}"
-                            bot.logger.info(f"Using hostmask from tracking: {hostmask}")
-                        break
+        # Send a WHOIS command to get the user's hostmask
+        bot.logger.info(f"Sending WHOIS command for {nick}")
+        bot.connection.whois(nick)
         
-        # If we couldn't find the user in our tracking, check if they're the one executing the command
-        if not hostmask and event["nick"].lower() == nick.lower():
-            # Use the hostmask from the event
-            user_host = event["hostmask"]
-            # Extract the hostname part (after the @)
-            if "@" in user_host:
-                hostname = user_host.split("@")[1]
-                hostmask = f"*!*@{hostname}"
-                bot.logger.info(f"Using hostmask from event: {hostmask}")
-                
-                # Also update our tracking dictionary
-                if channel in channel_users and nick in channel_users[channel]:
-                    channel_users[channel][nick]["hostmask"] = user_host
-                    bot.logger.info(f"Updated hostmask for {nick} in {channel}: {user_host}")
+        # Let the user know we're processing the kickban
+        bot.add_response(f"Processing kickban for {nick}...")
         
-        # If we still don't have a hostmask, try to get it from the server
-        if not hostmask:
-            # Send a WHO command to get more information
-            bot.logger.info(f"Sending WHO command for {nick}")
-            bot.connection.who(nick)
-            
-            # Since we can't directly get the result of the WHO command here,
-            # we'll use a fallback based on the nickname
-            
-            # For Guest users, use a common pattern
-            if nick.lower().startswith("guest"):
-                hostmask = "*!*@gateway/web/*"
-                bot.logger.info(f"Using web gateway mask for Guest user: {hostmask}")
-            else:
-                # As a last resort, use a nick-based mask
-                hostmask = f"{nick}!*@*"
-                bot.logger.warning(f"Could not determine hostname for {nick}, using nick-based mask")
-                bot.add_response(f"Warning: Using nick-based ban mask for {nick}. This may not be as effective as a hostname-based mask.")
-
-        # Set ban on the user
-        bot.logger.info(f"Setting ban on {hostmask} in {channel}")
-        bot.connection.mode(channel, f"+b {hostmask}")
-
-        # Kick the user
-        bot.logger.info(f"Kicking {nick} from {channel} with reason: {reason}")
-        bot.connection.kick(channel, nick, reason)
-
-        # Schedule unban if minutes are specified
-        if unban_minutes:
-            _schedule_unban(bot, channel, hostmask, unban_minutes)
-            bot.add_response(f"Kicked and banned {nick} ({hostmask}) from {channel} for {unban_minutes} minutes: {reason}")
-        else:
-            bot.add_response(f"Kicked and banned {nick} ({hostmask}) from {channel}: {reason}")
     except Exception as e:
-        bot.logger.error(f"Error kicking and banning user {nick}: {str(e)}")
-        bot.add_response(f"Error kicking and banning user {nick}: {str(e)}")
+        bot.logger.error(f"Error processing kickban for {nick}: {str(e)}")
+        bot.add_response(f"Error processing kickban for {nick}: {str(e)}")
 
 
 def _unban_user(bot, event):
