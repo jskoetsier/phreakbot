@@ -23,7 +23,13 @@ def config(bot=None):
         "version": "1.0.0",
         "events": [],
         "commands": ["member", "frysix", "ix", "ixmember", "members"],
-        "permissions": []
+        "permissions": [],
+        "help": "Provides information about Frys-IX members.\n"
+               "Usage: !member <ASN> - Show information about a Frys-IX member by ASN\n"
+               "       !frysix - Show information about Frys-IX\n"
+               "       !ix <ASN> - Alias for !member\n"
+               "       !ixmember <ASN> - Alias for !member\n"
+               "       !members - Show the number of Frys-IX members"
     }
 
 # This function is required by the module loader
