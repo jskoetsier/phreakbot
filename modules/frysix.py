@@ -20,7 +20,10 @@ def config(bot=None):
         "name": "frysix",
         "description": "Frys-IX module for PhreakBot",
         "author": "PhreakBot",
-        "version": "1.0.0"
+        "version": "1.0.0",
+        "events": [],
+        "commands": ["member", "frysix", "ix", "ixmember", "members"],
+        "permissions": []
     }
 
 # This function is required by the module loader
