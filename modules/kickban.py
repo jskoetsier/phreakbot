@@ -13,7 +13,7 @@ scheduled_unbans = {}
 def config(bot):
     """Return module configuration"""
     return {
-        "events": [],
+        "events": ["namreply"],  # Add namreply event to track users in channels
         "commands": ["kick", "kickban", "unban"],
         "permissions": ["owner", "admin", "op"],
         "help": "Kick and ban users from a channel.\n"
@@ -22,15 +22,51 @@ def config(bot):
         "       !unban <hostmask> - Manually unban a hostmask from the channel",
     }
 
+# Dictionary to track users and their hostmasks in each channel
+channel_users = {}
+
 
 def run(bot, event):
     """Handle kick and kickban commands"""
+    if event["trigger"] == "event" and event["signal"] == "namreply":
+        _handle_namreply(bot, event)
+        return
+        
     if event["command"] == "kick":
         _kick_user(bot, event)
     elif event["command"] == "kickban":
         _kickban_user(bot, event)
     elif event["command"] == "unban":
         _unban_user(bot, event)
+
+def _handle_namreply(bot, event):
+    """Handle NAMES reply events to track users in channels"""
+    try:
+        channel = event["channel"]
+        names = event["names"]
+        
+        bot.logger.info(f"Received NAMES reply for {channel}: {names}")
+        
+        # Initialize the channel in our tracking dictionary if needed
+        if channel not in channel_users:
+            channel_users[channel] = {}
+            
+        # Process each name in the list
+        for name in names:
+            # Remove any prefix characters like @ or +
+            clean_name = name
+            if name.startswith('@') or name.startswith('+'):
+                clean_name = name[1:]
+                
+            # Store the user in our tracking dictionary
+            # We'll update the hostmask when we get more information
+            if clean_name not in channel_users[channel]:
+                channel_users[channel][clean_name] = {"joined": time.time(), "hostmask": None}
+                bot.logger.info(f"Added {clean_name} to channel_users for {channel}")
+                
+        bot.logger.info(f"Updated channel_users for {channel}: {channel_users[channel]}")
+    except Exception as e:
+        bot.logger.error(f"Error handling namreply event: {str(e)}")
 
 
 def _kick_user(bot, event):
@@ -109,24 +145,25 @@ def _kickban_user(bot, event):
         return
 
     try:
-        # First, try to get the user's hostmask using WHO command
-        bot.logger.info(f"Sending WHO command for {nick}")
-        bot.connection.who(nick)
-
-        # Since we can't directly get the result of the WHO command here,
-        # we'll use a different approach
-
-        # Get the user's hostmask from the channel
+        # Get the user's hostmask
         hostmask = None
-
-        # Try to find the user in the channel using WHO command
-        bot.logger.info(f"Trying to find user {nick} in {channel}")
-
-        # Since we can't directly access the user's hostmask from the channel object,
-        # we'll use a different approach
-
-        # First, check if the user is in the event (if they're the one being kicked)
-        if event["nick"].lower() == nick.lower():
+        
+        # First, check if the user is in our tracking dictionary
+        if channel in channel_users and nick.lower() in [n.lower() for n in channel_users[channel]]:
+            # Find the exact nick with correct case
+            for tracked_nick in channel_users[channel]:
+                if tracked_nick.lower() == nick.lower():
+                    user_data = channel_users[channel][tracked_nick]
+                    if user_data.get("hostmask"):
+                        # Extract the hostname part (after the @)
+                        if "@" in user_data["hostmask"]:
+                            hostname = user_data["hostmask"].split("@")[1]
+                            hostmask = f"*!*@{hostname}"
+                            bot.logger.info(f"Using hostmask from tracking: {hostmask}")
+                        break
+        
+        # If we couldn't find the user in our tracking, check if they're the one executing the command
+        if not hostmask and event["nick"].lower() == nick.lower():
             # Use the hostmask from the event
             user_host = event["hostmask"]
             # Extract the hostname part (after the @)
@@ -134,57 +171,30 @@ def _kickban_user(bot, event):
                 hostname = user_host.split("@")[1]
                 hostmask = f"*!*@{hostname}"
                 bot.logger.info(f"Using hostmask from event: {hostmask}")
-            else:
-                # Fallback to a nick-based mask
-                hostmask = f"{nick}!*@*"
-                bot.logger.warning(f"Could not extract hostname from {user_host}, using nick-based mask")
-        else:
-            # For other users, we need to use a different approach
-            # Try to find the user in the current channel's users
-            found = False
-            
-            # Check if the user is currently in the channel
-            try:
-                # Get the list of users in the channel
-                users_in_channel = list(bot.channels[channel].users())
-                bot.logger.info(f"Users in channel {channel}: {users_in_channel}")
                 
-                # Check if the target user is in the list
-                if nick.lower() in [u.lower() for u in users_in_channel]:
-                    # User is in the channel, use a nick-based mask for now
-                    # This is better than a generic mask that would ban everyone
-                    hostmask = f"{nick}!*@*"
-                    bot.logger.info(f"User {nick} found in channel, using nick-based mask: {hostmask}")
-                    found = True
-            except Exception as e:
-                bot.logger.error(f"Error checking channel users: {str(e)}")
-            
-            # If we couldn't find the user in the channel, try a different approach
-            if not found:
-                # For Guest users, use a common pattern
-                if nick.lower().startswith("guest"):
-                    hostmask = "*!*@gateway/web/*"
-                    bot.logger.info(f"Using web gateway mask for Guest user: {hostmask}")
-                else:
-                    # As a last resort, use a nick-based mask
-                    hostmask = f"{nick}!*@*"
-                    bot.logger.warning(f"Could not find user {nick} in channel, using nick-based mask")
-
-        # If we still couldn't find the user, try to use WHOIS
+                # Also update our tracking dictionary
+                if channel in channel_users and nick in channel_users[channel]:
+                    channel_users[channel][nick]["hostmask"] = user_host
+                    bot.logger.info(f"Updated hostmask for {nick} in {channel}: {user_host}")
+        
+        # If we still don't have a hostmask, try to get it from the server
         if not hostmask:
-            bot.logger.info(f"User {nick} not found in any channel, trying WHOIS")
-            # We can't directly get WHOIS results here, so we'll use a fallback
-
+            # Send a WHO command to get more information
+            bot.logger.info(f"Sending WHO command for {nick}")
+            bot.connection.who(nick)
+            
+            # Since we can't directly get the result of the WHO command here,
+            # we'll use a fallback based on the nickname
+            
             # For Guest users, use a common pattern
             if nick.lower().startswith("guest"):
                 hostmask = "*!*@gateway/web/*"
-                bot.logger.info(f"Using generic web gateway mask for Guest user: {hostmask}")
+                bot.logger.info(f"Using web gateway mask for Guest user: {hostmask}")
             else:
-                # As a last resort, use a temporary nick-based mask
-                # but warn that it's not ideal
-                hostmask = f"*!*@*"
-                bot.logger.warning(f"Could not determine hostname for {nick}, using generic mask")
-                bot.add_response(f"Warning: Using generic ban mask for {nick}. This may not be effective.")
+                # As a last resort, use a nick-based mask
+                hostmask = f"{nick}!*@*"
+                bot.logger.warning(f"Could not determine hostname for {nick}, using nick-based mask")
+                bot.add_response(f"Warning: Using nick-based ban mask for {nick}. This may not be as effective as a hostname-based mask.")
 
         # Set ban on the user
         bot.logger.info(f"Setting ban on {hostmask} in {channel}")
