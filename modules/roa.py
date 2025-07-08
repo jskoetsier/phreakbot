@@ -14,12 +14,10 @@ def config(bot):
     """Return module configuration"""
     return {
         "events": [],
-        "commands": ["roa", "rpki"],
+        "commands": ["rpki-old"],
         "permissions": ["user"],
-        "help": "Check if an IP address or prefix has a valid ROA (Route Origin Authorization).\n"
-        "Usage: !roa <ip_address> - Check ROA status for an IP address\n"
-        "       !roa <prefix> - Check ROA status for a prefix (e.g., 8.8.8.0/24)\n"
-        "       !rpki <ip_address|prefix> - Alias for !roa",
+        "help": "DEPRECATED: Use !roa or !irr instead.\n"
+        "This module is deprecated and will be removed in a future version.",
     }
 
 
