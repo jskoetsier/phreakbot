@@ -86,15 +86,15 @@ def _kickban_user(bot, event):
         return
 
     nick = args[0]
-    
+
     # Check if the second argument is a number (minutes for unban)
     unban_minutes = None
     reason_start_index = 1
-    
+
     if len(args) > 1 and args[1].isdigit():
         unban_minutes = int(args[1])
         reason_start_index = 2
-    
+
     reason = " ".join(args[reason_start_index:]) if len(args) > reason_start_index else "Banned by operator"
     channel = event["channel"]
 
@@ -170,14 +170,14 @@ def _unban_user(bot, event):
 def _schedule_unban(bot, channel, hostmask, minutes):
     """Schedule an unban after the specified number of minutes"""
     key = f"{channel}:{hostmask}"
-    
+
     # Cancel any existing scheduled unban for this hostmask in this channel
     if key in scheduled_unbans:
         scheduled_unbans[key].cancel()
-    
+
     # Schedule the unban
     bot.logger.info(f"Scheduling unban for {hostmask} in {channel} in {minutes} minutes")
-    
+
     def unban_task():
         try:
             bot.logger.info(f"Auto-unbanning {hostmask} in {channel}")
@@ -188,12 +188,12 @@ def _schedule_unban(bot, channel, hostmask, minutes):
                 del scheduled_unbans[key]
         except Exception as e:
             bot.logger.error(f"Error in scheduled unban for {hostmask}: {str(e)}")
-    
+
     # Create and start the timer
     timer = threading.Timer(minutes * 60, unban_task)
     timer.daemon = True  # Make sure the timer doesn't prevent the bot from shutting down
     timer.start()
-    
+
     # Store the timer
     scheduled_unbans[key] = timer
 
@@ -236,16 +236,36 @@ def _get_hostmask(bot, nick, channel):
             if user.lower() == nick.lower():
                 # Get the user's hostmask
                 user_obj = bot.channels[channel].userdict[user]
+                
+                # Log the full hostmask for debugging
+                full_hostmask = f"{user}!{user_obj.user}@{user_obj.host}"
+                bot.logger.info(f"Found user {nick} with full hostmask: {full_hostmask}")
+                
                 # Create a ban mask in the form *!*@host
                 # This focuses on the hostname part, not the nickname
-                return f"*!*@{user_obj.host}"
-
-        # If we couldn't find the user, try to use WHO command
-        bot.logger.info(f"User {nick} not found in channel users, trying WHO command")
-        bot.connection.who(nick)
+                host_only_mask = f"*!*@{user_obj.host}"
+                bot.logger.info(f"Created hostname-only ban mask: {host_only_mask}")
+                return host_only_mask
         
-        # Since we can't directly get the result of the WHO command here,
-        # we'll return a simple nick-based mask as fallback
+        # If we couldn't find the user, try to get their info from the server
+        bot.logger.info(f"User {nick} not found in channel users, trying WHOIS command")
+        
+        # Send a WHOIS command to get user information
+        # Note: We can't directly get the result here, but it might help for future lookups
+        bot.connection.whois(nick)
+        
+        # Since we can't directly get the result of the WHOIS command here,
+        # we'll try to make an educated guess about the hostname
+        
+        # Check if the nick looks like a Guest user from a web gateway
+        if nick.lower().startswith("guest"):
+            # For web gateway users, try to ban based on common hostname patterns
+            # This is a more targeted approach than just banning the nickname
+            bot.logger.info(f"User {nick} appears to be a Guest user, using web gateway ban pattern")
+            return "*!*@gateway/web/*"
+        
+        # As a last resort, ask the bot operator to manually specify the ban mask
+        bot.logger.warning(f"Could not determine hostname for {nick}, falling back to nick-based mask")
         return f"{nick}!*@*"
     except Exception as e:
         bot.logger.error(f"Error getting hostmask for {nick}: {str(e)}")
