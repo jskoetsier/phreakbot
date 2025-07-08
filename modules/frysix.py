@@ -14,21 +14,26 @@ try:
 except ImportError:
     requests = None
 
+def config():
+    """Return the configuration for this module"""
+    return {
+        "name": "frysix",
+        "description": "Frys-IX module for PhreakBot",
+        "author": "PhreakBot",
+        "version": "1.0.0"
+    }
+
+# This function is required by the module loader
+def init(bot):
+    """Initialize the module"""
+    return FrysIX(bot)
+
 class FrysIX:
     """
     Frys-IX module for PhreakBot
     Provides information about members on the Frys-IX peering LAN
     """
 
-    def config(self):
-        """Return the configuration for this module"""
-        return {
-            "name": "frysix",
-            "description": "Frys-IX module for PhreakBot",
-            "author": "PhreakBot",
-            "version": "1.0.0"
-        }
-        
     def __init__(self, bot):
         """Initialize the module"""
         self.bot = bot
@@ -36,10 +41,10 @@ class FrysIX:
         self.members = {}
         self.last_update = 0
         self.update_interval = 3600  # Update every hour
-        
+
         # Initialize with mock data to ensure the module loads even if API is unavailable
         self._init_mock_data()
-        
+
         self.commands = {
             "member": self.cmd_member,
             "frysix": self.cmd_frysix,
@@ -67,7 +72,7 @@ class FrysIX:
                 {"autsys": 16509, "name": "Amazon.com, Inc.", "shortname": "AMAZON", "city": "Seattle", "country": "US", "url": "https://amazon.com", "joined_at": "2020-01-01T00:00:00Z"}
             ]
         }
-        
+
         self.members = {str(member["autsys"]): member for member in mock_data["members"]}
         self.last_update = time.time()
         self.bot.logger.info(f"Initialized Frys-IX module with mock data, {len(self.members)} members")
@@ -77,17 +82,17 @@ class FrysIX:
         current_time = time.time()
         if current_time - self.last_update < self.update_interval and self.members:
             return True
-            
+
         # If requests module is not available, just use the mock data
         if requests is None:
             self.bot.logger.warning("Requests module not available, using mock data only")
             return True
-        
+
         # Try to get real data from the API
         try:
             self.bot.logger.info("Attempting to fetch data from Frys-IX API")
             response = requests.get(f"{self.api_url}/member/list", timeout=10)
-            
+
             if response.status_code == 200:
                 data = response.json()
                 if "members" in data:
@@ -100,7 +105,7 @@ class FrysIX:
                 self.bot.logger.warning(f"Failed to fetch Frys-IX members: HTTP {response.status_code}")
         except Exception as e:
             self.bot.logger.warning(f"Error fetching Frys-IX members: {str(e)}")
-        
+
         return True
 
     def cmd_member(self, bot, user, channel, args):
@@ -113,7 +118,7 @@ class FrysIX:
         # Remove "AS" prefix if present
         if asn.upper().startswith("AS"):
             asn = asn[2:]
-            
+
         if not asn.isdigit():
             return bot.notice(user, f"Invalid ASN format: {args[0]}. Please provide a numeric ASN.")
 
@@ -130,7 +135,7 @@ class FrysIX:
             country = member.get("country", "Unknown")
             url = member.get("url", "Unknown")
             joined = member.get("joined_at", "Unknown")
-            
+
             # Format the joined date if available
             if joined and joined != "Unknown":
                 try:
@@ -138,14 +143,14 @@ class FrysIX:
                     joined = joined_date.strftime("%Y-%m-%d")
                 except Exception as e:
                     self.bot.logger.debug(f"Error formatting date: {str(e)}")
-            
+
             # Add peering policy if available
             peeringpolicy = member.get('peeringpolicy', 'Unknown')
             response = f"AS{asn}: {name} ({shortname}) - Location: {city}, {country} - Website: {url} - Joined: {joined}"
-            
+
             if peeringpolicy != "Unknown":
                 response += f" - Peering Policy: {peeringpolicy}"
-                
+
             bot.say(channel, response)
         else:
             bot.say(channel, f"No member found with ASN {asn} at Frys-IX.")
@@ -155,11 +160,11 @@ class FrysIX:
         # Force a data refresh if needed
         if not self.members:
             self._update_members()
-            
+
         if not self.members:
             bot.say(channel, "No Frys-IX member data available yet. Please try again later.")
             return
-            
+
         # Count members
         count = len(self.members)
         bot.say(channel, f"Frys-IX has {count} members. Use !member <ASN> for details about a specific member.")
