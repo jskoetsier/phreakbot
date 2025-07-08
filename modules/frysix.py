@@ -40,20 +40,34 @@ def init(bot):
 def run(bot, event):
     """Handle frysix commands"""
     # Get the module instance
-    module = bot.modules.get("frysix")
-    if not module:
+    module_config = bot.modules.get("frysix")
+    if not module_config:
         bot.logger.error("Frysix module not found in bot.modules")
         return
-
+    
+    # Get the actual module instance
+    module_instance = module_config.get("object")
+    if not module_instance:
+        bot.logger.error("Frysix module object not found")
+        return
+    
+    # Initialize the module if it hasn't been initialized yet
+    if not hasattr(module_instance, "init"):
+        bot.logger.error("Frysix module does not have init function")
+        return
+    
+    # Get the FrysIX instance
+    frysix_instance = init(bot)
+    
     # Handle commands
-    if event["trigger"] == "command" and event["command"] in module.commands:
+    if event["trigger"] == "command" and event["command"] in frysix_instance.commands:
         command = event["command"]
         args = event["command_args"].split() if event["command_args"] else []
         user = event["nick"]
         channel = event["channel"]
-
+        
         # Call the appropriate command handler
-        module.commands[command](bot, user, channel, args)
+        frysix_instance.commands[command](bot, user, channel, args)
 
 class FrysIX:
     """
