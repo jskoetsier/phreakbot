@@ -109,8 +109,10 @@ def _kickban_user(bot, event):
         return
 
     try:
-        # Get the user's hostmask if they're the one executing the command
+        # Try to find the user in the channel
         hostmask = None
+        
+        # First, check if the user is the one executing the command
         if event["nick"].lower() == nick.lower():
             # Use the hostmask from the event
             user_host = event["hostmask"]
@@ -120,16 +122,37 @@ def _kickban_user(bot, event):
                 hostmask = f"*!*@{hostname}"
                 bot.logger.info(f"Using hostmask from event: {hostmask}")
         
-        # If we couldn't get the hostmask, use a nick-based mask
+        # If we couldn't get the hostmask, try to find the user in the channel
+        if not hostmask:
+            # Try to find the user in the raw event data
+            try:
+                # Log the raw event data for debugging
+                bot.logger.info(f"Raw event data: {event['raw_event']}")
+                
+                # Try to extract the source from the raw event
+                if hasattr(event['raw_event'], 'source') and event['raw_event'].source:
+                    source = event['raw_event'].source
+                    bot.logger.info(f"Event source: {source}")
+                    
+                    # If the source has a host attribute, use it
+                    if hasattr(source, 'host') and source.host:
+                        hostname = source.host
+                        hostmask = f"*!*@{hostname}"
+                        bot.logger.info(f"Using hostname from raw event: {hostmask}")
+            except Exception as e:
+                bot.logger.error(f"Error extracting hostname from raw event: {str(e)}")
+        
+        # If we still couldn't get the hostmask, try to use the WHO command
         if not hostmask:
             # For Guest users, use a common pattern
             if nick.lower().startswith("guest"):
                 hostmask = "*!*@gateway/web/*"
                 bot.logger.info(f"Using web gateway mask for Guest user: {hostmask}")
             else:
-                # Use a nick-based mask
+                # Use a nick-based mask but with a warning
                 hostmask = f"{nick}!*@*"
-                bot.logger.info(f"Using nick-based mask: {hostmask}")
+                bot.logger.warning(f"Could not determine hostname for {nick}, using nick-based mask")
+                bot.add_response(f"Warning: Using nick-based ban mask for {nick}. This may not be as effective as a hostname-based mask.")
         
         # Set ban on the user
         bot.logger.info(f"Setting ban on {hostmask} in {channel}")
