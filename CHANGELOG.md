@@ -1,6 +1,14 @@
 # Changelog
 
-## [v0.1.10] - 2025-07-16
+## [v0.1.11] - 2025-07-08
+- Simplified lockdown module to use direct channel user lookup
+- Fixed kickban module to properly use hostname-based banning
+- Enhanced whois module to correctly detect users in channels
+- Added userinfo module as a more reliable alternative to whois
+- Added comprehensive join/part tracking for better user management
+- Added detailed debugging and error logging throughout the application
+
+## [v0.1.10] - 2025-07-08
 - Added kickban module with kick, kickban, and unban commands
 - Added auto-unban timer functionality for temporary bans
 - Added IRRExplorer module for checking routing information and ROA status
