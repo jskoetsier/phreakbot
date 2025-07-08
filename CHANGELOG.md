@@ -7,6 +7,8 @@
 - Enhanced lockdown module to kick unregistered users who joined in the last 5 minutes
 - Added join/part tracking for better user management
 - Improved hostname-based banning in kickban module
+- Added userinfo module as a more reliable alternative to whois
+- Added on_namreply event handler to properly track channel users
 
 ## [v0.1.9] - 2025-07-15
 - Enhanced lockdown module with unlock command to remove lockdown
