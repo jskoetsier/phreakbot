@@ -44,28 +44,28 @@ def run(bot, event):
     if not module_config:
         bot.logger.error("Frysix module not found in bot.modules")
         return
-    
+
     # Get the actual module instance
     module_instance = module_config.get("object")
     if not module_instance:
         bot.logger.error("Frysix module object not found")
         return
-    
+
     # Initialize the module if it hasn't been initialized yet
     if not hasattr(module_instance, "init"):
         bot.logger.error("Frysix module does not have init function")
         return
-    
+
     # Get the FrysIX instance
     frysix_instance = init(bot)
-    
+
     # Handle commands
     if event["trigger"] == "command" and event["command"] in frysix_instance.commands:
         command = event["command"]
         args = event["command_args"].split() if event["command_args"] else []
         user = event["nick"]
         channel = event["channel"]
-        
+
         # Call the appropriate command handler
         frysix_instance.commands[command](bot, user, channel, args)
 
@@ -78,7 +78,8 @@ class FrysIX:
     def __init__(self, bot):
         """Initialize the module"""
         self.bot = bot
-        # Try different API endpoints
+        # API URLs - Note: Based on testing, these APIs are not publicly accessible
+        # We'll keep the URLs for future reference, but we'll use mock data for now
         self.api_urls = [
             "https://ixpmanager.frys-ix.net/api/v4",
             "https://www.frys-ix.net/api/v4",
@@ -87,6 +88,10 @@ class FrysIX:
             "https://www.frys-ix.net/api"
         ]
         self.api_url = self.api_urls[0]  # Default to first URL
+        
+        # Flag to indicate whether to attempt API calls
+        # Set to False since our testing shows the API is not publicly accessible
+        self.try_api = False
         self.members = {}
         self.last_update = 0
         self.update_interval = 3600  # Update every hour
@@ -129,24 +134,24 @@ class FrysIX:
     def _update_members(self):
         """Update the members list from the API"""
         current_time = time.time()
-        
-        # Force update if we only have mock data (5 members)
-        force_update = len(self.members) <= 5
-        
-        if not force_update and current_time - self.last_update < self.update_interval and self.members:
+
+        # If we already have data and it's not time to update yet, use the cached data
+        if current_time - self.last_update < self.update_interval and self.members:
             self.bot.logger.info("Using cached Frys-IX member data")
             return True
 
-        # If requests module is not available, just use the mock data
-        if requests is None:
-            self.bot.logger.error("Requests module not available, using mock data only")
+        # Skip API calls if try_api is False or requests module is not available
+        if not self.try_api or requests is None:
+            self.bot.logger.info("Skipping API calls, using mock data only")
+            # We already have mock data initialized, so just return
             return True
 
+        # If we get here, we're going to try API calls
+        self.bot.logger.info("Attempting to fetch Frys-IX member data from API")
+        
         # Try each API endpoint until one works
         success = False
         for api_url in self.api_urls:
-            self.bot.logger.info(f"Trying API endpoint: {api_url}")
-            
             # Try different endpoints for the member list
             endpoints = [
                 "/member/list",
@@ -155,26 +160,24 @@ class FrysIX:
                 "/public/member/list",
                 "/public/members"
             ]
-            
+
             for endpoint in endpoints:
                 try:
                     full_url = f"{api_url}{endpoint}"
-                    self.bot.logger.info(f"Attempting to fetch data from: {full_url}")
-                    
+                    self.bot.logger.info(f"Trying: {full_url}")
+
                     # Add User-Agent header to avoid potential blocks
                     headers = {
                         'User-Agent': 'PhreakBot/1.0 (IRC Bot; +https://github.com/jskoetsier/phreakbot)'
                     }
-                    
+
                     # Try with a longer timeout
                     response = requests.get(full_url, headers=headers, timeout=30)
-                    self.bot.logger.info(f"API response status code: {response.status_code}")
                     
                     if response.status_code == 200:
                         try:
                             # Try to parse as JSON
                             data = response.json()
-                            self.bot.logger.info(f"API response data keys: {list(data.keys())}")
                             
                             # Check for members in different formats
                             if "members" in data:
@@ -190,28 +193,22 @@ class FrysIX:
                                 self.bot.logger.info(f"Updated Frys-IX member list with API data (data format), found {len(self.members)} members")
                                 success = True
                                 break
-                            else:
-                                self.bot.logger.warning(f"Invalid response format from {full_url}. Keys in response: {list(data.keys())}")
-                        except ValueError as json_err:
-                            self.bot.logger.warning(f"Failed to parse JSON from {full_url}: {json_err}")
-                            self.bot.logger.warning(f"Response content (first 200 chars): {response.text[:200]}")
-                    else:
-                        self.bot.logger.warning(f"Failed to fetch from {full_url}: HTTP {response.status_code}")
-                except Exception as e:
-                    import traceback
-                    self.bot.logger.warning(f"Error fetching from {full_url}: {str(e)}")
-                    self.bot.logger.debug(f"Traceback: {traceback.format_exc()}")
-            
+                        except ValueError:
+                            # Failed to parse JSON, continue to next endpoint
+                            pass
+                except Exception:
+                    # Any error, continue to next endpoint
+                    pass
+
             # If we found data with this API URL, break the loop
             if success:
                 self.api_url = api_url  # Remember the successful URL for next time
                 break
-        
-        # If we couldn't get data from any API endpoint, log an error
+
+        # If we couldn't get data from any API endpoint, log a message
         if not success:
-            self.bot.logger.error("Failed to fetch Frys-IX members from any API endpoint. Using mock data.")
-            # We already have mock data initialized, so just return
-        
+            self.bot.logger.info("Could not fetch Frys-IX members from API, using mock data")
+
         return True
 
     def cmd_member(self, bot, user, channel, args):
