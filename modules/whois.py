@@ -29,34 +29,67 @@ def run(bot, event):
 
     # Get the user's hostmask
     tuserhost = None
+    found_channel = None
+    
+    # Debug: Log all channels and their users
+    bot.logger.info(f"All channels: {list(bot.channels.keys())}")
     for channel_name, channel in bot.channels.items():
         try:
             # Get the users in the channel
-            users = channel.users()
-            bot.logger.info(f"Channel {channel_name} users: {list(users)}")
-
+            users = list(channel.users())
+            bot.logger.info(f"Channel {channel_name} users: {users}")
+        except Exception as e:
+            bot.logger.error(f"Error listing users in {channel_name}: {e}")
+    
+    # First check the current channel
+    current_channel = event['channel']
+    if current_channel in bot.channels:
+        try:
+            users = list(bot.channels[current_channel].users())
+            bot.logger.info(f"Current channel {current_channel} users: {users}")
+            
             # Check if the user is in this channel (case insensitive)
             for user in users:
                 if user.lower() == tnick.lower():
-                    # Since we can't get the hostmask directly, we'll create a generic one
-                    # Format: nickname!username@hostname
-                    # We'll use the nickname for both the nickname and username parts
                     tuserhost = f"{user}!{user}@{bot.connection.server}"
-                    bot.logger.info(f"Found user '{user}' with generated hostmask '{tuserhost}'")
+                    found_channel = current_channel
+                    bot.logger.info(f"Found user '{user}' in current channel '{current_channel}' with generated hostmask '{tuserhost}'")
                     break
-
-            if tuserhost:
-                break
         except Exception as e:
-            bot.logger.error(f"Error accessing channel users: {e}")
+            bot.logger.error(f"Error checking current channel {current_channel}: {e}")
             import traceback
             bot.logger.error(f"Traceback: {traceback.format_exc()}")
+    
+    # If not found in current channel, check all other channels
+    if not tuserhost:
+        for channel_name, channel in bot.channels.items():
+            if channel_name == current_channel:
+                continue  # Skip current channel as we already checked it
+                
+            try:
+                # Get the users in the channel
+                users = list(channel.users())
+                
+                # Check if the user is in this channel (case insensitive)
+                for user in users:
+                    if user.lower() == tnick.lower():
+                        tuserhost = f"{user}!{user}@{bot.connection.server}"
+                        found_channel = channel_name
+                        bot.logger.info(f"Found user '{user}' in channel '{channel_name}' with generated hostmask '{tuserhost}'")
+                        break
+                
+                if tuserhost:
+                    break
+            except Exception as e:
+                bot.logger.error(f"Error checking channel {channel_name}: {e}")
+                import traceback
+                bot.logger.error(f"Traceback: {traceback.format_exc()}")
 
     if not tuserhost:
         bot.add_response(f"{tnick} is not in any channel I'm in.")
         return
     else:
-        bot.add_response(f"{tnick} is on channel {event['channel']} as {tuserhost}.")
+        bot.add_response(f"{tnick} is on channel {found_channel} as {tuserhost}.")
 
     # Check if the user exists in the database
     if not bot.db_connection:
