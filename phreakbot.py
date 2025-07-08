@@ -307,6 +307,36 @@ class PhreakBot(irc.bot.SingleServerIRCBot):
     def on_quit(self, connection, event):
         """Called when someone quits IRC"""
         self._handle_event(connection, event, "quit")
+        
+    def on_namreply(self, connection, event):
+        """Called when the server sends a NAMES reply"""
+        # Extract channel and names from the event
+        channel = event.arguments[1]
+        names = event.arguments[2].split()
+        
+        self.logger.info(f"Received NAMES reply for {channel}: {names}")
+        
+        # Create event object for modules
+        event_obj = {
+            "server": self.connection.get_server_name(),
+            "signal": "namreply",
+            "nick": self.connection.get_nickname(),
+            "hostmask": "",
+            "channel": channel,
+            "names": names,
+            "text": "",
+            "is_privmsg": False,
+            "connection": connection,
+            "raw_event": event,
+            "bot_nick": self.connection.get_nickname(),
+            "command": "",
+            "command_args": "",
+            "trigger": "event",
+            "user_info": None,
+        }
+        
+        # Route to modules that handle namreply events
+        self._route_to_modules(event_obj)
 
     def _handle_message(self, connection, event, is_private):
         """Process incoming messages and route to appropriate modules"""
