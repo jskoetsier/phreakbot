@@ -25,12 +25,19 @@ def config(bot):
 
 def run(bot, event):
     """Handle factoid commands and events"""
+    # Log every call to the run method
+    bot.logger.info(f"Factoids module run() called with trigger: {event['trigger']}, signal: {event.get('signal', 'N/A')}")
+    bot.logger.info(f"Event text: '{event.get('text', 'N/A')}'")
+    
     try:
         # Handle event-based factoid commands
         if event["trigger"] == "event" and event["signal"] in ["pubmsg", "privmsg"]:
             message = event["text"]
             bot.logger.info(f"Factoids module checking message: '{message}'")
-
+            
+            # Always add a response to see if the module is being called
+            bot.add_response(f"DEBUG: Factoids module received message: {message}")
+            
             # Check for factoid set command (!factoid = value)
             set_match = re.match(r'^\!([a-zA-Z0-9_-]+)\s*=\s*(.+)$', message)
             if set_match:
