@@ -69,8 +69,18 @@ def run(bot, event):
             # First, try to unload the module if it's already loaded
             if module_name in bot.modules:
                 bot.logger.info(f"Unloading module {module_name}")
-                bot.unload_module(module_name)
-                bot.logger.info(f"Module {module_name} unloaded")
+                try:
+                    # Make a deep copy of the module object to prevent dictionary modification during iteration
+                    import copy
+                    module_copy = copy.deepcopy(bot.modules[module_name])
+                    bot.logger.info(f"Made a copy of module {module_name}")
+                    
+                    # Unload the module
+                    bot.unload_module(module_name)
+                    bot.logger.info(f"Module {module_name} unloaded")
+                except Exception as unload_error:
+                    bot.logger.error(f"Error unloading module {module_name}: {unload_error}")
+                    bot.connection.privmsg(event["channel"], f"Error unloading module: {str(unload_error)[:100]}")
             
             # Force a message to be sent before attempting to reload
             bot.connection.privmsg(event["channel"], f"Unloaded {module_name}, now reloading...")
