@@ -455,12 +455,17 @@ class PhreakBot(irc.bot.SingleServerIRCBot):
         # Find modules to handle this event
         handled = False
 
+        # Debug the event
+        self.logger.info(f"Routing event: trigger={event['trigger']}, signal={event.get('signal', 'N/A')}, text={event.get('text', 'N/A')}")
+
         # Check for custom infoitem commands first
-        if event["trigger"] == "event" and "infoitems" in self.modules:
+        if "infoitems" in self.modules:
             try:
-                # Try to handle as a custom infoitem command
+                # Try to handle as a custom infoitem command regardless of trigger type
+                self.logger.info("Checking if infoitems module can handle this message")
                 if hasattr(self.modules["infoitems"]["object"], "handle_custom_command"):
                     handled = self.modules["infoitems"]["object"].handle_custom_command(self, event)
+                    self.logger.info(f"Infoitems module handled message: {handled}")
             except Exception as e:
                 import traceback
                 self.logger.error(f"Error in infoitems custom command handler: {e}")
