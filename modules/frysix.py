@@ -265,19 +265,18 @@ class FrysIX:
             portspeed = member.get('portspeed', 'Unknown')
             ip = member.get('ip', 'Unknown')
             max_prefix = member.get('max_prefix', 'Unknown')
-            
-            # Build response without country information
-            response = f"AS{asn}: {name} ({shortname}) - Location: {city} - Website: {url} - Joined: {joined}"
-            
-            # Add additional information if available
+
+            # Build response without location information
+            response = f"AS{asn}: {name} ({shortname}) - Website: {url} - Joined: {joined}"
+
+            # Add additional information - always include these fields
             if peeringpolicy != "Unknown":
                 response += f" - Peering Policy: {peeringpolicy}"
-            if portspeed != "Unknown":
-                response += f" - Port Speed: {portspeed}"
-            if ip != "Unknown":
-                response += f" - IP: {ip}"
-            if max_prefix != "Unknown":
-                response += f" - Max Prefixes: {max_prefix}"
+            
+            # Always include portspeed, IP, and max prefix
+            response += f" - Port Speed: {portspeed}"
+            response += f" - IP: {ip}"
+            response += f" - Max Prefixes: {max_prefix}"
 
             bot.say(channel, response)
         else:
