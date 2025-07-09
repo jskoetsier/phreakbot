@@ -571,14 +571,28 @@ class PhreakBot(irc.bot.SingleServerIRCBot):
 
         # Then try modules that handle events
         if not handled and event["trigger"] == "event":
+            self.logger.info("Routing event to modules that handle events")
             for module_name, module in self.modules.items():
+                self.logger.info(f"Checking if module {module_name} handles event signal {event['signal']}")
+                self.logger.info(f"Module {module_name} events: {module['events']}")
+                
                 if event["signal"] in module["events"]:
-                    if self._check_permissions(event, module["permissions"]):
+                    self.logger.info(f"Module {module_name} handles event signal {event['signal']}")
+                    
+                    # Check permissions
+                    has_permission = self._check_permissions(event, module["permissions"])
+                    self.logger.info(f"User has permission for module {module_name}: {has_permission}")
+                    
+                    if has_permission:
                         try:
+                            self.logger.info(f"Calling module {module_name}.run() with event")
                             module["object"].run(self, event)
+                            self.logger.info(f"Module {module_name} processed event")
                             handled = True
                         except Exception as e:
+                            import traceback
                             self.logger.error(f"Error in module {module_name}: {e}")
+                            self.logger.error(f"Traceback: {traceback.format_exc()}")
 
         # Process output
         self._process_output(event)
