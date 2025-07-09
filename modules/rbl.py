@@ -15,8 +15,9 @@ def config(bot):
         "events": [],
         "commands": ["rbl", "blacklist"],
         "permissions": ["user"],
-        "help": "Check if a domain or IP is listed in various RBLs (blacklists).\n"
-        "Usage: !rbl <domain or IP> - Check if a domain or IP is blacklisted\n"
+        "help": "Check if a domain's mail servers are listed in various RBLs (blacklists).\n"
+        "Usage: !rbl <domain> - Check if a domain's mail servers are blacklisted\n"
+        "       !rbl <IP> - Check if an IP address is blacklisted\n"
         "       !blacklist <domain or IP> - Alias for !rbl",
     }
 
@@ -44,18 +45,66 @@ def run(bot, event):
     # Check if the query is a domain
     domain_pattern = r'^([a-zA-Z0-9]([a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z]{2,}$'
     if re.match(domain_pattern, query):
-        # Try to resolve the domain to an IP
-        try:
-            ip = socket.gethostbyname(query)
-            bot.add_response(f"Domain {query} resolves to IP: {ip}")
-            check_ip_in_rbls(bot, ip)
-            return
-        except socket.gaierror:
-            bot.add_response(f"Could not resolve domain {query} to an IP address.")
-            return
+        # Look up MX records for the domain
+        mx_records = get_mx_records(query)
+        
+        if mx_records:
+            bot.add_response(f"Found {len(mx_records)} mail servers for domain {query}:")
+            for i, (mx_host, mx_pref) in enumerate(mx_records):
+                bot.add_response(f"  {i+1}. {mx_host} (priority: {mx_pref})")
+                
+            # Check each MX record
+            for mx_host, _ in mx_records:
+                try:
+                    # Try to resolve the MX hostname to an IP
+                    ips = get_host_ips(mx_host)
+                    if ips:
+                        bot.add_response(f"\nChecking mail server: {mx_host}")
+                        for ip in ips:
+                            bot.add_response(f"Mail server {mx_host} resolves to IP: {ip}")
+                            check_ip_in_rbls(bot, ip)
+                    else:
+                        bot.add_response(f"Could not resolve mail server {mx_host} to an IP address.")
+                except Exception as e:
+                    bot.add_response(f"Error checking mail server {mx_host}: {str(e)}")
+        else:
+            bot.add_response(f"No mail servers (MX records) found for domain {query}.")
+            bot.add_response(f"Falling back to A record check...")
+            
+            # Fall back to A record if no MX records
+            try:
+                ips = get_host_ips(query)
+                if ips:
+                    for ip in ips:
+                        bot.add_response(f"Domain {query} resolves to IP: {ip}")
+                        check_ip_in_rbls(bot, ip)
+                else:
+                    bot.add_response(f"Could not resolve domain {query} to an IP address.")
+            except Exception as e:
+                bot.add_response(f"Error resolving domain {query}: {str(e)}")
+        return
     else:
         bot.add_response(f"Invalid input: {query}. Please provide a valid domain or IP address.")
         return
+
+
+def get_mx_records(domain):
+    """Get MX records for a domain"""
+    try:
+        answers = dns.resolver.resolve(domain, 'MX')
+        mx_records = [(str(rdata.exchange).rstrip('.'), rdata.preference) for rdata in answers]
+        return sorted(mx_records, key=lambda x: x[1])  # Sort by preference
+    except Exception:
+        return []
+
+
+def get_host_ips(hostname):
+    """Get all IP addresses for a hostname"""
+    try:
+        answers = dns.resolver.resolve(hostname, 'A')
+        return [str(rdata) for rdata in answers]
+    except Exception:
+        return []
 
 
 def check_ip_in_rbls(bot, ip):
