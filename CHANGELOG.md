@@ -1,5 +1,14 @@
 # Changelog
 
+## [v0.1.13] - 2025-07-09
+- Added MAC address lookup module for vendor identification
+- Added massmeet module for bulk user registration and hostmask merging
+- Enhanced Frys-IX module to display port speed, IP, and max prefix information
+- Removed location information from Frys-IX module output
+- Improved API data extraction in Frys-IX module
+- Added detailed logging for better troubleshooting
+- Fixed error handling in various modules
+
 ## [v0.1.12] - 2025-07-08
 - Added Frys-IX module for peering LAN member information
 - Added IRRExplorer module for better routing information and ROA validation
