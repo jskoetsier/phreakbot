@@ -42,26 +42,35 @@ def run(bot, event):
         # Get all users from all channels
         all_users = {}  # {nickname: hostmask}
         
+        # Debug the channels
+        bot.logger.info(f"Bot channels: {list(bot.channels.keys())}")
+        
         for channel_name, channel in bot.channels.items():
             try:
-                users = channel.users()
-                for user in users:
+                # Debug the channel object
+                bot.logger.info(f"Processing channel: {channel_name}")
+                
+                # In irc.client, users() returns a dictionary mapping nicks to hostmasks
+                users_dict = channel.users()
+                bot.logger.info(f"Users in channel {channel_name}: {list(users_dict.keys())}")
+                
+                for nick, hostmask in users_dict.items():
                     # Skip the bot itself
-                    if user.lower() == bot.connection.get_nickname().lower():
+                    if nick.lower() == bot.connection.get_nickname().lower():
+                        bot.logger.info(f"Skipping bot: {nick}")
                         continue
                     
-                    # Get the user's hostmask if available
-                    hostmask = None
-                    if user in channel.users():
-                        hostmask = channel.users()[user]
-                    
-                    # If we can't get a hostmask, generate one
+                    # If hostmask is None or empty, generate one
                     if not hostmask:
-                        hostmask = f"{user}!{user}@{bot.connection.server}"
+                        hostmask = f"{nick}!{nick}@{bot.connection.server}"
+                        bot.logger.info(f"Generated hostmask for {nick}: {hostmask}")
                     
-                    all_users[user] = hostmask
+                    bot.logger.info(f"Adding user {nick} with hostmask {hostmask}")
+                    all_users[nick] = hostmask
             except Exception as e:
                 bot.logger.error(f"Error getting users from channel {channel_name}: {e}")
+                import traceback
+                bot.logger.error(f"Traceback: {traceback.format_exc()}")
         
         stats["total_users"] = len(all_users)
         bot.logger.info(f"Found {len(all_users)} users across all channels")
