@@ -25,7 +25,7 @@ def run(bot, event):
     """Handle snarf commands and events"""
     try:
         # Handle !@ command through event processing
-        if event["trigger"] == "event" and event["signal"] == "pubmsg":
+        if event["trigger"] == "event" and event["signal"] in ["pubmsg", "privmsg"]:
             message = event["text"]
             bot.logger.info(f"Checking message for !@ command: {message}")
 
@@ -37,6 +37,10 @@ def run(bot, event):
                 if url:
                     bot.logger.info(f"Processing URL from !@ command: {url}")
                     process_url(bot, event, url)
+                    # Add a debug response to confirm the command was processed
+                    bot.add_response("DEBUG: !@ command processed")
+                else:
+                    bot.add_response("Please provide a URL after !@")
                 return
 
         # Handle regular commands

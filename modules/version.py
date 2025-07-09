@@ -1,42 +1,42 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 #
-# PhreakBot IRC Bot
-# https://github.com/johansebastiaan/phreakbot
-#
-# This program is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with this program.  If not, see <http://www.gnu.org/licenses/>.
-#
+# Version module for PhreakBot
 
 import os
-import sys
 import platform
-import irc.client
 
-def config(pb):
-    pb.register_command('version', version_command)
-    pb.register_ctcp_handler('VERSION', ctcp_version_handler)
 
-def version_command(pb, event, args):
-    """Display version information about the bot."""
-    with open(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'VERSION'), 'r') as f:
-        version = f.read().strip()
+def config(bot):
+    """Return module configuration"""
+    return {
+        "events": ["ctcp"],
+        "commands": ["version"],
+        "permissions": ["user"],
+        "help": "Display version information about the bot.",
+    }
 
-    pb.privmsg(event.target, f"PhreakBot v{version} running on Python {platform.python_version()} ({platform.system()} {platform.release()})")
 
-def ctcp_version_handler(pb, event):
-    """Handle CTCP VERSION requests."""
-    with open(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'VERSION'), 'r') as f:
-        version = f.read().strip()
-
-    pb.ctcp_reply(event.source.nick, 'VERSION', f"PhreakBot v{version} running on Python {platform.python_version()} ({platform.system()} {platform.release()})")
+def run(bot, event):
+    """Handle version command and CTCP VERSION requests"""
+    try:
+        # Get version from VERSION file
+        version_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'VERSION')
+        with open(version_path, 'r') as f:
+            version = f.read().strip()
+        
+        version_info = f"PhreakBot v{version} running on Python {platform.python_version()} ({platform.system()} {platform.release()})"
+        
+        # Handle command
+        if event["trigger"] == "command" and event["command"] == "version":
+            bot.add_response(version_info)
+            return
+        
+        # Handle CTCP VERSION
+        if event["trigger"] == "event" and event["signal"] == "ctcp" and event.get("ctcp_command") == "VERSION":
+            bot.connection.ctcp_reply(event["nick"], "VERSION", version_info)
+            return
+            
+    except Exception as e:
+        bot.logger.error(f"Error in version module: {e}")
+        bot.add_response("Error retrieving version information.")
