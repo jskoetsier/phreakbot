@@ -388,23 +388,48 @@ class PhreakBot(irc.bot.SingleServerIRCBot):
         self.logger.info(f"Trigger match: {bool(trigger_re.match(message))}")
 
         if trigger_re.match(message):
-            # Check for infoitem commands first
-            set_match = re.match(r'^\!([a-zA-Z0-9_-]+)\s*=\s*(.+)$', message)
-            get_match = re.match(r'^\!([a-zA-Z0-9_-]+)\?$', message)
+            # Check for infoitem commands first - with extra debugging
+            self.logger.info(f"Checking for infoitem commands in message: '{message}'")
+            
+            # Test set pattern
+            set_pattern = r'^\!([a-zA-Z0-9_-]+)\s*=\s*(.+)$'
+            self.logger.info(f"Testing set pattern: {set_pattern}")
+            set_match = re.match(set_pattern, message)
+            self.logger.info(f"Set pattern match: {bool(set_match)}")
+            if set_match:
+                self.logger.info(f"Set match groups: {set_match.groups()}")
+            
+            # Test get pattern
+            get_pattern = r'^\!([a-zA-Z0-9_-]+)\?$'
+            self.logger.info(f"Testing get pattern: {get_pattern}")
+            get_match = re.match(get_pattern, message)
+            self.logger.info(f"Get pattern match: {bool(get_match)}")
+            if get_match:
+                self.logger.info(f"Get match groups: {get_match.groups()}")
             
             if set_match or get_match:
                 self.logger.info(f"Detected infoitem command: '{message}'")
                 
+                # Check if infoitems module exists
+                self.logger.info(f"Infoitems module exists: {'infoitems' in self.modules}")
+                if "infoitems" in self.modules:
+                    self.logger.info(f"handle_custom_command exists: {hasattr(self.modules['infoitems']['object'], 'handle_custom_command')}")
+                
                 # Handle infoitem commands directly
                 if "infoitems" in self.modules and hasattr(self.modules["infoitems"]["object"], "handle_custom_command"):
                     event_obj["trigger"] = "infoitem"  # Special trigger for infoitem commands
-                    handled = self.modules["infoitems"]["object"].handle_custom_command(self, event_obj)
-                    self.logger.info(f"Infoitem command handled: {handled}")
-                    
-                    if handled:
-                        # Process output and return
-                        self._process_output(event_obj)
-                        return
+                    try:
+                        handled = self.modules["infoitems"]["object"].handle_custom_command(self, event_obj)
+                        self.logger.info(f"Infoitem command handled: {handled}")
+                        
+                        if handled:
+                            # Process output and return
+                            self._process_output(event_obj)
+                            return
+                    except Exception as e:
+                        import traceback
+                        self.logger.error(f"Error handling infoitem command: {e}")
+                        self.logger.error(f"Traceback: {traceback.format_exc()}")
             
             # Regular command handling
             match = command_re.match(message)
