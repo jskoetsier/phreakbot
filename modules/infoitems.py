@@ -33,16 +33,38 @@ def run(bot, event):
             message = event["text"]
             bot.logger.info(f"Checking message for infoitem patterns: '{message}'")
 
-            # Check for set pattern (!item = value)
-            set_match = re.match(r'^\!([a-zA-Z0-9_-]+)\s*=\s*(.+)$', message)
+            # Check for set patterns with multiple syntaxes
+            # Try !item = value
+            set_match1 = re.match(r'^\!([a-zA-Z0-9_-]+)\s*=\s*(.+)$', message)
+            # Try !item:value
+            set_match2 = re.match(r'^\!([a-zA-Z0-9_-]+)\s*:\s*(.+)$', message)
+            # Try !item+value
+            set_match3 = re.match(r'^\!([a-zA-Z0-9_-]+)\s*\+\s*(.+)$', message)
+            
+            set_match = set_match1 or set_match2 or set_match3
+            
             if set_match:
                 bot.logger.info(f"Matched set pattern: {message}")
                 item_name = set_match.group(1).lower()
                 value = set_match.group(2).strip()
-
+                
                 # Skip if the item name is a known command
                 if item_name not in ['infoitem', 'info', 'help', 'avail']:
                     bot.logger.info(f"Processing set command for item: {item_name}")
+                    _add_infoitem(bot, event, item_name, value)
+                    return
+                
+            # Also check for direct syntax !item value (without any separator)
+            direct_match = re.match(r'^\!([a-zA-Z0-9_-]+)\s+(.+)$', message)
+            if direct_match:
+                bot.logger.info(f"Matched direct pattern: {message}")
+                item_name = direct_match.group(1).lower()
+                value = direct_match.group(2).strip()
+                
+                # Skip if the item name is a known command or a registered command
+                if (item_name not in ['infoitem', 'info', 'help', 'avail'] and 
+                    item_name not in [cmd for mod in bot.modules.values() for cmd in mod.get('commands', [])]):
+                    bot.logger.info(f"Processing direct command for item: {item_name}")
                     _add_infoitem(bot, event, item_name, value)
                     return
 
