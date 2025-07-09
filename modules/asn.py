@@ -106,13 +106,9 @@ def lookup_asn_by_number(bot, asn):
 
         # Get country information
         country_code = asn_data.get("country_code", "")
-        country = asn_data.get("rir_allocation", {}).get("country_name", "")
-
-        # If country name is empty but we have a country code, use the code as the country
-        if not country and country_code:
-            country = country_code
-        elif not country:
-            country = "Unknown"
+        
+        # Just use the country code directly
+        country = country_code if country_code else "Unknown"
 
         # Get some prefixes if available
         prefix_info = ""
@@ -124,10 +120,7 @@ def lookup_asn_by_number(bot, asn):
                 prefix_info = f" | Sample Prefixes ({prefix_count} total): {', '.join(sample_prefixes)}"
 
         # Combine all information into a single line
-        if country == country_code:
-            result = f"ASN Lookup for AS{asn}: {name} | Description: {description} | Country: {country}{prefix_info}"
-        else:
-            result = f"ASN Lookup for AS{asn}: {name} | Description: {description} | Country: {country} ({country_code}){prefix_info}"
+        result = f"ASN Lookup for AS{asn}: {name} | Description: {description} | Country: {country}{prefix_info}"
         bot.add_response(result)
 
     except Exception as e:
