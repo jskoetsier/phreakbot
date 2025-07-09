@@ -55,9 +55,13 @@ def handle_custom_command(bot, event):
         
     message = event["text"]
     
+    # Log the message for debugging
+    bot.logger.info(f"Infoitems module checking message: '{message}'")
+    
     # Check if this is an infoitem set command (!item = value)
     set_match = re.match(r'^\!([a-zA-Z0-9_-]+)\s*=\s*(.+)$', message)
     if set_match:
+        bot.logger.info(f"Matched infoitem set command: {message}")
         item_name = set_match.group(1).lower()
         value = set_match.group(2).strip()
         return _add_infoitem(bot, event, item_name, value)
@@ -65,6 +69,7 @@ def handle_custom_command(bot, event):
     # Check if this is an infoitem get command (!item?)
     get_match = re.match(r'^\!([a-zA-Z0-9_-]+)\?$', message)
     if get_match:
+        bot.logger.info(f"Matched infoitem get command: {message}")
         item_name = get_match.group(1).lower()
         return _get_infoitem(bot, event, item_name)
         
@@ -180,7 +185,7 @@ def _list_infoitems(bot, event):
 def _delete_infoitem(bot, event, item_name, value):
     """Delete a specific info item value"""
     # Check if the user has permission to delete info items
-    if not bot._is_owner(event["source"]) and not (
+    if not bot._is_owner(event["hostmask"]) and not (
         event["user_info"] and event["user_info"].get("is_admin")
     ):
         bot.add_response("Only the bot owner and admins can delete info items.")
