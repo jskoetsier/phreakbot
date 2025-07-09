@@ -5,4 +5,5 @@ iso3166>=2.0.2
 pycurl>=7.43.0
 beautifulsoup4>=4.9.0
 netaddr>=0.8.0
+dnspython>=2.2.0
 # Add any additional dependencies below
