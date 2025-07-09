@@ -400,6 +400,12 @@ class PhreakBot(irc.bot.SingleServerIRCBot):
 
                 # Find modules that handle this command
                 self._route_to_modules(event_obj)
+            else:
+                # This is a message that starts with the trigger but doesn't match the command pattern
+                # It could be a custom command like !example = value or !example?
+                self.logger.info(f"Message starts with trigger but doesn't match command pattern: '{message}'")
+                event_obj["trigger"] = "event"
+                self._route_to_modules(event_obj)
         else:
             # Handle non-command events
             event_obj["trigger"] = "event"
