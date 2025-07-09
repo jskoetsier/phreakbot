@@ -7,6 +7,12 @@ import re
 import requests
 import json
 import ipaddress
+import sys
+
+# Check if this module is being reloaded
+if 'asn' in sys.modules:
+    # This is a reload, not a fresh import
+    print("ASN module is being reloaded, not restarting the bot")
 
 
 def config(bot):
@@ -101,7 +107,7 @@ def lookup_asn_by_number(bot, asn):
         # Get country information
         country_code = asn_data.get("country_code", "")
         country = asn_data.get("rir_allocation", {}).get("country_name", "")
-        
+
         # If country name is empty but we have a country code, use the code as the country
         if not country and country_code:
             country = country_code
