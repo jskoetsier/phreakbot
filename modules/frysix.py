@@ -87,10 +87,14 @@ class FrysIX:
         self.members = {}
         self.last_update = 0
         self.update_interval = 3600  # Update every hour
-
+        
         # Initialize with mock data to ensure the module loads even if API is unavailable
         self._init_mock_data()
-
+        
+        # Try to update from the API immediately
+        self.bot.logger.info("Attempting to update Frys-IX data from API during initialization")
+        self._update_members(force=True)
+        
         self.commands = {
             "member": self.cmd_member,
             "frysix": self.cmd_frysix,
@@ -123,12 +127,13 @@ class FrysIX:
         self.last_update = time.time()
         self.bot.logger.info(f"Initialized Frys-IX module with mock data, {len(self.members)} members")
 
-    def _update_members(self):
+    def _update_members(self, force=False):
         """Update the members list from the API"""
         current_time = time.time()
 
         # If we already have data and it's not time to update yet, use the cached data
-        if current_time - self.last_update < self.update_interval and self.members:
+        # Unless force=True is specified
+        if not force and current_time - self.last_update < self.update_interval and self.members:
             self.bot.logger.info("Using cached Frys-IX member data")
             return True
 
@@ -140,23 +145,31 @@ class FrysIX:
 
         # If we get here, we're going to try API calls
         self.bot.logger.info(f"Attempting to fetch Frys-IX member data from API: {self.api_url}")
-        
+        self.bot.logger.info(f"Force update: {force}")
+
         try:
             # Add User-Agent header to avoid potential blocks
             headers = {
                 'User-Agent': 'PhreakBot/1.0 (IRC Bot; +https://github.com/jskoetsier/phreakbot)'
             }
 
+            self.bot.logger.info(f"Sending request to {self.api_url} with timeout=30s")
+            
             # Try with a longer timeout
             response = requests.get(self.api_url, headers=headers, timeout=30)
-            
+            self.bot.logger.info(f"API response status code: {response.status_code}")
+
             if response.status_code == 200:
                 try:
                     # Try to parse as JSON
+                    self.bot.logger.info("Parsing API response as JSON")
                     data = response.json()
-                    
+                    self.bot.logger.info(f"API response keys: {list(data.keys())}")
+
                     # Check for member_list in the IXF format
                     if "member_list" in data and isinstance(data["member_list"], list):
+                        self.bot.logger.info(f"Found member_list with {len(data['member_list'])} members")
+                        
                         # Process members from the IXF format
                         members_dict = {}
                         for member in data["member_list"]:
@@ -173,24 +186,37 @@ class FrysIX:
                                     "joined_at": member.get("member_since", "Unknown"),
                                     "peeringpolicy": member.get("peering_policy", "Unknown")
                                 }
-                        
+
                         if members_dict:
-                            self.members = members_dict
+                            # Clear the existing members dictionary and replace with new data
+                            self.bot.logger.info(f"Replacing mock data with {len(members_dict)} members from API")
+                            self.members.clear()
+                            self.members.update(members_dict)
                             self.last_update = current_time
-                            self.bot.logger.info(f"Updated Frys-IX member list with API data, found {len(self.members)} members")
+                            self.bot.logger.info(f"Updated Frys-IX member list with API data, now have {len(self.members)} members")
+                            
+                            # Log a few sample members to verify the data
+                            sample_asns = list(self.members.keys())[:5]
+                            self.bot.logger.info(f"Sample ASNs: {sample_asns}")
+                            for asn in sample_asns:
+                                self.bot.logger.info(f"Sample member {asn}: {self.members[asn]['name']}")
+                            
                             return True
                         else:
                             self.bot.logger.warning("No valid members found in API response")
                     else:
                         self.bot.logger.warning("API response doesn't contain member_list")
+                        self.bot.logger.info(f"API response content (first 200 chars): {str(data)[:200]}")
                 except ValueError as e:
                     self.bot.logger.error(f"Failed to parse JSON from API response: {e}")
+                    self.bot.logger.error(f"Response content (first 200 chars): {response.text[:200]}")
             else:
                 self.bot.logger.error(f"API request failed with status code: {response.status_code}")
+                self.bot.logger.error(f"Response content (first 200 chars): {response.text[:200]}")
         except Exception as e:
             import traceback
             self.bot.logger.error(f"Error fetching Frys-IX members: {e}")
-            self.bot.logger.debug(f"Traceback: {traceback.format_exc()}")
+            self.bot.logger.error(f"Traceback: {traceback.format_exc()}")
 
         self.bot.logger.info("Using mock data as fallback")
         return True
