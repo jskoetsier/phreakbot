@@ -388,40 +388,74 @@ class PhreakBot(irc.bot.SingleServerIRCBot):
         self.logger.info(f"Trigger match: {bool(trigger_re.match(message))}")
 
         if trigger_re.match(message):
+            # CRITICAL DEBUG: Print the raw message to ensure we're seeing it correctly
+            self.logger.info(f"RAW MESSAGE: '{message}'")
+
             # Check for infoitem commands first - with extra debugging
             self.logger.info(f"Checking for infoitem commands in message: '{message}'")
-            
-            # Test set pattern
+
+            # Test set pattern with simplified regex
             set_pattern = r'^\!([a-zA-Z0-9_-]+)\s*=\s*(.+)$'
             self.logger.info(f"Testing set pattern: {set_pattern}")
+
+            # Try both re.match and re.search to see if there's a difference
             set_match = re.match(set_pattern, message)
-            self.logger.info(f"Set pattern match: {bool(set_match)}")
+            set_search = re.search(set_pattern, message)
+            self.logger.info(f"Set pattern match: {bool(set_match)}, search: {bool(set_search)}")
+
             if set_match:
                 self.logger.info(f"Set match groups: {set_match.groups()}")
-            
-            # Test get pattern
+            elif set_search:
+                self.logger.info(f"Set search groups: {set_search.groups()}")
+
+            # Test get pattern with simplified regex
             get_pattern = r'^\!([a-zA-Z0-9_-]+)\?$'
             self.logger.info(f"Testing get pattern: {get_pattern}")
+
+            # Try both re.match and re.search
             get_match = re.match(get_pattern, message)
-            self.logger.info(f"Get pattern match: {bool(get_match)}")
+            get_search = re.search(get_pattern, message)
+            self.logger.info(f"Get pattern match: {bool(get_match)}, search: {bool(get_search)}")
+
             if get_match:
                 self.logger.info(f"Get match groups: {get_match.groups()}")
-            
-            if set_match or get_match:
+            elif get_search:
+                self.logger.info(f"Get search groups: {get_search.groups()}")
+
+            # Use either match or search result
+            set_result = set_match or set_search
+            get_result = get_match or get_search
+
+            if set_result or get_result:
                 self.logger.info(f"Detected infoitem command: '{message}'")
-                
+
                 # Check if infoitems module exists
                 self.logger.info(f"Infoitems module exists: {'infoitems' in self.modules}")
                 if "infoitems" in self.modules:
                     self.logger.info(f"handle_custom_command exists: {hasattr(self.modules['infoitems']['object'], 'handle_custom_command')}")
-                
+
                 # Handle infoitem commands directly
                 if "infoitems" in self.modules and hasattr(self.modules["infoitems"]["object"], "handle_custom_command"):
                     event_obj["trigger"] = "infoitem"  # Special trigger for infoitem commands
+
+                    # Create a modified event object with the extracted item and value
+                    if set_result:
+                        item_name = set_result.group(1).lower()
+                        value = set_result.group(2).strip()
+                        self.logger.info(f"Extracted item: '{item_name}', value: '{value}'")
+                        event_obj["infoitem_name"] = item_name
+                        event_obj["infoitem_value"] = value
+                        event_obj["infoitem_type"] = "set"
+                    else:  # get_result
+                        item_name = get_result.group(1).lower()
+                        self.logger.info(f"Extracted item: '{item_name}'")
+                        event_obj["infoitem_name"] = item_name
+                        event_obj["infoitem_type"] = "get"
+
                     try:
                         handled = self.modules["infoitems"]["object"].handle_custom_command(self, event_obj)
                         self.logger.info(f"Infoitem command handled: {handled}")
-                        
+
                         if handled:
                             # Process output and return
                             self._process_output(event_obj)
@@ -430,7 +464,7 @@ class PhreakBot(irc.bot.SingleServerIRCBot):
                         import traceback
                         self.logger.error(f"Error handling infoitem command: {e}")
                         self.logger.error(f"Traceback: {traceback.format_exc()}")
-            
+
             # Regular command handling
             match = command_re.match(message)
             self.logger.info(f"Command match: {bool(match)}")
