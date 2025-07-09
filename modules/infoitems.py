@@ -51,12 +51,15 @@ def run(bot, event):
 def handle_custom_command(bot, event):
     """Handle custom infoitem commands (!item = value and !item?)"""
     if not bot.db_connection:
+        bot.logger.info("Infoitems: Database connection not available")
         return False
         
     message = event["text"]
     
-    # Log the message for debugging
+    # Log the message and event details for debugging
     bot.logger.info(f"Infoitems module checking message: '{message}'")
+    bot.logger.info(f"Event trigger: {event['trigger']}")
+    bot.logger.info(f"Event type: {event.get('signal', 'unknown')}")
     
     # Check if this is an infoitem set command (!item = value)
     set_match = re.match(r'^\!([a-zA-Z0-9_-]+)\s*=\s*(.+)$', message)
@@ -64,6 +67,12 @@ def handle_custom_command(bot, event):
         bot.logger.info(f"Matched infoitem set command: {message}")
         item_name = set_match.group(1).lower()
         value = set_match.group(2).strip()
+        
+        # Skip if the item name is a known command
+        if item_name in ['infoitem', 'help', 'avail']:
+            bot.logger.info(f"Skipping reserved command name: {item_name}")
+            return False
+            
         return _add_infoitem(bot, event, item_name, value)
         
     # Check if this is an infoitem get command (!item?)
@@ -71,8 +80,15 @@ def handle_custom_command(bot, event):
     if get_match:
         bot.logger.info(f"Matched infoitem get command: {message}")
         item_name = get_match.group(1).lower()
+        
+        # Skip if the item name is a known command
+        if item_name in ['infoitem', 'help', 'avail']:
+            bot.logger.info(f"Skipping reserved command name: {item_name}")
+            return False
+            
         return _get_infoitem(bot, event, item_name)
         
+    bot.logger.info("No match for infoitem command patterns")
     return False
 
 
