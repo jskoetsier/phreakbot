@@ -9,8 +9,8 @@ import re
 def config(bot):
     """Return module configuration"""
     return {
-        "events": [],
-        "commands": ["infoitem"],  # We'll handle custom commands in the bot's message handler
+        "events": ["pubmsg", "privmsg"],  # Handle all messages to check for custom patterns
+        "commands": ["infoitem", "info"],  # Standard commands
         "permissions": ["user"],
         "help": "InfoItems management. Usage:\n"
                 "       !<item> = <value> - Add a new info item\n"
@@ -22,13 +22,44 @@ def config(bot):
 
 
 def run(bot, event):
-    """Handle infoitems commands"""
+    """Handle infoitems commands and custom patterns"""
     if not bot.db_connection:
         bot.add_response("Database connection is not available.")
         return
 
     try:
-        if event["command"] == "infoitem":
+        # First check for custom patterns in all messages
+        if event["trigger"] == "event" and event["signal"] in ["pubmsg", "privmsg"]:
+            message = event["text"]
+            bot.logger.info(f"Checking message for infoitem patterns: '{message}'")
+
+            # Check for set pattern (!item = value)
+            set_match = re.match(r'^\!([a-zA-Z0-9_-]+)\s*=\s*(.+)$', message)
+            if set_match:
+                bot.logger.info(f"Matched set pattern: {message}")
+                item_name = set_match.group(1).lower()
+                value = set_match.group(2).strip()
+
+                # Skip if the item name is a known command
+                if item_name not in ['infoitem', 'info', 'help', 'avail']:
+                    bot.logger.info(f"Processing set command for item: {item_name}")
+                    _add_infoitem(bot, event, item_name, value)
+                    return
+
+            # Check for get pattern (!item?)
+            get_match = re.match(r'^\!([a-zA-Z0-9_-]+)\?$', message)
+            if get_match:
+                bot.logger.info(f"Matched get pattern: {message}")
+                item_name = get_match.group(1).lower()
+
+                # Skip if the item name is a known command
+                if item_name not in ['infoitem', 'info', 'help', 'avail']:
+                    bot.logger.info(f"Processing get command for item: {item_name}")
+                    _get_infoitem(bot, event, item_name)
+                    return
+
+        # Handle standard commands
+        if event["trigger"] == "command" and event["command"] in ["infoitem", "info"]:
             if not event["command_args"]:
                 bot.add_response("Please specify a subcommand. Try !help infoitem for usage information.")
                 return
