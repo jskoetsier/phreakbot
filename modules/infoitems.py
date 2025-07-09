@@ -40,29 +40,29 @@ def run(bot, event):
             set_match2 = re.match(r'^\!([a-zA-Z0-9_-]+)\s*:\s*(.+)$', message)
             # Try !item+value
             set_match3 = re.match(r'^\!([a-zA-Z0-9_-]+)\s*\+\s*(.+)$', message)
-            
+
             set_match = set_match1 or set_match2 or set_match3
-            
+
             if set_match:
                 bot.logger.info(f"Matched set pattern: {message}")
                 item_name = set_match.group(1).lower()
                 value = set_match.group(2).strip()
-                
+
                 # Skip if the item name is a known command
                 if item_name not in ['infoitem', 'info', 'help', 'avail']:
                     bot.logger.info(f"Processing set command for item: {item_name}")
                     _add_infoitem(bot, event, item_name, value)
                     return
-                
+
             # Also check for direct syntax !item value (without any separator)
             direct_match = re.match(r'^\!([a-zA-Z0-9_-]+)\s+(.+)$', message)
             if direct_match:
                 bot.logger.info(f"Matched direct pattern: {message}")
                 item_name = direct_match.group(1).lower()
                 value = direct_match.group(2).strip()
-                
+
                 # Skip if the item name is a known command or a registered command
-                if (item_name not in ['infoitem', 'info', 'help', 'avail'] and 
+                if (item_name not in ['infoitem', 'info', 'help', 'avail'] and
                     item_name not in [cmd for mod in bot.modules.values() for cmd in mod.get('commands', [])]):
                     bot.logger.info(f"Processing direct command for item: {item_name}")
                     _add_infoitem(bot, event, item_name, value)
@@ -81,26 +81,54 @@ def run(bot, event):
                     return
 
         # Handle standard commands
-        if event["trigger"] == "command" and event["command"] in ["infoitem", "info"]:
-            if not event["command_args"]:
-                bot.add_response("Please specify a subcommand. Try !help infoitem for usage information.")
-                return
+        if event["trigger"] == "command":
+            # Handle infoitem/info commands
+            if event["command"] in ["infoitem", "info"]:
+                if not event["command_args"]:
+                    bot.add_response("Please specify a subcommand. Try !help infoitem for usage information.")
+                    return
 
-            args = event["command_args"].split()
-            subcommand = args[0].lower()
+                args = event["command_args"].split()
+                subcommand = args[0].lower()
 
-            if subcommand == "list":
-                _list_infoitems(bot, event)
-            elif subcommand == "add" and len(args) >= 3:
-                item_name = args[1]
-                value = " ".join(args[2:])
-                _add_infoitem(bot, event, item_name, value)
-            elif subcommand == "delete" and len(args) >= 3:
-                item_name = args[1]
-                value = " ".join(args[2:])
-                _delete_infoitem(bot, event, item_name, value)
+                if subcommand == "list":
+                    _list_infoitems(bot, event)
+                elif subcommand == "add" and len(args) >= 3:
+                    item_name = args[1]
+                    value = " ".join(args[2:])
+                    _add_infoitem(bot, event, item_name, value)
+                elif subcommand == "delete" and len(args) >= 3:
+                    item_name = args[1]
+                    value = " ".join(args[2:])
+                    _delete_infoitem(bot, event, item_name, value)
+                else:
+                    bot.add_response("Unknown subcommand. Try !help infoitem for usage information.")
+
+            # Handle commands that might be infoitem commands with special syntax
             else:
-                bot.add_response("Unknown subcommand. Try !help infoitem for usage information.")
+                # Check if the command is not a registered command in any module
+                registered_commands = [cmd for mod in bot.modules.values() for cmd in mod.get('commands', [])]
+                if event["command"] not in registered_commands:
+                    bot.logger.info(f"Checking unregistered command: {event['command']} with args: {event['command_args']}")
+
+                    # Check if args start with special characters
+                    args = event["command_args"]
+                    if args and args.startswith(('=', ':', '+')):
+                        bot.logger.info(f"Detected special character at start of args: {args}")
+
+                        # Extract the value (skip the special character and any whitespace)
+                        value = args[1:].strip()
+                        if value:
+                            bot.logger.info(f"Processing as infoitem: {event['command']} with value: {value}")
+                            _add_infoitem(bot, event, event["command"], value)
+                            return
+
+                    # Also check for direct syntax where args don't start with special chars
+                    elif args and not args.startswith(('=', ':', '+')):
+                        # Check if this command is not handled by any other module
+                        bot.logger.info(f"Processing as direct infoitem: {event['command']} with value: {args}")
+                        _add_infoitem(bot, event, event["command"], args)
+                        return
     except Exception as e:
         bot.logger.error(f"Error in infoitems module: {e}")
         bot.add_response("Error processing infoitem command.")
