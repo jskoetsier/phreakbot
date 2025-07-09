@@ -43,37 +43,38 @@ def run(bot, event):
 
     if event["command"] == "load" or event["command"] == "reload":
         module_name = event["command_args"]
-        
+
         # Add debug logging
         bot.logger.info(f"Starting module reload for {module_name}")
-        
+
         try:
             # Send a message to the channel immediately
             bot.connection.privmsg(event["channel"], f"Starting reload of {module_name} module")
-            
+
             # Try a simpler approach - use importlib directly
             import importlib
             import sys
             import os
-            
+
             # Construct the full path to the module
             module_path = os.path.join(bot.bot_base, "modules", f"{module_name}.py")
-            
+
             # Check if the file exists
             if not os.path.exists(module_path):
                 bot.add_response(f"Module file not found: {module_path}")
                 return
-            
+
             bot.logger.info(f"Module file exists at {module_path}")
-            
+
             # First, try to unload the module if it's already loaded
             if module_name in bot.modules:
                 bot.logger.info(f"Unloading module {module_name}")
                 try:
-                    # Make a deep copy of the module object to prevent dictionary modification during iteration
-                    import copy
-                    module_copy = copy.deepcopy(bot.modules[module_name])
-                    bot.logger.info(f"Made a copy of module {module_name}")
+                    # Store module commands and events before unloading
+                    # This avoids the need to deepcopy the module object
+                    module_commands = list(bot.modules[module_name].get('commands', []))
+                    module_events = list(bot.modules[module_name].get('events', []))
+                    bot.logger.info(f"Stored module {module_name} commands and events")
                     
                     # Unload the module
                     bot.unload_module(module_name)
@@ -81,14 +82,14 @@ def run(bot, event):
                 except Exception as unload_error:
                     bot.logger.error(f"Error unloading module {module_name}: {unload_error}")
                     bot.connection.privmsg(event["channel"], f"Error unloading module: {str(unload_error)[:100]}")
-            
+
             # Force a message to be sent before attempting to reload
             bot.connection.privmsg(event["channel"], f"Unloaded {module_name}, now reloading...")
-            
+
             # Try to load the module
             bot.logger.info(f"Loading module {module_name} from {module_path}")
             success = False
-            
+
             try:
                 success = bot.load_module(module_path)
                 bot.logger.info(f"Module {module_name} load result: {success}")
@@ -96,12 +97,12 @@ def run(bot, event):
                 bot.logger.error(f"Error loading module {module_name}: {load_error}")
                 bot.connection.privmsg(event["channel"], f"Error loading module: {str(load_error)[:100]}")
                 return
-            
+
             if success:
                 bot.connection.privmsg(event["channel"], f"Successfully reloaded module: {module_name}")
             else:
                 bot.connection.privmsg(event["channel"], f"Failed to reload module: {module_name}")
-                
+
         except Exception as e:
             bot.logger.error(f"Error in module reload process: {e}")
             # Try to send a message even if there's an error
@@ -109,7 +110,7 @@ def run(bot, event):
                 bot.connection.privmsg(event["channel"], f"Error reloading {module_name}: {str(e)[:100]}")
             except:
                 pass
-                
+
         return
 
     if event["command"] == "unload":
