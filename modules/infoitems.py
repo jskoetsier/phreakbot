@@ -15,6 +15,7 @@ def config(bot):
         "help": "InfoItems management. Usage:\n"
                 "       !<item> = <value> - Add a new info item\n"
                 "       !<item>? - Show all values for an info item\n"
+                "       !infoitem add <item> <value> - Add a new info item\n"
                 "       !infoitem list - List all available info items\n"
                 "       !infoitem delete <item> <value> - Delete a specific info item value (owner/admin only)",
     }
@@ -31,12 +32,16 @@ def run(bot, event):
             if not event["command_args"]:
                 bot.add_response("Please specify a subcommand. Try !help infoitem for usage information.")
                 return
-                
+
             args = event["command_args"].split()
             subcommand = args[0].lower()
-            
+
             if subcommand == "list":
                 _list_infoitems(bot, event)
+            elif subcommand == "add" and len(args) >= 3:
+                item_name = args[1]
+                value = " ".join(args[2:])
+                _add_infoitem(bot, event, item_name, value)
             elif subcommand == "delete" and len(args) >= 3:
                 item_name = args[1]
                 value = " ".join(args[2:])
@@ -53,41 +58,41 @@ def handle_custom_command(bot, event):
     if not bot.db_connection:
         bot.logger.info("Infoitems: Database connection not available")
         return False
-        
+
     message = event["text"]
-    
+
     # Log the message and event details for debugging
     bot.logger.info(f"Infoitems module checking message: '{message}'")
     bot.logger.info(f"Event trigger: {event['trigger']}")
     bot.logger.info(f"Event type: {event.get('signal', 'unknown')}")
-    
+
     # Check if this is an infoitem set command (!item = value)
     set_match = re.match(r'^\!([a-zA-Z0-9_-]+)\s*=\s*(.+)$', message)
     if set_match:
         bot.logger.info(f"Matched infoitem set command: {message}")
         item_name = set_match.group(1).lower()
         value = set_match.group(2).strip()
-        
+
         # Skip if the item name is a known command
         if item_name in ['infoitem', 'help', 'avail']:
             bot.logger.info(f"Skipping reserved command name: {item_name}")
             return False
-            
+
         return _add_infoitem(bot, event, item_name, value)
-        
+
     # Check if this is an infoitem get command (!item?)
     get_match = re.match(r'^\!([a-zA-Z0-9_-]+)\?$', message)
     if get_match:
         bot.logger.info(f"Matched infoitem get command: {message}")
         item_name = get_match.group(1).lower()
-        
+
         # Skip if the item name is a known command
         if item_name in ['infoitem', 'help', 'avail']:
             bot.logger.info(f"Skipping reserved command name: {item_name}")
             return False
-            
+
         return _get_infoitem(bot, event, item_name)
-        
+
     bot.logger.info("No match for infoitem command patterns")
     return False
 
@@ -108,7 +113,7 @@ def _add_infoitem(bot, event, item_name, value):
             "SELECT id FROM phreakbot_infoitems WHERE item = %s AND value = %s AND channel = %s",
             (item_name, value, event["channel"])
         )
-        
+
         if cur.fetchone():
             bot.add_response(f"This info item already exists.")
             cur.close()
@@ -123,14 +128,14 @@ def _add_infoitem(bot, event, item_name, value):
         item_id = cur.fetchone()[0]
         bot.db_connection.commit()
         bot.add_response(f"Info item '{item_name}' added successfully.")
-        
+
     except Exception as e:
         bot.logger.error(f"Error adding info item: {e}")
         bot.add_response("Error adding info item.")
         bot.db_connection.rollback()
     finally:
         cur.close()
-        
+
     return True
 
 
@@ -147,23 +152,23 @@ def _get_infoitem(bot, event, item_name):
             "ORDER BY i.insert_time",
             (item_name, event["channel"])
         )
-        
+
         items = cur.fetchall()
-        
+
         if not items:
             bot.add_response(f"No info found for '{item_name}'.")
             return True
-            
+
         bot.add_response(f"Info for '{item_name}':")
         for value, username, timestamp in items:
             bot.add_response(f"• {value} (added by {username} on {timestamp.strftime('%Y-%m-%d')})")
-            
+
     except Exception as e:
         bot.logger.error(f"Error retrieving info item: {e}")
         bot.add_response("Error retrieving info item.")
     finally:
         cur.close()
-        
+
     return True
 
 
@@ -180,17 +185,17 @@ def _list_infoitems(bot, event):
             "ORDER BY item",
             (event["channel"],)
         )
-        
+
         items = cur.fetchall()
-        
+
         if not items:
             bot.add_response("No info items found in this channel.")
             return
-            
+
         bot.add_response("Available info items in this channel:")
         for item, count in items:
             bot.add_response(f"• !{item}? - {count} value(s)")
-            
+
     except Exception as e:
         bot.logger.error(f"Error listing info items: {e}")
         bot.add_response("Error listing info items.")
@@ -215,7 +220,7 @@ def _delete_infoitem(bot, event, item_name, value):
             "SELECT id FROM phreakbot_infoitems WHERE item = %s AND value = %s AND channel = %s",
             (item_name, value, event["channel"])
         )
-        
+
         if not cur.fetchone():
             bot.add_response(f"Info item '{item_name}' with that value not found.")
             cur.close()
@@ -226,10 +231,10 @@ def _delete_infoitem(bot, event, item_name, value):
             "DELETE FROM phreakbot_infoitems WHERE item = %s AND value = %s AND channel = %s",
             (item_name, value, event["channel"])
         )
-        
+
         bot.db_connection.commit()
         bot.add_response(f"Info item '{item_name}' with value '{value}' deleted successfully.")
-        
+
     except Exception as e:
         bot.logger.error(f"Error deleting info item: {e}")
         bot.add_response("Error deleting info item.")
