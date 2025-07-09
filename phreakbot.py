@@ -380,6 +380,10 @@ class PhreakBot(irc.bot.SingleServerIRCBot):
         command_re = re.compile(
             f'^{re.escape(self.config["trigger"])}([-a-zA-Z0-9]+)(?:\\s(.*))?$'
         )
+        
+        # Special patterns for infoitems
+        infoitem_set_re = re.compile(r'^\!([a-zA-Z0-9_-]+)(?:\s*[=:+]\s*|\s+)(.+)$')
+        infoitem_get_re = re.compile(r'^\!([a-zA-Z0-9_-]+)\?$')
 
         # Debug message parsing
         self.logger.info(f"Processing message: '{message}'")
@@ -390,80 +394,55 @@ class PhreakBot(irc.bot.SingleServerIRCBot):
         if trigger_re.match(message):
             # CRITICAL DEBUG: Print the raw message to ensure we're seeing it correctly
             self.logger.info(f"RAW MESSAGE: '{message}'")
-
-            # Check for infoitem commands first - with extra debugging
-            self.logger.info(f"Checking for infoitem commands in message: '{message}'")
-
-            # Test set pattern with simplified regex
-            set_pattern = r'^\!([a-zA-Z0-9_-]+)\s*=\s*(.+)$'
-            self.logger.info(f"Testing set pattern: {set_pattern}")
-
-            # Try both re.match and re.search to see if there's a difference
-            set_match = re.match(set_pattern, message)
-            set_search = re.search(set_pattern, message)
-            self.logger.info(f"Set pattern match: {bool(set_match)}, search: {bool(set_search)}")
-
-            if set_match:
-                self.logger.info(f"Set match groups: {set_match.groups()}")
-            elif set_search:
-                self.logger.info(f"Set search groups: {set_search.groups()}")
-
-            # Test get pattern with simplified regex
-            get_pattern = r'^\!([a-zA-Z0-9_-]+)\?$'
-            self.logger.info(f"Testing get pattern: {get_pattern}")
-
-            # Try both re.match and re.search
-            get_match = re.match(get_pattern, message)
-            get_search = re.search(get_pattern, message)
-            self.logger.info(f"Get pattern match: {bool(get_match)}, search: {bool(get_search)}")
-
-            if get_match:
-                self.logger.info(f"Get match groups: {get_match.groups()}")
-            elif get_search:
-                self.logger.info(f"Get search groups: {get_search.groups()}")
-
-            # Use either match or search result
-            set_result = set_match or set_search
-            get_result = get_match or get_search
-
-            if set_result or get_result:
-                self.logger.info(f"Detected infoitem command: '{message}'")
-
-                # Check if infoitems module exists
-                self.logger.info(f"Infoitems module exists: {'infoitems' in self.modules}")
-                if "infoitems" in self.modules:
-                    self.logger.info(f"handle_custom_command exists: {hasattr(self.modules['infoitems']['object'], 'handle_custom_command')}")
-
-                # Handle infoitem commands directly
-                if "infoitems" in self.modules and hasattr(self.modules["infoitems"]["object"], "handle_custom_command"):
-                    event_obj["trigger"] = "infoitem"  # Special trigger for infoitem commands
-
-                    # Create a modified event object with the extracted item and value
-                    if set_result:
-                        item_name = set_result.group(1).lower()
-                        value = set_result.group(2).strip()
-                        self.logger.info(f"Extracted item: '{item_name}', value: '{value}'")
-                        event_obj["infoitem_name"] = item_name
-                        event_obj["infoitem_value"] = value
-                        event_obj["infoitem_type"] = "set"
-                    else:  # get_result
-                        item_name = get_result.group(1).lower()
-                        self.logger.info(f"Extracted item: '{item_name}'")
-                        event_obj["infoitem_name"] = item_name
-                        event_obj["infoitem_type"] = "get"
-
-                    try:
-                        handled = self.modules["infoitems"]["object"].handle_custom_command(self, event_obj)
-                        self.logger.info(f"Infoitem command handled: {handled}")
-
-                        if handled:
-                            # Process output and return
+            
+            # Check for infoitem get pattern first (simplest)
+            infoitem_get_match = infoitem_get_re.match(message)
+            if infoitem_get_match:
+                item_name = infoitem_get_match.group(1).lower()
+                self.logger.info(f"INFOITEM GET: {item_name}")
+                
+                # Skip if the item name is a registered command
+                registered_commands = []
+                for module in self.modules.values():
+                    registered_commands.extend(module.get('commands', []))
+                
+                if item_name not in registered_commands:
+                    # Call the infoitems module directly
+                    if "infoitems" in self.modules:
+                        try:
+                            self.logger.info(f"Calling infoitems._get_infoitem for {item_name}")
+                            self.modules["infoitems"]["object"]._get_infoitem(self, event_obj, item_name)
                             self._process_output(event_obj)
                             return
-                    except Exception as e:
-                        import traceback
-                        self.logger.error(f"Error handling infoitem command: {e}")
-                        self.logger.error(f"Traceback: {traceback.format_exc()}")
+                        except Exception as e:
+                            import traceback
+                            self.logger.error(f"Error in infoitems._get_infoitem: {e}")
+                            self.logger.error(f"Traceback: {traceback.format_exc()}")
+            
+            # Check for infoitem set pattern
+            infoitem_set_match = infoitem_set_re.match(message)
+            if infoitem_set_match:
+                item_name = infoitem_set_match.group(1).lower()
+                value = infoitem_set_match.group(2).strip()
+                self.logger.info(f"INFOITEM SET: {item_name} = {value}")
+                
+                # Skip if the item name is a registered command
+                registered_commands = []
+                for module in self.modules.values():
+                    registered_commands.extend(module.get('commands', []))
+                
+                if item_name not in registered_commands:
+                    # Call the infoitems module directly
+                    if "infoitems" in self.modules:
+                        try:
+                            self.logger.info(f"Calling infoitems._add_infoitem for {item_name}")
+                            self.modules["infoitems"]["object"]._add_infoitem(self, event_obj, item_name, value)
+                            self._process_output(event_obj)
+                            return
+                        except Exception as e:
+                            import traceback
+                            self.logger.error(f"Error in infoitems._add_infoitem: {e}")
+                            self.logger.error(f"Traceback: {traceback.format_exc()}")
 
             # Regular command handling
             match = command_re.match(message)
