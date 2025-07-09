@@ -388,6 +388,25 @@ class PhreakBot(irc.bot.SingleServerIRCBot):
         self.logger.info(f"Trigger match: {bool(trigger_re.match(message))}")
 
         if trigger_re.match(message):
+            # Check for infoitem commands first
+            set_match = re.match(r'^\!([a-zA-Z0-9_-]+)\s*=\s*(.+)$', message)
+            get_match = re.match(r'^\!([a-zA-Z0-9_-]+)\?$', message)
+            
+            if set_match or get_match:
+                self.logger.info(f"Detected infoitem command: '{message}'")
+                
+                # Handle infoitem commands directly
+                if "infoitems" in self.modules and hasattr(self.modules["infoitems"]["object"], "handle_custom_command"):
+                    event_obj["trigger"] = "infoitem"  # Special trigger for infoitem commands
+                    handled = self.modules["infoitems"]["object"].handle_custom_command(self, event_obj)
+                    self.logger.info(f"Infoitem command handled: {handled}")
+                    
+                    if handled:
+                        # Process output and return
+                        self._process_output(event_obj)
+                        return
+            
+            # Regular command handling
             match = command_re.match(message)
             self.logger.info(f"Command match: {bool(match)}")
             if match:
