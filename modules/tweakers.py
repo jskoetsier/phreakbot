@@ -4,9 +4,13 @@
 # Tweakers.net module for PhreakBot
 
 import requests
-from bs4 import BeautifulSoup
-import re
-from datetime import datetime
+import time
+import sys
+
+# Check if this module is being reloaded
+if 'tweakers' in sys.modules:
+    # This is a reload, not a fresh import
+    print("Tweakers module is being reloaded")
 
 
 def config(bot):
@@ -27,121 +31,57 @@ def run(bot, event):
         return
 
     try:
+        # Use a simpler approach with just requests
         bot.add_response("Fetching latest articles from tweakers.net...")
-        articles = get_latest_articles()
         
-        if not articles:
-            bot.add_response("Failed to fetch articles from tweakers.net.")
-            return
+        # Use a session for better performance
+        session = requests.Session()
+        
+        # Set a timeout and user agent
+        headers = {"User-Agent": "PhreakBot/1.0 Tweakers News Fetcher"}
+        
+        # Get the RSS feed
+        try:
+            response = session.get(
+                "https://feeds.tweakers.net/nieuws",
+                headers=headers,
+                timeout=3
+            )
+            response.raise_for_status()
             
-        bot.add_response("📰 Latest articles from tweakers.net:")
-        for i, article in enumerate(articles[:5], 1):
-            title = article.get('title', 'No title')
-            url = article.get('url', '')
-            timestamp = article.get('timestamp', '')
+            # Simple string parsing instead of using BeautifulSoup
+            content = response.text
             
-            # Format the output
-            time_str = f" ({timestamp})" if timestamp else ""
-            bot.add_response(f"{i}. {title}{time_str} - {url}")
+            # Find article titles and URLs
+            articles = []
+            
+            # Look for <item> tags
+            item_blocks = content.split("<item>")[1:6]  # Get first 5 items
+            
+            for block in item_blocks:
+                # Extract title
+                title_start = block.find("<title>") + 7
+                title_end = block.find("</title>")
+                title = block[title_start:title_end] if title_start > 6 and title_end > 0 else "No title"
+                
+                # Extract link
+                link_start = block.find("<link>") + 6
+                link_end = block.find("</link>")
+                link = block[link_start:link_end] if link_start > 5 and link_end > 0 else ""
+                
+                # Add to articles list
+                articles.append((title, link))
+            
+            # Display results
+            if articles:
+                bot.add_response("📰 Latest articles from tweakers.net:")
+                for i, (title, url) in enumerate(articles[:5], 1):
+                    bot.add_response(f"{i}. {title} - {url}")
+            else:
+                bot.add_response("No articles found on tweakers.net")
+                
+        except Exception as e:
+            bot.add_response(f"Error fetching articles: {str(e)[:50]}")
             
     except Exception as e:
-        bot.add_response(f"Error fetching articles: {str(e)[:50]}")
-
-
-def get_latest_articles():
-    """Get the latest articles from tweakers.net"""
-    articles = []
-    
-    try:
-        # First try the RSS feed
-        articles = get_articles_from_rss()
-        if articles:
-            return articles
-    except:
-        # If RSS fails, fall back to web scraping
-        pass
-        
-    try:
-        # Fall back to web scraping
-        articles = get_articles_from_website()
-    except:
-        pass
-        
-    return articles
-
-
-def get_articles_from_rss():
-    """Get articles from the RSS feed"""
-    articles = []
-    
-    headers = {"User-Agent": "PhreakBot/1.0 Tweakers News Fetcher"}
-    response = requests.get("https://feeds.feedburner.com/tweakers/mixed", 
-                           headers=headers, timeout=5)
-    response.raise_for_status()
-    
-    soup = BeautifulSoup(response.text, "xml")
-    items = soup.find_all("item")
-    
-    for item in items[:5]:
-        title = item.find("title").text if item.find("title") else "No title"
-        link = item.find("link").text if item.find("link") else ""
-        pub_date = item.find("pubDate").text if item.find("pubDate") else ""
-        
-        # Parse and format the date
-        timestamp = ""
-        if pub_date:
-            try:
-                dt = datetime.strptime(pub_date, "%a, %d %b %Y %H:%M:%S %z")
-                timestamp = dt.strftime("%d-%m %H:%M")
-            except:
-                pass
-                
-        articles.append({
-            "title": title,
-            "url": link,
-            "timestamp": timestamp
-        })
-        
-    return articles
-
-
-def get_articles_from_website():
-    """Get articles by scraping the website"""
-    articles = []
-    
-    headers = {"User-Agent": "PhreakBot/1.0 Tweakers News Fetcher"}
-    response = requests.get("https://tweakers.net", headers=headers, timeout=5)
-    response.raise_for_status()
-    
-    soup = BeautifulSoup(response.text, "html.parser")
-    
-    # Find the news articles on the homepage
-    article_elements = soup.select(".headline")
-    
-    for article in article_elements[:5]:
-        title_element = article.select_one("h1, h2, h3, h4")
-        link_element = article.select_one("a")
-        time_element = article.select_one("time")
-        
-        title = title_element.text.strip() if title_element else "No title"
-        url = ""
-        if link_element and link_element.has_attr("href"):
-            url = link_element["href"]
-            if not url.startswith("http"):
-                url = f"https://tweakers.net{url}"
-                
-        timestamp = ""
-        if time_element and time_element.has_attr("datetime"):
-            try:
-                dt = datetime.fromisoformat(time_element["datetime"].replace("Z", "+00:00"))
-                timestamp = dt.strftime("%d-%m %H:%M")
-            except:
-                pass
-                
-        articles.append({
-            "title": title,
-            "url": url,
-            "timestamp": timestamp
-        })
-        
-    return articles
+        bot.add_response(f"Error processing request: {str(e)[:50]}")
