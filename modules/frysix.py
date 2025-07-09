@@ -80,21 +80,21 @@ class FrysIX:
         self.bot = bot
         # The correct API endpoint for Frys-IX
         self.api_url = "https://ixpmanager.frys-ix.net/api/v4/member-export/ixf/1.0"
-        
+
         # Flag to indicate whether to attempt API calls
         # Set to True since we now have the correct API endpoint
         self.try_api = True
         self.members = {}
         self.last_update = 0
         self.update_interval = 3600  # Update every hour
-        
+
         # Initialize with mock data to ensure the module loads even if API is unavailable
         self._init_mock_data()
-        
+
         # Try to update from the API immediately
         self.bot.logger.info("Attempting to update Frys-IX data from API during initialization")
         self._update_members(force=True)
-        
+
         self.commands = {
             "member": self.cmd_member,
             "frysix": self.cmd_frysix,
@@ -115,11 +115,11 @@ class FrysIX:
         """Initialize with mock data to ensure the module loads even if API is unavailable"""
         mock_data = {
             "members": [
-                {"autsys": 32934, "name": "Facebook", "shortname": "FB", "city": "Menlo Park", "country": "US", "url": "https://facebook.com", "joined_at": "2020-01-01T00:00:00Z"},
-                {"autsys": 15169, "name": "Google LLC", "shortname": "GOOGLE", "city": "Mountain View", "country": "US", "url": "https://google.com", "joined_at": "2020-01-01T00:00:00Z"},
-                {"autsys": 13335, "name": "Cloudflare, Inc.", "shortname": "CLOUDFLARE", "city": "San Francisco", "country": "US", "url": "https://cloudflare.com", "joined_at": "2020-01-01T00:00:00Z"},
-                {"autsys": 714, "name": "Apple Inc.", "shortname": "APPLE", "city": "Cupertino", "country": "US", "url": "https://apple.com", "joined_at": "2020-01-01T00:00:00Z"},
-                {"autsys": 16509, "name": "Amazon.com, Inc.", "shortname": "AMAZON", "city": "Seattle", "country": "US", "url": "https://amazon.com", "joined_at": "2020-01-01T00:00:00Z"}
+                {"autsys": 32934, "name": "Facebook", "shortname": "FB", "city": "Menlo Park", "url": "https://facebook.com", "joined_at": "2020-01-01T00:00:00Z", "portspeed": "100G", "ip": "2001:db8::1", "max_prefix": "1000"},
+                {"autsys": 15169, "name": "Google LLC", "shortname": "GOOGLE", "city": "Mountain View", "url": "https://google.com", "joined_at": "2020-01-01T00:00:00Z", "portspeed": "100G", "ip": "2001:db8::2", "max_prefix": "5000"},
+                {"autsys": 13335, "name": "Cloudflare, Inc.", "shortname": "CLOUDFLARE", "city": "San Francisco", "url": "https://cloudflare.com", "joined_at": "2020-01-01T00:00:00Z", "portspeed": "100G", "ip": "2001:db8::3", "max_prefix": "5000"},
+                {"autsys": 714, "name": "Apple Inc.", "shortname": "APPLE", "city": "Cupertino", "url": "https://apple.com", "joined_at": "2020-01-01T00:00:00Z", "portspeed": "100G", "ip": "2001:db8::4", "max_prefix": "1000"},
+                {"autsys": 16509, "name": "Amazon.com, Inc.", "shortname": "AMAZON", "city": "Seattle", "url": "https://amazon.com", "joined_at": "2020-01-01T00:00:00Z", "portspeed": "100G", "ip": "2001:db8::5", "max_prefix": "5000"}
             ]
         }
 
@@ -154,7 +154,7 @@ class FrysIX:
             }
 
             self.bot.logger.info(f"Sending request to {self.api_url} with timeout=30s")
-            
+
             # Try with a longer timeout
             response = requests.get(self.api_url, headers=headers, timeout=30)
             self.bot.logger.info(f"API response status code: {response.status_code}")
@@ -169,7 +169,7 @@ class FrysIX:
                     # Check for member_list in the IXF format
                     if "member_list" in data and isinstance(data["member_list"], list):
                         self.bot.logger.info(f"Found member_list with {len(data['member_list'])} members")
-                        
+
                         # Process members from the IXF format
                         members_dict = {}
                         for member in data["member_list"]:
@@ -181,10 +181,13 @@ class FrysIX:
                                     "name": member.get("name", "Unknown"),
                                     "shortname": member.get("name", "Unknown")[:10],  # Use first 10 chars of name as shortname
                                     "city": "Unknown",  # IXF format doesn't include city
-                                    "country": "Unknown",  # IXF format doesn't include country directly
                                     "url": member.get("url", "Unknown"),
                                     "joined_at": member.get("member_since", "Unknown"),
-                                    "peeringpolicy": member.get("peering_policy", "Unknown")
+                                    "peeringpolicy": member.get("peering_policy", "Unknown"),
+                                    # Add new fields
+                                    "portspeed": "Unknown",
+                                    "ip": "Unknown",
+                                    "max_prefix": "Unknown"
                                 }
 
                         if members_dict:
@@ -194,13 +197,13 @@ class FrysIX:
                             self.members.update(members_dict)
                             self.last_update = current_time
                             self.bot.logger.info(f"Updated Frys-IX member list with API data, now have {len(self.members)} members")
-                            
+
                             # Log a few sample members to verify the data
                             sample_asns = list(self.members.keys())[:5]
                             self.bot.logger.info(f"Sample ASNs: {sample_asns}")
                             for asn in sample_asns:
                                 self.bot.logger.info(f"Sample member {asn}: {self.members[asn]['name']}")
-                            
+
                             return True
                         else:
                             self.bot.logger.warning("No valid members found in API response")
@@ -257,12 +260,24 @@ class FrysIX:
                 except Exception as e:
                     self.bot.logger.debug(f"Error formatting date: {str(e)}")
 
-            # Add peering policy if available
+            # Get additional information
             peeringpolicy = member.get('peeringpolicy', 'Unknown')
-            response = f"AS{asn}: {name} ({shortname}) - Location: {city}, {country} - Website: {url} - Joined: {joined}"
-
+            portspeed = member.get('portspeed', 'Unknown')
+            ip = member.get('ip', 'Unknown')
+            max_prefix = member.get('max_prefix', 'Unknown')
+            
+            # Build response without country information
+            response = f"AS{asn}: {name} ({shortname}) - Location: {city} - Website: {url} - Joined: {joined}"
+            
+            # Add additional information if available
             if peeringpolicy != "Unknown":
                 response += f" - Peering Policy: {peeringpolicy}"
+            if portspeed != "Unknown":
+                response += f" - Port Speed: {portspeed}"
+            if ip != "Unknown":
+                response += f" - IP: {ip}"
+            if max_prefix != "Unknown":
+                response += f" - Max Prefixes: {max_prefix}"
 
             bot.say(channel, response)
         else:
