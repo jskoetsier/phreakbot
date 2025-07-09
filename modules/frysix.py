@@ -175,6 +175,56 @@ class FrysIX:
                         for member in data["member_list"]:
                             if "asnum" in member:
                                 asn = str(member["asnum"])
+                                # Extract nested data from connection_list and vlan_list if available
+                                portspeed = "Unknown"
+                                ipv4 = "Unknown"
+                                ipv6 = "Unknown"
+                                max_prefix = "Unknown"
+                                
+                                # Extract port speed
+                                if "connection_list" in member and member["connection_list"]:
+                                    for connection in member["connection_list"]:
+                                        if "if_list" in connection and connection["if_list"]:
+                                            for interface in connection["if_list"]:
+                                                if "if_speed" in interface:
+                                                    # Convert from Mbps to Gbps if needed
+                                                    speed = interface["if_speed"]
+                                                    if speed >= 1000:
+                                                        portspeed = f"{speed // 1000}G"
+                                                    else:
+                                                        portspeed = f"{speed}M"
+                                                    break
+                                            if portspeed != "Unknown":
+                                                break
+                                
+                                # Extract IP addresses and max prefix
+                                if "connection_list" in member and member["connection_list"]:
+                                    for connection in member["connection_list"]:
+                                        if "vlan_list" in connection and connection["vlan_list"]:
+                                            for vlan in connection["vlan_list"]:
+                                                # Extract IPv4 info
+                                                if "ipv4" in vlan and vlan["ipv4"]:
+                                                    if "address" in vlan["ipv4"]:
+                                                        ipv4 = vlan["ipv4"]["address"]
+                                                    if "max_prefix" in vlan["ipv4"] and max_prefix == "Unknown":
+                                                        max_prefix = str(vlan["ipv4"]["max_prefix"])
+                                                
+                                                # Extract IPv6 info
+                                                if "ipv6" in vlan and vlan["ipv6"]:
+                                                    if "address" in vlan["ipv6"]:
+                                                        ipv6 = vlan["ipv6"]["address"]
+                                                    if "max_prefix" in vlan["ipv6"] and max_prefix == "Unknown":
+                                                        max_prefix = str(vlan["ipv6"]["max_prefix"])
+                                
+                                # Combine IPv4 and IPv6 addresses
+                                ip = "Unknown"
+                                if ipv4 != "Unknown" and ipv6 != "Unknown":
+                                    ip = f"{ipv4}, {ipv6}"
+                                elif ipv4 != "Unknown":
+                                    ip = ipv4
+                                elif ipv6 != "Unknown":
+                                    ip = ipv6
+                                
                                 # Convert IXF format to our internal format
                                 members_dict[asn] = {
                                     "autsys": member["asnum"],
@@ -184,10 +234,10 @@ class FrysIX:
                                     "url": member.get("url", "Unknown"),
                                     "joined_at": member.get("member_since", "Unknown"),
                                     "peeringpolicy": member.get("peering_policy", "Unknown"),
-                                    # Add new fields
-                                    "portspeed": "Unknown",
-                                    "ip": "Unknown",
-                                    "max_prefix": "Unknown"
+                                    # Add extracted fields
+                                    "portspeed": portspeed,
+                                    "ip": ip,
+                                    "max_prefix": max_prefix
                                 }
 
                         if members_dict:
