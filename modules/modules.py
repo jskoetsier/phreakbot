@@ -43,44 +43,76 @@ def run(bot, event):
 
     if event["command"] == "load" or event["command"] == "reload":
         module_name = event["command_args"]
-
-        # Check if this is a reload and the module is already loaded
-        if event["command"] == "reload" and module_name in bot.modules:
-            # Unload the module first
-            bot.unload_module(module_name)
-
-        # Construct the full path to the module
+        
+        # Use exec module to reload the module in a separate process
+        import subprocess
         import os
+        
+        # Construct the full path to the module
         module_path = os.path.join(bot.bot_base, "modules", f"{module_name}.py")
-
+        
         # Check if the file exists
         if not os.path.exists(module_path):
             bot.add_response(f"Module file not found: {module_path}")
             return
+            
+        # Send a message to the channel
+        bot.add_response(f"Reloading module: {module_name}")
+        
+        # Create a Python script to reload the module
+        reload_script = f"""
+import importlib.util
+import sys
 
-        # Special handling for asn module to prevent bot restart
-        if module_name == "asn":
-            try:
-                # Try to load the module
+# Load the module
+spec = importlib.util.spec_from_file_location("{module_name}", "{module_path}")
+module = importlib.util.module_from_spec(spec)
+sys.modules["{module_name}"] = module
+spec.loader.exec_module(module)
+
+# Print success message
+print("Module {module_name} reloaded successfully")
+"""
+        
+        # Write the script to a temporary file
+        temp_script_path = os.path.join(bot.bot_base, "temp_reload.py")
+        with open(temp_script_path, "w") as f:
+            f.write(reload_script)
+            
+        try:
+            # Execute the script in a separate process
+            result = subprocess.run(
+                ["python", temp_script_path],
+                capture_output=True,
+                text=True,
+                timeout=5
+            )
+            
+            # Check if the script executed successfully
+            if result.returncode == 0:
+                # Unload the module if it's already loaded
+                if module_name in bot.modules:
+                    bot.unload_module(module_name)
+                
+                # Load the module
                 success = bot.load_module(module_path)
                 if success:
-                    bot.add_response(f"Successfully loaded module: {module_name}")
+                    bot.add_response(f"Successfully reloaded module: {module_name}")
                 else:
-                    bot.add_response(f"Failed to load module: {module_name}")
-                # Force a message to be sent before potential restart
-                bot.connection.privmsg(event["channel"], f"Successfully reloaded {module_name} module")
-            except Exception as e:
-                bot.logger.error(f"Error reloading {module_name}: {e}")
-                bot.add_response(f"Error reloading {module_name}: {e}")
-            return
-        else:
-            # Try to load the module
-            success = bot.load_module(module_path)
-            if success:
-                bot.add_response(f"Successfully loaded module: {module_name}")
+                    bot.add_response(f"Failed to reload module: {module_name}")
             else:
-                bot.add_response(f"Failed to load module: {module_name}")
-            return
+                bot.add_response(f"Failed to reload module: {module_name}")
+                bot.add_response(f"Error: {result.stderr}")
+                
+        except Exception as e:
+            bot.logger.error(f"Error reloading {module_name}: {e}")
+            bot.add_response(f"Error reloading {module_name}: {e}")
+        finally:
+            # Clean up the temporary script
+            if os.path.exists(temp_script_path):
+                os.remove(temp_script_path)
+                
+        return
 
     if event["command"] == "unload":
         module_name = event["command_args"]
