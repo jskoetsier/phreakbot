@@ -106,7 +106,7 @@ def lookup_asn_by_number(bot, asn):
 
         # Get country information
         country_code = asn_data.get("country_code", "")
-        
+
         # Just use the country code directly
         country = country_code if country_code else "Unknown"
 

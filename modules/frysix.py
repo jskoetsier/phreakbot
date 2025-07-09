@@ -180,7 +180,7 @@ class FrysIX:
                                 ipv4 = "Unknown"
                                 ipv6 = "Unknown"
                                 max_prefix = "Unknown"
-                                
+
                                 # Extract port speed
                                 if "connection_list" in member and member["connection_list"]:
                                     for connection in member["connection_list"]:
@@ -196,7 +196,7 @@ class FrysIX:
                                                     break
                                             if portspeed != "Unknown":
                                                 break
-                                
+
                                 # Extract IP addresses and max prefix
                                 if "connection_list" in member and member["connection_list"]:
                                     for connection in member["connection_list"]:
@@ -208,14 +208,14 @@ class FrysIX:
                                                         ipv4 = vlan["ipv4"]["address"]
                                                     if "max_prefix" in vlan["ipv4"] and max_prefix == "Unknown":
                                                         max_prefix = str(vlan["ipv4"]["max_prefix"])
-                                                
+
                                                 # Extract IPv6 info
                                                 if "ipv6" in vlan and vlan["ipv6"]:
                                                     if "address" in vlan["ipv6"]:
                                                         ipv6 = vlan["ipv6"]["address"]
                                                     if "max_prefix" in vlan["ipv6"] and max_prefix == "Unknown":
                                                         max_prefix = str(vlan["ipv6"]["max_prefix"])
-                                
+
                                 # Combine IPv4 and IPv6 addresses
                                 ip = "Unknown"
                                 if ipv4 != "Unknown" and ipv6 != "Unknown":
@@ -224,7 +224,7 @@ class FrysIX:
                                     ip = ipv4
                                 elif ipv6 != "Unknown":
                                     ip = ipv6
-                                
+
                                 # Convert IXF format to our internal format
                                 members_dict[asn] = {
                                     "autsys": member["asnum"],
@@ -322,7 +322,7 @@ class FrysIX:
             # Add additional information - always include these fields
             if peeringpolicy != "Unknown":
                 response += f" - Peering Policy: {peeringpolicy}"
-            
+
             # Always include portspeed, IP, and max prefix
             response += f" - Port Speed: {portspeed}"
             response += f" - IP: {ip}"

@@ -50,15 +50,15 @@ def clean_mac_address(mac):
     """Clean and validate the MAC address format"""
     # Remove all non-hexadecimal characters
     mac = re.sub(r'[^0-9a-fA-F]', '', mac)
-    
+
     # Check if we have a valid length (at least 6 characters for OUI lookup)
     if len(mac) < 6:
         return None
-    
+
     # Truncate to first 6 characters (OUI) if longer than 12
     if len(mac) > 12:
         mac = mac[:12]
-    
+
     return mac.upper()
 
 
@@ -67,47 +67,47 @@ def get_mac_info(mac):
     try:
         # Format MAC for display
         formatted_mac = format_mac_for_display(mac)
-        
+
         # For OUI lookup, we need the first 6 characters (3 bytes)
         oui = mac[:6]
-        
+
         # Use the macaddress.io API for lookup
         api_url = f"https://api.macaddress.io/v1?apiKey=at_XqJi1rAyYWQwMNBcOUGOdA7aMFKH8&output=json&search={oui}"
-        
+
         response = requests.get(api_url, timeout=5)
-        
+
         if response.status_code == 200:
             data = response.json()
-            
+
             # Extract vendor information
             vendor_name = data.get("vendorDetails", {}).get("companyName", "Unknown")
             vendor_address = data.get("vendorDetails", {}).get("companyAddress", "Unknown")
-            
+
             # Check if this is a partial MAC address
             is_partial = len(mac) < 12
             partial_note = " (Partial MAC - showing OUI information only)" if is_partial else ""
-            
+
             # Format the result
             result = f"MAC: {formatted_mac}{partial_note} | Vendor: {vendor_name} | Address: {vendor_address}"
-            
+
             # Add block type information if available
             block_type = data.get("blockDetails", {}).get("blockType", None)
             if block_type:
                 result += f" | Block Type: {block_type}"
-                
+
             return result
         else:
             # Fallback to macvendors.co API if the first one fails
             api_url = f"https://api.macvendors.com/{oui}"
             response = requests.get(api_url, timeout=5)
-            
+
             if response.status_code == 200:
                 vendor_name = response.text.strip()
-                
+
                 # Check if this is a partial MAC address
                 is_partial = len(mac) < 12
                 partial_note = " (Partial MAC - showing OUI information only)" if is_partial else ""
-                
+
                 # Format the result
                 result = f"MAC: {formatted_mac}{partial_note} | Vendor: {vendor_name}"
                 return result
@@ -123,6 +123,6 @@ def format_mac_for_display(mac):
     # If it's a partial MAC, pad with zeros to make it look nicer
     if len(mac) < 12:
         mac = mac.ljust(12, '0')
-    
+
     # Format as XX:XX:XX:XX:XX:XX
     return ':'.join(mac[i:i+2] for i in range(0, len(mac), 2))

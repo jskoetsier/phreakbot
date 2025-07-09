@@ -1,5 +1,14 @@
 # Changelog
 
+## [v0.1.14] - 2025-07-10
+- Added infoitems module for storing and retrieving information items
+- Added support for custom commands with !item = value syntax for adding info
+- Added support for !item? syntax for retrieving stored information
+- Added infoitem list command to show all available info items
+- Added infoitem delete command for admins to remove specific info items
+- Enhanced message handling to support custom command patterns
+- Improved database integration for storing persistent information
+
 ## [v0.1.13] - 2025-07-09
 - Added MAC address lookup module for vendor identification
 - Added massmeet module for bulk user registration and hostmask merging

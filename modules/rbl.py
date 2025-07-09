@@ -48,16 +48,16 @@ def run(bot, event):
         domain_pattern = r'^([a-zA-Z0-9]([a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z]{2,}$'
         if re.match(domain_pattern, query):
             bot.add_response(f"Checking domain: {query}")
-            
+
             # Look up MX records for the domain
             mx_records = get_mx_records(query)
-            
+
             if mx_records:
                 mx_summary = ", ".join([f"{mx_host}" for mx_host, _ in mx_records[:3]])
                 if len(mx_records) > 3:
                     mx_summary += f", and {len(mx_records) - 3} more"
                 bot.add_response(f"Mail servers: {mx_summary}")
-                
+
                 # Check only the first MX record to avoid too many lookups
                 mx_host, _ = mx_records[0]
                 try:
@@ -73,7 +73,7 @@ def run(bot, event):
                     bot.add_response(f"Error: {str(e)[:50]}")
             else:
                 bot.add_response(f"No mail servers found for {query}, checking A record")
-                
+
                 # Fall back to A record if no MX records
                 try:
                     ips = get_host_ips(query)
@@ -101,7 +101,7 @@ def get_mx_records(domain):
         resolver = dns.resolver.Resolver()
         resolver.timeout = 2.0
         resolver.lifetime = 2.0
-        
+
         answers = resolver.resolve(domain, 'MX')
         mx_records = [(str(rdata.exchange).rstrip('.'), rdata.preference) for rdata in answers]
         return sorted(mx_records, key=lambda x: x[1])  # Sort by preference
@@ -116,7 +116,7 @@ def get_host_ips(hostname):
         resolver = dns.resolver.Resolver()
         resolver.timeout = 2.0
         resolver.lifetime = 2.0
-        
+
         answers = resolver.resolve(hostname, 'A')
         return [str(rdata) for rdata in answers]
     except Exception:
@@ -135,9 +135,9 @@ def check_ip_in_rbls(bot, ip):
 
     # Reverse the IP for RBL lookup
     reversed_ip = '.'.join(reversed(ip.split('.')))
-    
+
     listed_on = []
-    
+
     # Set a timeout for DNS queries
     resolver = dns.resolver.Resolver()
     resolver.timeout = 1.0

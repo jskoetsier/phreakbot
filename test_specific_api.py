@@ -12,7 +12,7 @@ def test_specific_api():
     """Test the specific Frys-IX API endpoint"""
     # The correct API endpoint provided by the user
     api_url = "https://ixpmanager.frys-ix.net/api/v4/member-export/ixf/1.0"
-    
+
     print(f"Testing API endpoint: {api_url}")
 
     # Headers to use
@@ -25,14 +25,14 @@ def test_specific_api():
         print(f"Sending request to: {api_url}")
         response = requests.get(api_url, headers=headers, timeout=30)
         print(f"Status code: {response.status_code}")
-        
+
         if response.status_code == 200:
             try:
                 # Try to parse the response as JSON
                 data = response.json()
                 print(f"Response is valid JSON")
                 print(f"Top-level keys in response: {list(data.keys())}")
-                
+
                 # Print the structure of the response
                 print("\nResponse structure:")
                 for key, value in data.items():
@@ -44,14 +44,14 @@ def test_specific_api():
                         print(f"  {key}: dict with keys {list(value.keys())}")
                     else:
                         print(f"  {key}: {value}")
-                
+
                 # Look for member data in the IXF format
                 if "member_list" in data:
                     print(f"\nFound 'member_list' with {len(data['member_list'])} members")
                     if data['member_list']:
                         member = data['member_list'][0]
                         print(f"First member sample: {json.dumps(member, indent=2)[:300]}...")
-                        
+
                         # Extract ASN and member name for a sample
                         if "asnum" in member:
                             print(f"Sample ASN: {member['asnum']}")
