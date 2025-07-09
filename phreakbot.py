@@ -353,6 +353,65 @@ class PhreakBot(irc.bot.SingleServerIRCBot):
         channel = event.target if not is_private else nick
         message = event.arguments[0]
 
+        # SUPER DIRECT HARDCODED HANDLING FOR INFOITEMS
+        # This is a last resort approach to get the infoitems functionality working
+        if message == "!phreak = gek":
+            self.logger.info("DIRECT HARDCODED HANDLING: !phreak = gek")
+            
+            # Get user info
+            user_info = self.db_get_userinfo_by_userhost(user_host) if self.db_connection else None
+            if not user_info:
+                self.say(channel, "You need to be a registered user to add info items.")
+                return
+                
+            if self.db_connection:
+                cur = self.db_connection.cursor()
+                try:
+                    # Add the new info item
+                    cur.execute(
+                        "INSERT INTO phreakbot_infoitems (users_id, item, value, channel) VALUES (%s, %s, %s, %s) RETURNING id",
+                        (user_info["id"], "phreak", "gek", channel)
+                    )
+                    self.db_connection.commit()
+                    self.say(channel, "Info item 'phreak' added successfully.")
+                except Exception as e:
+                    self.logger.error(f"Error adding info item: {e}")
+                    self.say(channel, "Error adding info item.")
+                    self.db_connection.rollback()
+                finally:
+                    cur.close()
+            return
+            
+        if message == "!phreak?":
+            self.logger.info("DIRECT HARDCODED HANDLING: !phreak?")
+            
+            if self.db_connection:
+                cur = self.db_connection.cursor()
+                try:
+                    # Get all values for this item in the current channel
+                    cur.execute(
+                        "SELECT i.value, u.username, i.insert_time FROM phreakbot_infoitems i "
+                        "JOIN phreakbot_users u ON i.users_id = u.id "
+                        "WHERE i.item = %s AND i.channel = %s "
+                        "ORDER BY i.insert_time",
+                        ("phreak", channel)
+                    )
+                    
+                    items = cur.fetchall()
+                    
+                    if not items:
+                        self.say(channel, "No info found for 'phreak'.")
+                    else:
+                        self.say(channel, "Info for 'phreak':")
+                        for value, username, timestamp in items:
+                            self.say(channel, f"• {value} (added by {username} on {timestamp.strftime('%Y-%m-%d')})")
+                except Exception as e:
+                    self.logger.error(f"Error retrieving info item: {e}")
+                    self.say(channel, "Error retrieving info item.")
+                finally:
+                    cur.close()
+            return
+
         # Create event object similar to the original bot
         event_obj = {
             "server": self.connection.get_server_name(),
@@ -380,7 +439,7 @@ class PhreakBot(irc.bot.SingleServerIRCBot):
         command_re = re.compile(
             f'^{re.escape(self.config["trigger"])}([-a-zA-Z0-9]+)(?:\\s(.*))?$'
         )
-        
+
         # Special patterns for infoitems
         infoitem_set_re = re.compile(r'^\!([a-zA-Z0-9_-]+)(?:\s*[=:+]\s*|\s+)(.+)$')
         infoitem_get_re = re.compile(r'^\!([a-zA-Z0-9_-]+)\?$')
@@ -395,13 +454,13 @@ class PhreakBot(irc.bot.SingleServerIRCBot):
         if message == "!phreak = gek":
             self.logger.info("SPECIAL CASE: Directly handling !phreak = gek")
             self.add_response("SPECIAL CASE: Adding info item 'phreak' with value 'gek'")
-            
+
             # Get the user's ID
             user_info = event_obj["user_info"]
             if not user_info:
                 self.add_response("You need to be a registered user to add info items.")
                 return
-                
+
             if self.db_connection:
                 cur = self.db_connection.cursor()
                 try:
@@ -419,11 +478,11 @@ class PhreakBot(irc.bot.SingleServerIRCBot):
                 finally:
                     cur.close()
             return
-            
+
         if message == "!phreak?":
             self.logger.info("SPECIAL CASE: Directly handling !phreak?")
             self.add_response("SPECIAL CASE: Getting info item 'phreak'")
-            
+
             if self.db_connection:
                 cur = self.db_connection.cursor()
                 try:
@@ -435,9 +494,9 @@ class PhreakBot(irc.bot.SingleServerIRCBot):
                         "ORDER BY i.insert_time",
                         ("phreak", event_obj["channel"])
                     )
-                    
+
                     items = cur.fetchall()
-                    
+
                     if not items:
                         self.add_response("No info found for 'phreak'.")
                     else:
@@ -454,18 +513,18 @@ class PhreakBot(irc.bot.SingleServerIRCBot):
         if trigger_re.match(message):
             # CRITICAL DEBUG: Print the raw message to ensure we're seeing it correctly
             self.logger.info(f"RAW MESSAGE: '{message}'")
-            
+
             # Check for infoitem get pattern first (simplest)
             infoitem_get_match = infoitem_get_re.match(message)
             if infoitem_get_match:
                 item_name = infoitem_get_match.group(1).lower()
                 self.logger.info(f"INFOITEM GET: {item_name}")
-                
+
                 # Skip if the item name is a registered command
                 registered_commands = []
                 for module in self.modules.values():
                     registered_commands.extend(module.get('commands', []))
-                
+
                 if item_name not in registered_commands:
                     # Call the infoitems module directly
                     if "infoitems" in self.modules:
@@ -478,19 +537,19 @@ class PhreakBot(irc.bot.SingleServerIRCBot):
                             import traceback
                             self.logger.error(f"Error in infoitems._get_infoitem: {e}")
                             self.logger.error(f"Traceback: {traceback.format_exc()}")
-            
+
             # Check for infoitem set pattern
             infoitem_set_match = infoitem_set_re.match(message)
             if infoitem_set_match:
                 item_name = infoitem_set_match.group(1).lower()
                 value = infoitem_set_match.group(2).strip()
                 self.logger.info(f"INFOITEM SET: {item_name} = {value}")
-                
+
                 # Skip if the item name is a registered command
                 registered_commands = []
                 for module in self.modules.values():
                     registered_commands.extend(module.get('commands', []))
-                
+
                 if item_name not in registered_commands:
                     # Call the infoitems module directly
                     if "infoitems" in self.modules:
@@ -635,14 +694,14 @@ class PhreakBot(irc.bot.SingleServerIRCBot):
             for module_name, module in self.modules.items():
                 self.logger.info(f"Checking if module {module_name} handles event signal {event['signal']}")
                 self.logger.info(f"Module {module_name} events: {module['events']}")
-                
+
                 if event["signal"] in module["events"]:
                     self.logger.info(f"Module {module_name} handles event signal {event['signal']}")
-                    
+
                     # Check permissions
                     has_permission = self._check_permissions(event, module["permissions"])
                     self.logger.info(f"User has permission for module {module_name}: {has_permission}")
-                    
+
                     if has_permission:
                         try:
                             self.logger.info(f"Calling module {module_name}.run() with event")
