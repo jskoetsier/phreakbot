@@ -44,73 +44,61 @@ def run(bot, event):
     if event["command"] == "load" or event["command"] == "reload":
         module_name = event["command_args"]
         
-        # Use exec module to reload the module in a separate process
-        import subprocess
-        import os
+        # Add debug logging
+        bot.logger.info(f"Starting module reload for {module_name}")
         
-        # Construct the full path to the module
-        module_path = os.path.join(bot.bot_base, "modules", f"{module_name}.py")
-        
-        # Check if the file exists
-        if not os.path.exists(module_path):
-            bot.add_response(f"Module file not found: {module_path}")
-            return
-            
-        # Send a message to the channel
-        bot.add_response(f"Reloading module: {module_name}")
-        
-        # Create a Python script to reload the module
-        reload_script = f"""
-import importlib.util
-import sys
-
-# Load the module
-spec = importlib.util.spec_from_file_location("{module_name}", "{module_path}")
-module = importlib.util.module_from_spec(spec)
-sys.modules["{module_name}"] = module
-spec.loader.exec_module(module)
-
-# Print success message
-print("Module {module_name} reloaded successfully")
-"""
-        
-        # Write the script to a temporary file
-        temp_script_path = os.path.join(bot.bot_base, "temp_reload.py")
-        with open(temp_script_path, "w") as f:
-            f.write(reload_script)
-            
         try:
-            # Execute the script in a separate process
-            result = subprocess.run(
-                ["python", temp_script_path],
-                capture_output=True,
-                text=True,
-                timeout=5
-            )
+            # Send a message to the channel immediately
+            bot.connection.privmsg(event["channel"], f"Starting reload of {module_name} module")
             
-            # Check if the script executed successfully
-            if result.returncode == 0:
-                # Unload the module if it's already loaded
-                if module_name in bot.modules:
-                    bot.unload_module(module_name)
-                
-                # Load the module
+            # Try a simpler approach - use importlib directly
+            import importlib
+            import sys
+            import os
+            
+            # Construct the full path to the module
+            module_path = os.path.join(bot.bot_base, "modules", f"{module_name}.py")
+            
+            # Check if the file exists
+            if not os.path.exists(module_path):
+                bot.add_response(f"Module file not found: {module_path}")
+                return
+            
+            bot.logger.info(f"Module file exists at {module_path}")
+            
+            # First, try to unload the module if it's already loaded
+            if module_name in bot.modules:
+                bot.logger.info(f"Unloading module {module_name}")
+                bot.unload_module(module_name)
+                bot.logger.info(f"Module {module_name} unloaded")
+            
+            # Force a message to be sent before attempting to reload
+            bot.connection.privmsg(event["channel"], f"Unloaded {module_name}, now reloading...")
+            
+            # Try to load the module
+            bot.logger.info(f"Loading module {module_name} from {module_path}")
+            success = False
+            
+            try:
                 success = bot.load_module(module_path)
-                if success:
-                    bot.add_response(f"Successfully reloaded module: {module_name}")
-                else:
-                    bot.add_response(f"Failed to reload module: {module_name}")
+                bot.logger.info(f"Module {module_name} load result: {success}")
+            except Exception as load_error:
+                bot.logger.error(f"Error loading module {module_name}: {load_error}")
+                bot.connection.privmsg(event["channel"], f"Error loading module: {str(load_error)[:100]}")
+                return
+            
+            if success:
+                bot.connection.privmsg(event["channel"], f"Successfully reloaded module: {module_name}")
             else:
-                bot.add_response(f"Failed to reload module: {module_name}")
-                bot.add_response(f"Error: {result.stderr}")
+                bot.connection.privmsg(event["channel"], f"Failed to reload module: {module_name}")
                 
         except Exception as e:
-            bot.logger.error(f"Error reloading {module_name}: {e}")
-            bot.add_response(f"Error reloading {module_name}: {e}")
-        finally:
-            # Clean up the temporary script
-            if os.path.exists(temp_script_path):
-                os.remove(temp_script_path)
+            bot.logger.error(f"Error in module reload process: {e}")
+            # Try to send a message even if there's an error
+            try:
+                bot.connection.privmsg(event["channel"], f"Error reloading {module_name}: {str(e)[:100]}")
+            except:
+                pass
                 
         return
 
