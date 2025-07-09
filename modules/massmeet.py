@@ -98,28 +98,32 @@ def run(bot, event):
                     bot.logger.error(f"Error accessing raw event data: {e}")
                 
                 # For now, let's try to get users from the channel object
+                users_dict = {}
                 try:
-                    users_dict = {}
                     if hasattr(channel, 'users') and callable(channel.users):
                         users_dict = channel.users()
                     
                     # If we got a dictionary, process it
                     if hasattr(users_dict, 'items'):
                         bot.logger.info(f"Users in channel {channel_name}: {list(users_dict.keys())}")
+                except Exception as e:
+                    bot.logger.error(f"Error getting users from channel object: {e}")
                 
-                for nick, hostmask in users_dict.items():
-                    # Skip the bot itself
-                    if nick.lower() == bot.connection.get_nickname().lower():
-                        bot.logger.info(f"Skipping bot: {nick}")
-                        continue
-                    
-                    # If hostmask is None or empty, generate one
-                    if not hostmask:
-                        hostmask = f"{nick}!{nick}@{bot.connection.server}"
-                        bot.logger.info(f"Generated hostmask for {nick}: {hostmask}")
-                    
-                    bot.logger.info(f"Adding user {nick} with hostmask {hostmask}")
-                    all_users[nick] = hostmask
+                # Process users if we have any
+                if hasattr(users_dict, 'items'):
+                    for nick, hostmask in users_dict.items():
+                        # Skip the bot itself
+                        if nick.lower() == bot.connection.get_nickname().lower():
+                            bot.logger.info(f"Skipping bot: {nick}")
+                            continue
+                        
+                        # If hostmask is None or empty, generate one
+                        if not hostmask:
+                            hostmask = f"{nick}!{nick}@{bot.connection.server}"
+                            bot.logger.info(f"Generated hostmask for {nick}: {hostmask}")
+                        
+                        bot.logger.info(f"Adding user {nick} with hostmask {hostmask}")
+                        all_users[nick] = hostmask
             except Exception as e:
                 bot.logger.error(f"Error getting users from channel {channel_name}: {e}")
                 import traceback
