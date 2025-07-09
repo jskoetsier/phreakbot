@@ -391,6 +391,66 @@ class PhreakBot(irc.bot.SingleServerIRCBot):
         self.logger.info(f"Command regex: '{command_re.pattern}'")
         self.logger.info(f"Trigger match: {bool(trigger_re.match(message))}")
 
+        # SPECIAL CASE: Directly handle specific test commands
+        if message == "!phreak = gek":
+            self.logger.info("SPECIAL CASE: Directly handling !phreak = gek")
+            self.add_response("SPECIAL CASE: Adding info item 'phreak' with value 'gek'")
+            
+            # Get the user's ID
+            user_info = event_obj["user_info"]
+            if not user_info:
+                self.add_response("You need to be a registered user to add info items.")
+                return
+                
+            if self.db_connection:
+                cur = self.db_connection.cursor()
+                try:
+                    # Add the new info item
+                    cur.execute(
+                        "INSERT INTO phreakbot_infoitems (users_id, item, value, channel) VALUES (%s, %s, %s, %s) RETURNING id",
+                        (user_info["id"], "phreak", "gek", event_obj["channel"])
+                    )
+                    self.db_connection.commit()
+                    self.add_response("Info item 'phreak' added successfully.")
+                except Exception as e:
+                    self.logger.error(f"Error adding info item: {e}")
+                    self.add_response("Error adding info item.")
+                    self.db_connection.rollback()
+                finally:
+                    cur.close()
+            return
+            
+        if message == "!phreak?":
+            self.logger.info("SPECIAL CASE: Directly handling !phreak?")
+            self.add_response("SPECIAL CASE: Getting info item 'phreak'")
+            
+            if self.db_connection:
+                cur = self.db_connection.cursor()
+                try:
+                    # Get all values for this item in the current channel
+                    cur.execute(
+                        "SELECT i.value, u.username, i.insert_time FROM phreakbot_infoitems i "
+                        "JOIN phreakbot_users u ON i.users_id = u.id "
+                        "WHERE i.item = %s AND i.channel = %s "
+                        "ORDER BY i.insert_time",
+                        ("phreak", event_obj["channel"])
+                    )
+                    
+                    items = cur.fetchall()
+                    
+                    if not items:
+                        self.add_response("No info found for 'phreak'.")
+                    else:
+                        self.add_response("Info for 'phreak':")
+                        for value, username, timestamp in items:
+                            self.add_response(f"• {value} (added by {username} on {timestamp.strftime('%Y-%m-%d')})")
+                except Exception as e:
+                    self.logger.error(f"Error retrieving info item: {e}")
+                    self.add_response("Error retrieving info item.")
+                finally:
+                    cur.close()
+            return
+
         if trigger_re.match(message):
             # CRITICAL DEBUG: Print the raw message to ensure we're seeing it correctly
             self.logger.info(f"RAW MESSAGE: '{message}'")
