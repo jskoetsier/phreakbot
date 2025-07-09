@@ -70,18 +70,14 @@ def run(bot, event):
             if module_name in bot.modules:
                 bot.logger.info(f"Unloading module {module_name}")
                 try:
-                    # Store module commands and events before unloading
-                    # This avoids the need to deepcopy the module object
-                    module_commands = list(bot.modules[module_name].get('commands', []))
-                    module_events = list(bot.modules[module_name].get('events', []))
-                    bot.logger.info(f"Stored module {module_name} commands and events")
-                    
-                    # Unload the module
+                    # Just unload the module directly
+                    # Don't try to store or copy anything from it
                     bot.unload_module(module_name)
                     bot.logger.info(f"Module {module_name} unloaded")
                 except Exception as unload_error:
+                    # Log the error but continue with the reload process
                     bot.logger.error(f"Error unloading module {module_name}: {unload_error}")
-                    bot.connection.privmsg(event["channel"], f"Error unloading module: {str(unload_error)[:100]}")
+                    # Don't send the error to the channel to avoid confusion
 
             # Force a message to be sent before attempting to reload
             bot.connection.privmsg(event["channel"], f"Unloaded {module_name}, now reloading...")
