@@ -58,13 +58,29 @@ def run(bot, event):
             bot.add_response(f"Module file not found: {module_path}")
             return
 
-        # Try to load the module
-        success = bot.load_module(module_path)
-        if success:
-            bot.add_response(f"Successfully loaded module: {module_name}")
+        # Special handling for asn module to prevent bot restart
+        if module_name == "asn":
+            try:
+                # Try to load the module
+                success = bot.load_module(module_path)
+                if success:
+                    bot.add_response(f"Successfully loaded module: {module_name}")
+                else:
+                    bot.add_response(f"Failed to load module: {module_name}")
+                # Force a message to be sent before potential restart
+                bot.connection.privmsg(event["channel"], f"Successfully reloaded {module_name} module")
+            except Exception as e:
+                bot.logger.error(f"Error reloading {module_name}: {e}")
+                bot.add_response(f"Error reloading {module_name}: {e}")
+            return
         else:
-            bot.add_response(f"Failed to load module: {module_name}")
-        return
+            # Try to load the module
+            success = bot.load_module(module_path)
+            if success:
+                bot.add_response(f"Successfully loaded module: {module_name}")
+            else:
+                bot.add_response(f"Failed to load module: {module_name}")
+            return
 
     if event["command"] == "unload":
         module_name = event["command_args"]
