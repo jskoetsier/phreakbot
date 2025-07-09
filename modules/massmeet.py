@@ -44,15 +44,68 @@ def run(bot, event):
         
         # Debug the channels
         bot.logger.info(f"Bot channels: {list(bot.channels.keys())}")
+        bot.logger.info(f"Bot channels type: {type(bot.channels)}")
         
-        for channel_name, channel in bot.channels.items():
+        # Debug the connection object
+        bot.logger.info(f"Bot connection: {bot.connection}")
+        bot.logger.info(f"Bot connection type: {type(bot.connection)}")
+        
+        # Try to get users directly from the connection
+        for channel_name in bot.channels.keys():
             try:
-                # Debug the channel object
-                bot.logger.info(f"Processing channel: {channel_name}")
+                bot.logger.info(f"Trying to get users for channel: {channel_name}")
                 
-                # In irc.client, users() returns a dictionary mapping nicks to hostmasks
-                users_dict = channel.users()
-                bot.logger.info(f"Users in channel {channel_name}: {list(users_dict.keys())}")
+                # Try different methods to get users
+                # Method 1: Using the channel object
+                channel = bot.channels[channel_name]
+                bot.logger.info(f"Channel object: {channel}")
+                bot.logger.info(f"Channel object type: {type(channel)}")
+                
+                # Try to access users method if it exists
+                if hasattr(channel, 'users'):
+                    bot.logger.info("Channel has users() method")
+                    try:
+                        users_dict = channel.users()
+                        bot.logger.info(f"Users dict: {users_dict}")
+                        bot.logger.info(f"Users dict type: {type(users_dict)}")
+                        bot.logger.info(f"Users in channel {channel_name}: {list(users_dict.keys()) if hasattr(users_dict, 'keys') else 'No keys method'}")
+                    except Exception as e:
+                        bot.logger.error(f"Error calling users() method: {e}")
+                else:
+                    bot.logger.info("Channel does not have users() method")
+                
+                # Method 2: Try to access users as an attribute
+                if hasattr(channel, 'userdict'):
+                    bot.logger.info("Channel has userdict attribute")
+                    users_dict = channel.userdict
+                    bot.logger.info(f"Users from userdict: {users_dict}")
+                
+                # Method 3: Try to get users from the connection
+                try:
+                    bot.logger.info("Trying to get users from connection.names")
+                    if hasattr(bot.connection, 'names'):
+                        names = bot.connection.names(channel_name)
+                        bot.logger.info(f"Names from connection: {names}")
+                except Exception as e:
+                    bot.logger.error(f"Error getting names from connection: {e}")
+                
+                # Method 4: Try to use the raw event data
+                try:
+                    bot.logger.info("Trying to use raw event data")
+                    if 'raw_event' in event and hasattr(event['raw_event'], 'arguments'):
+                        bot.logger.info(f"Raw event arguments: {event['raw_event'].arguments}")
+                except Exception as e:
+                    bot.logger.error(f"Error accessing raw event data: {e}")
+                
+                # For now, let's try to get users from the channel object
+                try:
+                    users_dict = {}
+                    if hasattr(channel, 'users') and callable(channel.users):
+                        users_dict = channel.users()
+                    
+                    # If we got a dictionary, process it
+                    if hasattr(users_dict, 'items'):
+                        bot.logger.info(f"Users in channel {channel_name}: {list(users_dict.keys())}")
                 
                 for nick, hostmask in users_dict.items():
                     # Skip the bot itself
