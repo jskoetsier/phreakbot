@@ -276,7 +276,7 @@ class PhreakBot(pydle.Client):
 
     async def on_connect(self):
         """Called when bot has successfully connected to the server"""
-        self.logger.info(f"Connected to {self.config['server']}")
+        self.logger.info(f"Connected to {self.network}")
 
         # Join channels
         for channel in self.config["channels"]:
@@ -307,7 +307,7 @@ class PhreakBot(pydle.Client):
 
         # Create event object for modules
         event_obj = {
-            "server": self.server,
+            "server": self.network,
             "signal": "namreply",
             "nick": self.nickname,
             "hostmask": "",
@@ -341,7 +341,7 @@ class PhreakBot(pydle.Client):
 
         # Create event object similar to the original bot
         event_obj = {
-            "server": self.server,
+            "server": self.network,
             "signal": "privmsg" if is_private else "pubmsg",
             "nick": source,
             "hostmask": user_host,
@@ -602,7 +602,7 @@ class PhreakBot(pydle.Client):
             self.logger.info(f"QUIT: {user} ({user_host}) quit")
 
         event_obj = {
-            "server": self.server,
+            "server": self.network,
             "signal": event_type,
             "nick": user,
             "hostmask": user_host,
