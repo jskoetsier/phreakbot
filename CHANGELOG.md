@@ -1,5 +1,16 @@
 # Changelog
 
+## [v0.1.16] - 2025-07-11
+- Consolidated all code to use a single pydle-based implementation
+- Removed redundant infoitems modules (infoitems2.py, infoitems3.py, infoitems4.py)
+- Removed factoids.py module to eliminate conflicts
+- Fixed CTCP VERSION handling to properly use pydle library
+- Fixed infoitems module to correctly handle custom commands (!item = value, !item?)
+- Removed direct infoitem handling in main bot code to prevent conflicts
+- Improved module routing for better command handling
+- Updated documentation to reflect the consolidated implementation
+- Streamlined codebase by removing duplicate functionality
+
 ## [v0.1.15] - 2025-07-10
 - Added new pydle-based version of PhreakBot for improved stability and performance
 - Created phreakbot_pydle.py as an alternative implementation using the pydle IRC library
