@@ -28,28 +28,28 @@ def run(bot, event):
     # Log every call to the run method
     bot.logger.info(f"Factoids module run() called with trigger: {event['trigger']}, signal: {event.get('signal', 'N/A')}")
     bot.logger.info(f"Event text: '{event.get('text', 'N/A')}'")
-    
+
     try:
         # Handle event-based factoid commands
         if event["trigger"] == "event" and event["signal"] in ["pubmsg", "privmsg"]:
             message = event["text"]
             bot.logger.info(f"Factoids module checking message: '{message}'")
-            
+
             # Always add a response to see if the module is being called
             bot.add_response(f"DEBUG: Factoids module received message: {message}")
-            
+
             # Check for factoid set command (!factoid = value)
             set_match = re.match(r'^\!([a-zA-Z0-9_-]+)\s*=\s*(.+)$', message)
             if set_match:
                 bot.logger.info(f"Matched factoid set command: {message}")
                 factoid_name = set_match.group(1).lower()
                 value = set_match.group(2).strip()
-                
+
                 # Skip if the factoid name is a known command
                 registered_commands = []
                 for module in bot.modules.values():
                     registered_commands.extend(module.get('commands', []))
-                
+
                 if factoid_name not in registered_commands:
                     bot.logger.info(f"Processing factoid set command: {factoid_name} = {value}")
                     _add_factoid(bot, event, factoid_name, value)
@@ -60,12 +60,12 @@ def run(bot, event):
             if get_match:
                 bot.logger.info(f"Matched factoid get command: {message}")
                 factoid_name = get_match.group(1).lower()
-                
+
                 # Skip if the factoid name is a known command
                 registered_commands = []
                 for module in bot.modules.values():
                     registered_commands.extend(module.get('commands', []))
-                
+
                 if factoid_name not in registered_commands:
                     bot.logger.info(f"Processing factoid get command: {factoid_name}?")
                     _get_factoid(bot, event, factoid_name)

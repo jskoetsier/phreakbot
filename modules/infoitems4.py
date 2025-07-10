@@ -38,12 +38,12 @@ def run(bot, event):
         bot.logger.info(f"InfoItems4 matched define pattern: {txt}")
         item_name = define_match.group(1).lower()
         value = define_match.group(2).strip()
-        
+
         # Skip if the item name is a known command
         registered_commands = []
         for module in bot.modules.values():
             registered_commands.extend(module.get('commands', []))
-        
+
         if item_name not in registered_commands:
             bot.logger.info(f"InfoItems4 processing define command: {item_name} = {value}")
             _add_infoitem(bot, event, item_name, value)
@@ -55,12 +55,12 @@ def run(bot, event):
     if query_match:
         bot.logger.info(f"InfoItems4 matched query pattern: {txt}")
         item_name = query_match.group(1).lower()
-        
+
         # Skip if the item name is a known command
         registered_commands = []
         for module in bot.modules.values():
             registered_commands.extend(module.get('commands', []))
-        
+
         if item_name not in registered_commands:
             bot.logger.info(f"InfoItems4 processing query command: {item_name}?")
             _get_infoitem(bot, event, item_name)

@@ -32,7 +32,7 @@ def create_config(args):
         "remote_ssh_command": args.remote_ssh,
         "remote_directory": args.remote_dir,
     }
-    
+
     # Add pydle-specific configuration if using pydle version
     if args.bot_version == "pydle":
         config.update({

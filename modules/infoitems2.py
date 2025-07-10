@@ -29,47 +29,47 @@ def run(bot, event):
 
     # Get the message text
     message = event["text"]
-    
+
     # Always log the message for debugging
     bot.logger.info(f"InfoItems2 received message: '{message}'")
-    
+
     # Check for set pattern (!item = value)
     set_match = re.match(r'^\!([a-zA-Z0-9_-]+)\s*=\s*(.+)$', message)
     if set_match:
         bot.logger.info(f"InfoItems2 matched set pattern: {message}")
         item_name = set_match.group(1).lower()
         value = set_match.group(2).strip()
-        
+
         # Skip if the item name is a known command
         registered_commands = []
         for module in bot.modules.values():
             registered_commands.extend(module.get('commands', []))
-        
+
         if item_name not in registered_commands:
             bot.logger.info(f"InfoItems2 processing set command: {item_name} = {value}")
             # Add a debug response
             bot.add_response(f"DEBUG: InfoItems2 processing set command: {item_name} = {value}")
             _add_infoitem(bot, event, item_name, value)
             return True
-    
+
     # Check for get pattern (!item?)
     get_match = re.match(r'^\!([a-zA-Z0-9_-]+)\?$', message)
     if get_match:
         bot.logger.info(f"InfoItems2 matched get pattern: {message}")
         item_name = get_match.group(1).lower()
-        
+
         # Skip if the item name is a known command
         registered_commands = []
         for module in bot.modules.values():
             registered_commands.extend(module.get('commands', []))
-        
+
         if item_name not in registered_commands:
             bot.logger.info(f"InfoItems2 processing get command: {item_name}?")
             # Add a debug response
             bot.add_response(f"DEBUG: InfoItems2 processing get command: {item_name}?")
             _get_infoitem(bot, event, item_name)
             return True
-    
+
     return False
 
 

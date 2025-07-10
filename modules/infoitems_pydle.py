@@ -78,12 +78,12 @@ def handle_custom_command(bot, event):
         if set_match:
             item = set_match.group(1).lower()
             value = set_match.group(2).strip()
-            
+
             # Skip if the item is a registered command
             registered_commands = []
             for module in bot.modules.values():
                 registered_commands.extend(module.get('commands', []))
-                
+
             if item not in registered_commands:
                 bot.logger.info(f"Custom infoitem set command: {item} = {value}")
                 _add_infoitem(bot, event, item, value)
@@ -130,29 +130,29 @@ def _delete_infoitem(bot, event, item_id):
     if bot.db_connection:
         try:
             cur = bot.db_connection.cursor()
-            
+
             # First check if the item exists and belongs to the user or if user is admin
             cur.execute(
                 "SELECT i.id, i.item, i.users_id FROM phreakbot_infoitems i WHERE i.id = %s",
                 (item_id,)
             )
             item = cur.fetchone()
-            
+
             if not item:
                 bot.reply(f"Info item with ID {item_id} not found.")
                 return
-                
+
             # Check if user is owner or the item belongs to the user
             is_owner = False
             for perm in event["user_info"]["permissions"]["global"]:
                 if perm == "owner":
                     is_owner = True
                     break
-                    
+
             if not is_owner and item[2] != event["user_info"]["id"]:
                 bot.reply("You can only delete your own info items.")
                 return
-                
+
             # Delete the item
             cur.execute(
                 "DELETE FROM phreakbot_infoitems WHERE id = %s",
@@ -183,9 +183,9 @@ def _get_infoitem(bot, event, item):
                 "ORDER BY i.insert_time",
                 (item, event["channel"])
             )
-            
+
             items = cur.fetchall()
-            
+
             if not items:
                 bot.reply(f"No info found for '{item}'.")
             else:
@@ -210,9 +210,9 @@ def _list_infoitems(bot, event):
                 "SELECT DISTINCT item FROM phreakbot_infoitems WHERE channel = %s ORDER BY item",
                 (event["channel"],)
             )
-            
+
             items = cur.fetchall()
-            
+
             if not items:
                 bot.reply("No info items found in this channel.")
             else:

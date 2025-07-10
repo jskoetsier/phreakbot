@@ -1,43 +1,29 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 #
-# PhreakBot - A modular IRC bot
+# PhreakBot - A modular IRC bot using pydle
 #
 import argparse
 import importlib.util
 import json
 import logging
 import os
-import random
 import re
 import sys
 from datetime import datetime
 
-# IRC library
-import irc.bot
-import irc.client
-import irc.strings
+# Pydle IRC library
+import pydle
 
 # Database library
 import psycopg2
 import psycopg2.extras
 
 
-class PhreakBot(irc.bot.SingleServerIRCBot):
-    def __init__(self, config_path):
+class PhreakBot(pydle.Client):
+    def __init__(self, config_path, *args, **kwargs):
         self.config_path = config_path
         self.load_config()
-
-        # Initialize bot state
-        self.modules = {}
-        self.output = []
-        self.db_connection = None
-        self.re = re  # Expose re module for modules to use
-        self.state = {}  # State dictionary for modules to use
-
-        # Set up trigger regex for modules to use
-        self.trigger_re = re.compile(f'^{re.escape(self.config["trigger"])}')
-        self.bot_trigger_re = re.compile(f'^{re.escape(self.config["trigger"])}')
 
         # Set up logging
         logging.basicConfig(
@@ -50,21 +36,30 @@ class PhreakBot(irc.bot.SingleServerIRCBot):
         )
         self.logger = logging.getLogger("PhreakBot")
 
+        # Initialize bot state
+        self.modules = {}
+        self.output = []
+        self.db_connection = None
+        self.re = re  # Expose re module for modules to use
+        self.state = {}  # State dictionary for modules to use
+
+        # Set up trigger regex for modules to use
+        self.trigger_re = re.compile(f'^{re.escape(self.config["trigger"])}')
+        self.bot_trigger_re = re.compile(f'^{re.escape(self.config["trigger"])}')
+
         # Connect to database
         self.db_connect()
 
-        # Connect to IRC server
-        self.logger.info(f"Connecting to {self.config['server']}:{self.config['port']}")
-        irc.bot.SingleServerIRCBot.__init__(
-            self,
-            [(self.config["server"], self.config["port"])],
-            self.config["nickname"],
-            self.config["realname"],
+        # Call the parent constructor with our nickname and realname
+        super().__init__(
+            nickname=self.config["nickname"],
+            realname=self.config["realname"],
+            *args, **kwargs
         )
 
         # Load modules
         self.bot_base = os.path.dirname(os.path.abspath(__file__))
-        self.modules_dir = os.path.join(self.bot_base, "phreakbot_core", "modules")
+        self.modules_dir = os.path.join(self.bot_base, "modules")
         self.extra_modules_dir = os.path.join(
             self.bot_base, "phreakbot_core", "extra_modules"
         )
@@ -148,20 +143,20 @@ class PhreakBot(irc.bot.SingleServerIRCBot):
             # Don't exit, allow the bot to run without database functionality
             self.db_connection = None
 
-    def db_get_userinfo_by_userhost(self, host):
+    def db_get_userinfo_by_userhost(self, hostmask):
         """Get user information from the database by hostmask"""
         if not self.db_connection:
             return None
 
         ret = {}
-        host = host.lower()
+        hostmask = hostmask.lower()
 
         try:
             cur = self.db_connection.cursor(cursor_factory=psycopg2.extras.DictCursor)
 
             # Get user info
             sql = "SELECT h.hostmask AS current_hostmask, u.* FROM phreakbot_hostmasks h, phreakbot_users u WHERE h.users_id = u.id AND h.hostmask = %s"
-            cur.execute(sql, (host,))
+            cur.execute(sql, (hostmask,))
             db_res = cur.fetchall()
             if not db_res:
                 return None
@@ -279,56 +274,49 @@ class PhreakBot(irc.bot.SingleServerIRCBot):
             self.logger.error(f"Module not found: {module_name}")
             return False
 
-    def on_welcome(self, connection, event):
+    async def on_connect(self):
         """Called when bot has successfully connected to the server"""
-        self.logger.info(f"Connected to {self.config['server']}")
+        self.logger.info(f"Connected to {self.network}")
 
         # Join channels
         for channel in self.config["channels"]:
-            connection.join(channel)
+            await self.join(channel)
             self.logger.info(f"Joined channel: {channel}")
 
-    def on_pubmsg(self, connection, event):
-        """Called when a message is received in a channel"""
-        self._handle_message(connection, event, is_private=False)
+    async def on_message(self, target, source, message):
+        """Called when a message is received in a channel or privately"""
+        is_private = target == self.nickname
+        channel = source if is_private else target
+        await self._handle_message(source, channel, message, is_private)
 
-    def on_privmsg(self, connection, event):
-        """Called when a private message is received"""
-        self._handle_message(connection, event, is_private=True)
-
-    def on_join(self, connection, event):
+    async def on_join(self, channel, user):
         """Called when someone joins a channel"""
-        self._handle_event(connection, event, "join")
+        await self._handle_event(user, channel, "join")
 
-    def on_part(self, connection, event):
+    async def on_part(self, channel, user, message=None):
         """Called when someone leaves a channel"""
-        self._handle_event(connection, event, "part")
+        await self._handle_event(user, channel, "part")
 
-    def on_quit(self, connection, event):
+    async def on_quit(self, user, message=None):
         """Called when someone quits IRC"""
-        self._handle_event(connection, event, "quit")
+        await self._handle_event(user, None, "quit")
 
-    def on_namreply(self, connection, event):
+    async def on_names(self, channel, names):
         """Called when the server sends a NAMES reply"""
-        # Extract channel and names from the event
-        channel = event.arguments[1]
-        names = event.arguments[2].split()
-
         self.logger.info(f"Received NAMES reply for {channel}: {names}")
 
         # Create event object for modules
         event_obj = {
-            "server": self.connection.get_server_name(),
+            "server": self.network,
             "signal": "namreply",
-            "nick": self.connection.get_nickname(),
+            "nick": self.nickname,
             "hostmask": "",
             "channel": channel,
-            "names": names,
+            "names": list(names.keys()),
             "text": "",
             "is_privmsg": False,
-            "connection": connection,
-            "raw_event": event,
-            "bot_nick": self.connection.get_nickname(),
+            "raw_event": None,
+            "bot_nick": self.nickname,
             "command": "",
             "command_args": "",
             "trigger": "event",
@@ -336,137 +324,32 @@ class PhreakBot(irc.bot.SingleServerIRCBot):
         }
 
         # Route to modules that handle namreply events
-        self._route_to_modules(event_obj)
+        await self._route_to_modules(event_obj)
 
-    def _handle_message(self, connection, event, is_private):
+    async def _handle_message(self, source, channel, message, is_private):
         """Process incoming messages and route to appropriate modules"""
-        nick = event.source.nick
-        # Debug the event source
-        self.logger.info(f"Event source: {event.source}")
-        self.logger.info(f"Event source nick: {event.source.nick}")
-        self.logger.info(f"Event source user: {event.source.user}")
-        self.logger.info(f"Event source host: {event.source.host}")
+        # Get the user's hostmask
+        try:
+            user_info = await self.whois(source)
+            user_host = f"{source}!{user_info.get('username', '')}@{user_info.get('hostname', '')}"
+        except Exception as e:
+            self.logger.error(f"Error getting user info: {e}")
+            user_host = f"{source}!unknown@unknown"
 
-        # Format the hostmask correctly
-        user_host = f"{nick}!{event.source.user}@{event.source.host}"
         self.logger.info(f"Formatted hostmask: {user_host}")
-        channel = event.target if not is_private else nick
-        message = event.arguments[0]
-
-        # ULTRA DIRECT HARDCODED HANDLING FOR INFOITEMS
-        # This is a last resort approach to get the infoitems functionality working
-        # We're bypassing all module handling and directly interacting with the database
-        
-        # Log the exact message and channel for debugging
-        self.logger.info(f"EXACT MESSAGE: '{message}' in channel '{channel}'")
-        
-        if message == "!phreak = gek":
-            self.logger.info("ULTRA DIRECT HARDCODED HANDLING: !phreak = gek")
-            
-            # Get user info
-            user_info = self.db_get_userinfo_by_userhost(user_host) if self.db_connection else None
-            if not user_info:
-                self.say(channel, "You need to be a registered user to add info items.")
-                return
-                
-            if self.db_connection:
-                cur = self.db_connection.cursor()
-                try:
-                    # Add the new info item
-                    cur.execute(
-                        "INSERT INTO phreakbot_infoitems (users_id, item, value, channel) VALUES (%s, %s, %s, %s) RETURNING id",
-                        (user_info["id"], "phreak", "gek", channel)
-                    )
-                    item_id = cur.fetchone()[0]
-                    self.db_connection.commit()
-                    self.say(channel, f"Info item 'phreak' added successfully with ID {item_id}.")
-                    self.logger.info(f"Successfully added info item with ID {item_id}")
-                except Exception as e:
-                    self.logger.error(f"Error adding info item: {e}")
-                    self.say(channel, f"Error adding info item: {e}")
-                    self.db_connection.rollback()
-                finally:
-                    cur.close()
-            return
-            
-        if message == "!phreak?":
-            self.logger.info("ULTRA DIRECT HARDCODED HANDLING: !phreak?")
-            
-            if self.db_connection:
-                cur = self.db_connection.cursor()
-                try:
-                    # Get all values for this item in the current channel
-                    self.logger.info(f"Querying database for 'phreak' in channel '{channel}'")
-                    cur.execute(
-                        "SELECT i.id, i.value, u.username, i.insert_time FROM phreakbot_infoitems i "
-                        "JOIN phreakbot_users u ON i.users_id = u.id "
-                        "WHERE i.item = %s AND i.channel = %s "
-                        "ORDER BY i.insert_time",
-                        ("phreak", channel)
-                    )
-                    
-                    items = cur.fetchall()
-                    self.logger.info(f"Found {len(items)} items for 'phreak' in channel '{channel}'")
-                    
-                    if not items:
-                        self.say(channel, "No info found for 'phreak'.")
-                    else:
-                        self.say(channel, f"Info for 'phreak' ({len(items)} entries):")
-                        for item_id, value, username, timestamp in items:
-                            self.say(channel, f"• [{item_id}] {value} (added by {username} on {timestamp.strftime('%Y-%m-%d')})")
-                except Exception as e:
-                    self.logger.error(f"Error retrieving info item: {e}")
-                    self.say(channel, f"Error retrieving info item: {e}")
-                finally:
-                    cur.close()
-            return
-            
-        # Also handle the case where the user might be typing the command with different spacing
-        if message.startswith("!phreak ") and "=" in message:
-            self.logger.info("ULTRA DIRECT HANDLING: !phreak with = detected")
-            parts = message.split("=", 1)
-            if len(parts) == 2:
-                value = parts[1].strip()
-                self.logger.info(f"Extracted value: '{value}'")
-                
-                # Get user info
-                user_info = self.db_get_userinfo_by_userhost(user_host) if self.db_connection else None
-                if not user_info:
-                    self.say(channel, "You need to be a registered user to add info items.")
-                    return
-                    
-                if self.db_connection:
-                    cur = self.db_connection.cursor()
-                    try:
-                        # Add the new info item
-                        cur.execute(
-                            "INSERT INTO phreakbot_infoitems (users_id, item, value, channel) VALUES (%s, %s, %s, %s) RETURNING id",
-                            (user_info["id"], "phreak", value, channel)
-                        )
-                        item_id = cur.fetchone()[0]
-                        self.db_connection.commit()
-                        self.say(channel, f"Info item 'phreak' added successfully with ID {item_id}.")
-                        self.logger.info(f"Successfully added info item with ID {item_id}")
-                    except Exception as e:
-                        self.logger.error(f"Error adding info item: {e}")
-                        self.say(channel, f"Error adding info item: {e}")
-                        self.db_connection.rollback()
-                    finally:
-                        cur.close()
-                return
+        self.logger.info(f"Processing message from {source} in {channel}: '{message}'")
 
         # Create event object similar to the original bot
         event_obj = {
-            "server": self.connection.get_server_name(),
+            "server": self.network,
             "signal": "privmsg" if is_private else "pubmsg",
-            "nick": nick,
+            "nick": source,
             "hostmask": user_host,
             "channel": channel,
             "text": message,
             "is_privmsg": is_private,
-            "connection": connection,
-            "raw_event": event,
-            "bot_nick": self.connection.get_nickname(),
+            "raw_event": None,
+            "bot_nick": self.nickname,
             "command": "",
             "command_args": "",
             "trigger": "",
@@ -484,7 +367,7 @@ class PhreakBot(irc.bot.SingleServerIRCBot):
         )
 
         # Special patterns for infoitems
-        infoitem_set_re = re.compile(r'^\!([a-zA-Z0-9_-]+)(?:\s*[=:+]\s*|\s+)(.+)$')
+        infoitem_set_re = re.compile(r'^\!([a-zA-Z0-9_-]+)\s*=\s*(.+)$')
         infoitem_get_re = re.compile(r'^\!([a-zA-Z0-9_-]+)\?$')
 
         # Debug message parsing
@@ -493,119 +376,111 @@ class PhreakBot(irc.bot.SingleServerIRCBot):
         self.logger.info(f"Command regex: '{command_re.pattern}'")
         self.logger.info(f"Trigger match: {bool(trigger_re.match(message))}")
 
-        # SPECIAL CASE: Directly handle specific test commands
-        if message == "!phreak = gek":
-            self.logger.info("SPECIAL CASE: Directly handling !phreak = gek")
-            self.add_response("SPECIAL CASE: Adding info item 'phreak' with value 'gek'")
+        # Handle infoitem commands directly at the top level with robust error handling
+        try:
+            # Check for infoitem set pattern (!item = value)
+            set_match = infoitem_set_re.match(message)
+            if set_match:
+                item_name = set_match.group(1).lower()
+                value = set_match.group(2).strip()
+                self.logger.info(f"DIRECT HANDLER: Matched infoitem set pattern: {item_name} = {value}")
+                
+                # Skip if the item name is a known command
+                registered_commands = []
+                for module in self.modules.values():
+                    registered_commands.extend(module.get('commands', []))
+                
+                if item_name not in registered_commands:
+                    # Get the user's ID
+                    user_info = event_obj["user_info"]
+                    if not user_info:
+                        self.add_response("You need to be a registered user to add info items.")
+                        await self._process_output(event_obj)
+                        return
+                    
+                    if self.db_connection:
+                        cur = self.db_connection.cursor()
+                        try:
+                            # Add the new info item with ON CONFLICT DO NOTHING to handle duplicates
+                            cur.execute(
+                                """
+                                INSERT INTO phreakbot_infoitems (users_id, item, value, channel)
+                                VALUES (%s, %s, %s, %s)
+                                ON CONFLICT (item, value, channel) DO NOTHING
+                                RETURNING id
+                                """,
+                                (user_info["id"], item_name, value, channel)
+                            )
+                            result = cur.fetchone()
+                            self.db_connection.commit()
+                            
+                            if result:
+                                self.add_response(f"Info item '{item_name}' added successfully.")
+                            else:
+                                self.add_response(f"This info item already exists.")
+                        except Exception as e:
+                            self.logger.error(f"Error adding info item: {str(e).replace('\r', '').replace('\n', ' ')}")
+                            self.add_response("Error adding info item. Please try again.")
+                            self.db_connection.rollback()
+                        finally:
+                            cur.close()
+                        
+                        await self._process_output(event_obj)
+                        return
+            
+            # Check for infoitem get pattern (!item?)
+            get_match = infoitem_get_re.match(message)
+            if get_match:
+                item_name = get_match.group(1).lower()
+                self.logger.info(f"DIRECT HANDLER: Matched infoitem get pattern: {item_name}?")
+                
+                # Skip if the item name is a known command
+                registered_commands = []
+                for module in self.modules.values():
+                    registered_commands.extend(module.get('commands', []))
+                
+                if item_name not in registered_commands:
+                    if self.db_connection:
+                        cur = self.db_connection.cursor()
+                        try:
+                            # Get all values for this item in the current channel
+                            cur.execute(
+                                """
+                                SELECT i.value, u.username, i.insert_time 
+                                FROM phreakbot_infoitems i
+                                JOIN phreakbot_users u ON i.users_id = u.id
+                                WHERE i.item = %s AND i.channel = %s
+                                ORDER BY i.insert_time
+                                """,
+                                (item_name, channel)
+                            )
+                            
+                            items = cur.fetchall()
+                            
+                            if not items:
+                                self.add_response(f"No info found for '{item_name}'.")
+                            else:
+                                self.add_response(f"Info for '{item_name}':")
+                                for value, username, timestamp in items:
+                                    self.add_response(f"• {value} (added by {username} on {timestamp.strftime('%Y-%m-%d')})")
+                        except Exception as e:
+                            self.logger.error(f"Error retrieving info item: {str(e).replace('\r', '').replace('\n', ' ')}")
+                            self.add_response("Error retrieving info item. Please try again.")
+                        finally:
+                            cur.close()
+                        
+                        await self._process_output(event_obj)
+                        return
+        except Exception as e:
+            import traceback
+            self.logger.error(f"Error in direct infoitem handler: {str(e).replace('\r', '').replace('\n', ' ')}")
+            self.logger.error(f"Traceback: {traceback.format_exc()}")
+            # Continue with normal message processing if direct handling fails
 
-            # Get the user's ID
-            user_info = event_obj["user_info"]
-            if not user_info:
-                self.add_response("You need to be a registered user to add info items.")
-                return
-
-            if self.db_connection:
-                cur = self.db_connection.cursor()
-                try:
-                    # Add the new info item
-                    cur.execute(
-                        "INSERT INTO phreakbot_infoitems (users_id, item, value, channel) VALUES (%s, %s, %s, %s) RETURNING id",
-                        (user_info["id"], "phreak", "gek", event_obj["channel"])
-                    )
-                    self.db_connection.commit()
-                    self.add_response("Info item 'phreak' added successfully.")
-                except Exception as e:
-                    self.logger.error(f"Error adding info item: {e}")
-                    self.add_response("Error adding info item.")
-                    self.db_connection.rollback()
-                finally:
-                    cur.close()
-            return
-
-        if message == "!phreak?":
-            self.logger.info("SPECIAL CASE: Directly handling !phreak?")
-            self.add_response("SPECIAL CASE: Getting info item 'phreak'")
-
-            if self.db_connection:
-                cur = self.db_connection.cursor()
-                try:
-                    # Get all values for this item in the current channel
-                    cur.execute(
-                        "SELECT i.value, u.username, i.insert_time FROM phreakbot_infoitems i "
-                        "JOIN phreakbot_users u ON i.users_id = u.id "
-                        "WHERE i.item = %s AND i.channel = %s "
-                        "ORDER BY i.insert_time",
-                        ("phreak", event_obj["channel"])
-                    )
-
-                    items = cur.fetchall()
-
-                    if not items:
-                        self.add_response("No info found for 'phreak'.")
-                    else:
-                        self.add_response("Info for 'phreak':")
-                        for value, username, timestamp in items:
-                            self.add_response(f"• {value} (added by {username} on {timestamp.strftime('%Y-%m-%d')})")
-                except Exception as e:
-                    self.logger.error(f"Error retrieving info item: {e}")
-                    self.add_response("Error retrieving info item.")
-                finally:
-                    cur.close()
-            return
-
+        # Continue with normal message processing if direct handling didn't match
         if trigger_re.match(message):
-            # CRITICAL DEBUG: Print the raw message to ensure we're seeing it correctly
             self.logger.info(f"RAW MESSAGE: '{message}'")
-
-            # Check for infoitem get pattern first (simplest)
-            infoitem_get_match = infoitem_get_re.match(message)
-            if infoitem_get_match:
-                item_name = infoitem_get_match.group(1).lower()
-                self.logger.info(f"INFOITEM GET: {item_name}")
-
-                # Skip if the item name is a registered command
-                registered_commands = []
-                for module in self.modules.values():
-                    registered_commands.extend(module.get('commands', []))
-
-                if item_name not in registered_commands:
-                    # Call the infoitems module directly
-                    if "infoitems" in self.modules:
-                        try:
-                            self.logger.info(f"Calling infoitems._get_infoitem for {item_name}")
-                            self.modules["infoitems"]["object"]._get_infoitem(self, event_obj, item_name)
-                            self._process_output(event_obj)
-                            return
-                        except Exception as e:
-                            import traceback
-                            self.logger.error(f"Error in infoitems._get_infoitem: {e}")
-                            self.logger.error(f"Traceback: {traceback.format_exc()}")
-
-            # Check for infoitem set pattern
-            infoitem_set_match = infoitem_set_re.match(message)
-            if infoitem_set_match:
-                item_name = infoitem_set_match.group(1).lower()
-                value = infoitem_set_match.group(2).strip()
-                self.logger.info(f"INFOITEM SET: {item_name} = {value}")
-
-                # Skip if the item name is a registered command
-                registered_commands = []
-                for module in self.modules.values():
-                    registered_commands.extend(module.get('commands', []))
-
-                if item_name not in registered_commands:
-                    # Call the infoitems module directly
-                    if "infoitems" in self.modules:
-                        try:
-                            self.logger.info(f"Calling infoitems._add_infoitem for {item_name}")
-                            self.modules["infoitems"]["object"]._add_infoitem(self, event_obj, item_name, value)
-                            self._process_output(event_obj)
-                            return
-                        except Exception as e:
-                            import traceback
-                            self.logger.error(f"Error in infoitems._add_infoitem: {e}")
-                            self.logger.error(f"Traceback: {traceback.format_exc()}")
-
+            
             # Regular command handling
             match = command_re.match(message)
             self.logger.info(f"Command match: {bool(match)}")
@@ -616,113 +491,46 @@ class PhreakBot(irc.bot.SingleServerIRCBot):
                 self.logger.info(
                     f"Parsed command: '{event_obj['command']}' with args: '{event_obj['command_args']}'"
                 )
-
-                # SUPER DIRECT HANDLING FOR PHREAK COMMAND
-                if event_obj["command"] == "phreak":
-                    self.logger.info("SUPER DIRECT HANDLING FOR PHREAK COMMAND")
-                    
-                    # Check if it's a set command (phreak = gek)
-                    if event_obj["command_args"].startswith("="):
-                        value = event_obj["command_args"][1:].strip()
-                        self.logger.info(f"PHREAK SET COMMAND: value = '{value}'")
-                        
-                        # Get user info
-                        user_info = event_obj["user_info"]
-                        if not user_info:
-                            self.say(channel, "You need to be a registered user to add info items.")
-                            return
-                            
-                        if self.db_connection:
-                            cur = self.db_connection.cursor()
-                            try:
-                                # Add the new info item
-                                cur.execute(
-                                    "INSERT INTO phreakbot_infoitems (users_id, item, value, channel) VALUES (%s, %s, %s, %s) RETURNING id",
-                                    (user_info["id"], "phreak", value, channel)
-                                )
-                                item_id = cur.fetchone()[0]
-                                self.db_connection.commit()
-                                self.say(channel, f"Info item 'phreak' added successfully with ID {item_id}.")
-                                self.logger.info(f"Successfully added info item with ID {item_id}")
-                                return
-                            except Exception as e:
-                                self.logger.error(f"Error adding info item: {e}")
-                                self.say(channel, f"Error adding info item: {e}")
-                                self.db_connection.rollback()
-                            finally:
-                                cur.close()
-                    
-                    # Check if it's a get command (phreak?)
-                    elif event_obj["command_args"] == "?":
-                        self.logger.info("PHREAK GET COMMAND")
-                        
-                        if self.db_connection:
-                            cur = self.db_connection.cursor()
-                            try:
-                                # Get all values for this item in the current channel
-                                self.logger.info(f"Querying database for 'phreak' in channel '{channel}'")
-                                cur.execute(
-                                    "SELECT i.id, i.value, u.username, i.insert_time FROM phreakbot_infoitems i "
-                                    "JOIN phreakbot_users u ON i.users_id = u.id "
-                                    "WHERE i.item = %s AND i.channel = %s "
-                                    "ORDER BY i.insert_time",
-                                    ("phreak", channel)
-                                )
-                                
-                                items = cur.fetchall()
-                                self.logger.info(f"Found {len(items)} items for 'phreak' in channel '{channel}'")
-                                
-                                if not items:
-                                    self.say(channel, "No info found for 'phreak'.")
-                                else:
-                                    self.say(channel, f"Info for 'phreak' ({len(items)} entries):")
-                                    for item_id, value, username, timestamp in items:
-                                        self.say(channel, f"• [{item_id}] {value} (added by {username} on {timestamp.strftime('%Y-%m-%d')})")
-                                return
-                            except Exception as e:
-                                self.logger.error(f"Error retrieving info item: {e}")
-                                self.say(channel, f"Error retrieving info item: {e}")
-                            finally:
-                                cur.close()
-
+                
                 # Find modules that handle this command
-                self._route_to_modules(event_obj)
+                await self._route_to_modules(event_obj)
             else:
                 # This is a message that starts with the trigger but doesn't match the command pattern
-                # It could be a custom command like !example = value or !example?
                 self.logger.info(f"Message starts with trigger but doesn't match command pattern: '{message}'")
                 event_obj["trigger"] = "event"
-                self._route_to_modules(event_obj)
+                await self._route_to_modules(event_obj)
         else:
             # Handle non-command events
             event_obj["trigger"] = "event"
-            self._route_to_modules(event_obj)
+            await self._route_to_modules(event_obj)
 
-    def _handle_event(self, connection, event, event_type):
+    async def _handle_event(self, user, channel, event_type):
         """Handle non-message events like joins, parts, quits"""
-        nick = event.source.nick
-        user_host = f"{nick}!{event.source.user}@{event.source.host}"
-        channel = event.target if hasattr(event, "target") else None
+        try:
+            user_info = await self.whois(user)
+            user_host = f"{user}!{user_info.get('username', '')}@{user_info.get('hostname', '')}"
+        except Exception as e:
+            self.logger.error(f"Error getting user info: {e}")
+            user_host = f"{user}!unknown@unknown"
 
         # Log join and part events
         if event_type == "join":
-            self.logger.info(f"JOIN: {nick} ({user_host}) joined {channel}")
+            self.logger.info(f"JOIN: {user} ({user_host}) joined {channel}")
         elif event_type == "part":
-            self.logger.info(f"PART: {nick} ({user_host}) left {channel}")
+            self.logger.info(f"PART: {user} ({user_host}) left {channel}")
         elif event_type == "quit":
-            self.logger.info(f"QUIT: {nick} ({user_host}) quit")
+            self.logger.info(f"QUIT: {user} ({user_host}) quit")
 
         event_obj = {
-            "server": self.connection.get_server_name(),
+            "server": self.network,
             "signal": event_type,
-            "nick": nick,
+            "nick": user,
             "hostmask": user_host,
             "channel": channel,
             "text": "",
             "is_privmsg": False,
-            "connection": connection,
-            "raw_event": event,
-            "bot_nick": self.connection.get_nickname(),
+            "raw_event": None,
+            "bot_nick": self.nickname,
             "command": "",
             "command_args": "",
             "trigger": "event",
@@ -733,9 +541,9 @@ class PhreakBot(irc.bot.SingleServerIRCBot):
             ),
         }
 
-        self._route_to_modules(event_obj)
+        await self._route_to_modules(event_obj)
 
-    def _route_to_modules(self, event):
+    async def _route_to_modules(self, event):
         """Route an event to the appropriate modules"""
         self.output = []  # Clear output buffer
 
@@ -825,7 +633,7 @@ class PhreakBot(irc.bot.SingleServerIRCBot):
                             self.logger.error(f"Traceback: {traceback.format_exc()}")
 
         # Process output
-        self._process_output(event)
+        await self._process_output(event)
 
     def _is_owner(self, hostmask):
         """Check if a hostmask matches an owner in the database"""
@@ -896,7 +704,7 @@ class PhreakBot(irc.bot.SingleServerIRCBot):
         )
 
         # Skip permission checks for the bot itself
-        if event["nick"] == self.connection.get_nickname():
+        if event["nick"] == self.nickname:
             self.logger.info("Skipping permission check for the bot itself")
             return True
 
@@ -934,34 +742,34 @@ class PhreakBot(irc.bot.SingleServerIRCBot):
         self.logger.info(f"Permission denied for {event['nick']}")
         return False
 
-    def _process_output(self, event):
+    async def _process_output(self, event):
         """Process and send output messages"""
         if not self.output:
             return
 
         # Limit number of output lines
         if len(self.output) > self.config["max_output_lines"]:
-            self.say(
+            await self.message(
                 event["channel"],
                 f"There's more than {self.config['max_output_lines']} lines of output, I'll message you privately.",
             )
             for line in self.output:
-                self.connection.privmsg(event["nick"], line["msg"])
+                await self.message(event["nick"], line["msg"])
         else:
             for line in self.output:
                 if line["type"] == "say":
-                    self.say(event["channel"], line["msg"])
+                    await self.message(event["channel"], line["msg"])
                 elif line["type"] == "reply":
-                    self.say(event["channel"], f"{event['nick']}, {line['msg']}")
+                    await self.message(event["channel"], f"{event['nick']}, {line['msg']}")
                 elif line["type"] == "private":
-                    self.connection.privmsg(event["nick"], line["msg"])
+                    await self.message(event["nick"], line["msg"])
 
         self.output = []
 
     # Helper methods for modules to use
-    def say(self, target, message):
+    async def say(self, target, message):
         """Send a message to a channel or user"""
-        self.connection.privmsg(target, message)
+        await self.message(target, message)
 
     def reply(self, message):
         """Add a reply message to the output queue"""
@@ -982,8 +790,16 @@ def main():
     )
     args = parser.parse_args()
 
+    # Create bot instance
     bot = PhreakBot(args.config)
-    bot.start()
+
+    # Connect to server
+    bot.run(
+        bot.config["server"],
+        bot.config["port"],
+        tls=bot.config.get("use_tls", False),
+        tls_verify=bot.config.get("tls_verify", True)
+    )
 
 
 if __name__ == "__main__":

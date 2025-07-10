@@ -26,21 +26,21 @@ def run(bot, event):
 
     # Get the message text
     message = event["text"]
-    
+
     # Always log the message for debugging
     bot.logger.info(f"InfoItems3 received message: '{message}'")
-    
+
     # Check for specific commands
     if message == "!phreak = gek":
         bot.logger.info("InfoItems3: Matched !phreak = gek")
         bot.add_response("InfoItems3: Adding info item 'phreak' with value 'gek'")
-        
+
         # Get the user's ID
         user_info = event["user_info"]
         if not user_info:
             bot.add_response("You need to be a registered user to add info items.")
             return True
-            
+
         cur = bot.db_connection.cursor()
         try:
             # Add the new info item
@@ -57,11 +57,11 @@ def run(bot, event):
         finally:
             cur.close()
         return True
-    
+
     if message == "!phreak?":
         bot.logger.info("InfoItems3: Matched !phreak?")
         bot.add_response("InfoItems3: Getting info item 'phreak'")
-        
+
         cur = bot.db_connection.cursor()
         try:
             # Get all values for this item in the current channel
@@ -72,9 +72,9 @@ def run(bot, event):
                 "ORDER BY i.insert_time",
                 ("phreak", event["channel"])
             )
-            
+
             items = cur.fetchall()
-            
+
             if not items:
                 bot.add_response("No info found for 'phreak'.")
             else:
@@ -87,5 +87,5 @@ def run(bot, event):
         finally:
             cur.close()
         return True
-    
+
     return False
