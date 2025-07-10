@@ -31,12 +31,12 @@ def run(bot, event):
         if not event["command_args"]:
             bot.reply("Usage: !forget <item> <value>")
             return True
-            
+
         args = event["command_args"].split()
         if len(args) < 2:
             bot.reply("Usage: !forget <item> <value>")
             return True
-            
+
         item = args[0].lower()
         value = " ".join(args[1:])
         _forget_infoitem(bot, event, item, value)
