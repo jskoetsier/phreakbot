@@ -617,6 +617,74 @@ class PhreakBot(irc.bot.SingleServerIRCBot):
                     f"Parsed command: '{event_obj['command']}' with args: '{event_obj['command_args']}'"
                 )
 
+                # SUPER DIRECT HANDLING FOR PHREAK COMMAND
+                if event_obj["command"] == "phreak":
+                    self.logger.info("SUPER DIRECT HANDLING FOR PHREAK COMMAND")
+                    
+                    # Check if it's a set command (phreak = gek)
+                    if event_obj["command_args"].startswith("="):
+                        value = event_obj["command_args"][1:].strip()
+                        self.logger.info(f"PHREAK SET COMMAND: value = '{value}'")
+                        
+                        # Get user info
+                        user_info = event_obj["user_info"]
+                        if not user_info:
+                            self.say(channel, "You need to be a registered user to add info items.")
+                            return
+                            
+                        if self.db_connection:
+                            cur = self.db_connection.cursor()
+                            try:
+                                # Add the new info item
+                                cur.execute(
+                                    "INSERT INTO phreakbot_infoitems (users_id, item, value, channel) VALUES (%s, %s, %s, %s) RETURNING id",
+                                    (user_info["id"], "phreak", value, channel)
+                                )
+                                item_id = cur.fetchone()[0]
+                                self.db_connection.commit()
+                                self.say(channel, f"Info item 'phreak' added successfully with ID {item_id}.")
+                                self.logger.info(f"Successfully added info item with ID {item_id}")
+                                return
+                            except Exception as e:
+                                self.logger.error(f"Error adding info item: {e}")
+                                self.say(channel, f"Error adding info item: {e}")
+                                self.db_connection.rollback()
+                            finally:
+                                cur.close()
+                    
+                    # Check if it's a get command (phreak?)
+                    elif event_obj["command_args"] == "?":
+                        self.logger.info("PHREAK GET COMMAND")
+                        
+                        if self.db_connection:
+                            cur = self.db_connection.cursor()
+                            try:
+                                # Get all values for this item in the current channel
+                                self.logger.info(f"Querying database for 'phreak' in channel '{channel}'")
+                                cur.execute(
+                                    "SELECT i.id, i.value, u.username, i.insert_time FROM phreakbot_infoitems i "
+                                    "JOIN phreakbot_users u ON i.users_id = u.id "
+                                    "WHERE i.item = %s AND i.channel = %s "
+                                    "ORDER BY i.insert_time",
+                                    ("phreak", channel)
+                                )
+                                
+                                items = cur.fetchall()
+                                self.logger.info(f"Found {len(items)} items for 'phreak' in channel '{channel}'")
+                                
+                                if not items:
+                                    self.say(channel, "No info found for 'phreak'.")
+                                else:
+                                    self.say(channel, f"Info for 'phreak' ({len(items)} entries):")
+                                    for item_id, value, username, timestamp in items:
+                                        self.say(channel, f"• [{item_id}] {value} (added by {username} on {timestamp.strftime('%Y-%m-%d')})")
+                                return
+                            except Exception as e:
+                                self.logger.error(f"Error retrieving info item: {e}")
+                                self.say(channel, f"Error retrieving info item: {e}")
+                            finally:
+                                cur.close()
+
                 # Find modules that handle this command
                 self._route_to_modules(event_obj)
             else:
