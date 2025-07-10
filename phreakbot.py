@@ -353,10 +353,15 @@ class PhreakBot(irc.bot.SingleServerIRCBot):
         channel = event.target if not is_private else nick
         message = event.arguments[0]
 
-        # SUPER DIRECT HARDCODED HANDLING FOR INFOITEMS
+        # ULTRA DIRECT HARDCODED HANDLING FOR INFOITEMS
         # This is a last resort approach to get the infoitems functionality working
+        # We're bypassing all module handling and directly interacting with the database
+        
+        # Log the exact message and channel for debugging
+        self.logger.info(f"EXACT MESSAGE: '{message}' in channel '{channel}'")
+        
         if message == "!phreak = gek":
-            self.logger.info("DIRECT HARDCODED HANDLING: !phreak = gek")
+            self.logger.info("ULTRA DIRECT HARDCODED HANDLING: !phreak = gek")
             
             # Get user info
             user_info = self.db_get_userinfo_by_userhost(user_host) if self.db_connection else None
@@ -372,25 +377,28 @@ class PhreakBot(irc.bot.SingleServerIRCBot):
                         "INSERT INTO phreakbot_infoitems (users_id, item, value, channel) VALUES (%s, %s, %s, %s) RETURNING id",
                         (user_info["id"], "phreak", "gek", channel)
                     )
+                    item_id = cur.fetchone()[0]
                     self.db_connection.commit()
-                    self.say(channel, "Info item 'phreak' added successfully.")
+                    self.say(channel, f"Info item 'phreak' added successfully with ID {item_id}.")
+                    self.logger.info(f"Successfully added info item with ID {item_id}")
                 except Exception as e:
                     self.logger.error(f"Error adding info item: {e}")
-                    self.say(channel, "Error adding info item.")
+                    self.say(channel, f"Error adding info item: {e}")
                     self.db_connection.rollback()
                 finally:
                     cur.close()
             return
             
         if message == "!phreak?":
-            self.logger.info("DIRECT HARDCODED HANDLING: !phreak?")
+            self.logger.info("ULTRA DIRECT HARDCODED HANDLING: !phreak?")
             
             if self.db_connection:
                 cur = self.db_connection.cursor()
                 try:
                     # Get all values for this item in the current channel
+                    self.logger.info(f"Querying database for 'phreak' in channel '{channel}'")
                     cur.execute(
-                        "SELECT i.value, u.username, i.insert_time FROM phreakbot_infoitems i "
+                        "SELECT i.id, i.value, u.username, i.insert_time FROM phreakbot_infoitems i "
                         "JOIN phreakbot_users u ON i.users_id = u.id "
                         "WHERE i.item = %s AND i.channel = %s "
                         "ORDER BY i.insert_time",
@@ -398,19 +406,54 @@ class PhreakBot(irc.bot.SingleServerIRCBot):
                     )
                     
                     items = cur.fetchall()
+                    self.logger.info(f"Found {len(items)} items for 'phreak' in channel '{channel}'")
                     
                     if not items:
                         self.say(channel, "No info found for 'phreak'.")
                     else:
-                        self.say(channel, "Info for 'phreak':")
-                        for value, username, timestamp in items:
-                            self.say(channel, f"• {value} (added by {username} on {timestamp.strftime('%Y-%m-%d')})")
+                        self.say(channel, f"Info for 'phreak' ({len(items)} entries):")
+                        for item_id, value, username, timestamp in items:
+                            self.say(channel, f"• [{item_id}] {value} (added by {username} on {timestamp.strftime('%Y-%m-%d')})")
                 except Exception as e:
                     self.logger.error(f"Error retrieving info item: {e}")
-                    self.say(channel, "Error retrieving info item.")
+                    self.say(channel, f"Error retrieving info item: {e}")
                 finally:
                     cur.close()
             return
+            
+        # Also handle the case where the user might be typing the command with different spacing
+        if message.startswith("!phreak ") and "=" in message:
+            self.logger.info("ULTRA DIRECT HANDLING: !phreak with = detected")
+            parts = message.split("=", 1)
+            if len(parts) == 2:
+                value = parts[1].strip()
+                self.logger.info(f"Extracted value: '{value}'")
+                
+                # Get user info
+                user_info = self.db_get_userinfo_by_userhost(user_host) if self.db_connection else None
+                if not user_info:
+                    self.say(channel, "You need to be a registered user to add info items.")
+                    return
+                    
+                if self.db_connection:
+                    cur = self.db_connection.cursor()
+                    try:
+                        # Add the new info item
+                        cur.execute(
+                            "INSERT INTO phreakbot_infoitems (users_id, item, value, channel) VALUES (%s, %s, %s, %s) RETURNING id",
+                            (user_info["id"], "phreak", value, channel)
+                        )
+                        item_id = cur.fetchone()[0]
+                        self.db_connection.commit()
+                        self.say(channel, f"Info item 'phreak' added successfully with ID {item_id}.")
+                        self.logger.info(f"Successfully added info item with ID {item_id}")
+                    except Exception as e:
+                        self.logger.error(f"Error adding info item: {e}")
+                        self.say(channel, f"Error adding info item: {e}")
+                        self.db_connection.rollback()
+                    finally:
+                        cur.close()
+                return
 
         # Create event object similar to the original bot
         event_obj = {
