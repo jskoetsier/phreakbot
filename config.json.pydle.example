@@ -1,0 +1,17 @@
+{
+    "server": "irc.libera.chat",
+    "port": 6667,
+    "nickname": "PhreakBot",
+    "realname": "PhreakBot IRC Bot",
+    "channels": ["#phreakbot"],
+    "trigger": "!",
+    "max_output_lines": 3,
+    "use_tls": false,
+    "tls_verify": true,
+    "log_file": "phreakbot_pydle.log",
+    "db_host": "localhost",
+    "db_port": "5432",
+    "db_user": "phreakbot",
+    "db_password": "phreakbot",
+    "db_name": "phreakbot"
+}

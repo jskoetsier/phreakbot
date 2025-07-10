@@ -1,5 +1,15 @@
 # Changelog
 
+## [v0.1.15] - 2025-07-10
+- Added new pydle-based version of PhreakBot for improved stability and performance
+- Created phreakbot_pydle.py as an alternative implementation using the pydle IRC library
+- Added infoitems_pydle.py module optimized for the pydle version
+- Enhanced custom command handling for infoitems with better pattern matching
+- Added extensive debugging and logging for better troubleshooting
+- Improved error handling throughout the application
+- Updated requirements.txt to include pydle dependency
+- Updated documentation to explain the benefits of the pydle version
+
 ## [v0.1.14] - 2025-07-10
 - Added infoitems module for storing and retrieving information items
 - Added support for custom commands with !item = value syntax for adding info

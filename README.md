@@ -1,4 +1,4 @@
-# PhreakBot (v0.1.13)
+# PhreakBot (v0.1.14)
 
 PhreakBot is a modular IRC bot written in Python.
 
@@ -21,7 +21,24 @@ PhreakBot is a modular IRC bot written in Python.
 
 ## Installation
 
-### Docker (Recommended)
+### Pydle Version (Recommended)
+
+PhreakBot now has a version based on the [pydle](https://github.com/shizmob/pydle) IRC library, which offers better performance, stability, and features compared to the original IRC library.
+
+To use the pydle version:
+
+1. Install the required dependencies: `pip install -r requirements.txt`
+2. Configure the bot by editing `config.json` (same format as the original version)
+3. Run the bot: `python phreakbot_pydle.py`
+
+The pydle version includes:
+- Better handling of IRC events
+- Improved connection stability
+- Enhanced support for custom commands like `!item = value` and `!item?`
+- More detailed logging
+- Asynchronous operation for better performance
+
+### Docker (Alternative)
 
 1. Clone the repository
 2. Run `docker-compose up -d`
