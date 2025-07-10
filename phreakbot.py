@@ -545,8 +545,22 @@ class PhreakBot(pydle.Client):
                 self.logger.info(f"Checking if module {module_name} handles event signal {event['signal']}")
                 self.logger.info(f"Module {module_name} events: {module['events']}")
 
-                if event["signal"] in module["events"]:
-                    self.logger.info(f"Module {module_name} handles event signal {event['signal']}")
+                # Check if the module handles this event type
+                # Convert signal names to match module event names
+                signal_map = {
+                    "pubmsg": "pubmsg",
+                    "privmsg": "privmsg",
+                    "join": "join",
+                    "part": "part",
+                    "quit": "quit",
+                    "ctcp": "ctcp",
+                    "namreply": "namreply"
+                }
+                
+                event_type = signal_map.get(event["signal"], event["signal"])
+                
+                if event_type in module["events"]:
+                    self.logger.info(f"Module {module_name} handles event signal {event['signal']} (mapped to {event_type})")
 
                     # Check permissions
                     has_permission = self._check_permissions(event, module["permissions"])

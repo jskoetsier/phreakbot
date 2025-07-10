@@ -10,7 +10,7 @@ from datetime import datetime
 def config(bot):
     """Return module configuration"""
     return {
-        "events": ["pubmsg", "privmsg", "ctcp"],
+        "events": ["pubmsg", "privmsg", "ctcp", "join", "part", "quit"],
         "commands": ["infoitem", "info"],
         "help": {
             "infoitem": "Manage info items. Usage: !infoitem add <item> <value> | !infoitem del <id> | !infoitem list [<item>]",
