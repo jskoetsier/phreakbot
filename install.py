@@ -21,7 +21,7 @@ def create_config(args):
         "channels": [args.channel],
         "trigger": "!",
         "max_output_lines": 3,
-        "log_file": "phreakbot.log",
+        "log_file": "phreakbot.log" if args.bot_version == "standard" else "phreakbot_pydle.log",
         # Database configuration
         "db_host": args.db_host,
         "db_port": args.db_port,
@@ -32,6 +32,13 @@ def create_config(args):
         "remote_ssh_command": args.remote_ssh,
         "remote_directory": args.remote_dir,
     }
+    
+    # Add pydle-specific configuration if using pydle version
+    if args.bot_version == "pydle":
+        config.update({
+            "use_tls": False,
+            "tls_verify": True
+        })
 
     # We no longer add the owner to the config file
     # The owner will be set in the database using the !owner claim command
@@ -44,6 +51,7 @@ def create_config(args):
         json.dump(config, f, indent=4)
 
     print(f"Configuration file created: {args.config}")
+    print(f"Bot version: {args.bot_version}")
     print(f"Server: {args.server}")
     print(f"Port: {args.port}")
     print(f"Nickname: {args.nickname}")
@@ -137,6 +145,10 @@ def main():
     parser.add_argument(
         "-o", "--owner", default="*!user@host", help="Bot owner in format *!user@host"
     )
+    parser.add_argument(
+        "-v", "--bot-version", default="standard", choices=["standard", "pydle"],
+        help="Bot version to use (standard or pydle)"
+    )
     # Database options
     parser.add_argument(
         "--db-host", default="postgres", help="PostgreSQL server address"
@@ -191,8 +203,11 @@ def main():
     args.db_host = "postgres"  # Use the service name from docker-compose
     if check_docker_environment():
         args.config = "/app/config/config.json"
+        # Check if BOT_VERSION environment variable is set
+        if os.environ.get("BOT_VERSION") == "pydle":
+            args.bot_version = "pydle"
 
-    print("Configuring for Docker environment")
+    print(f"Configuring for Docker environment (Bot version: {args.bot_version})")
 
     # Create config file
     create_config(args)

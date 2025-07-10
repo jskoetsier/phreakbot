@@ -44,6 +44,7 @@ services:
       - IRC_CHANNEL=${IRC_CHANNEL:-#phreakbot}
       - REMOTE_SSH_COMMAND=${REMOTE_SSH_COMMAND:-}
       - REMOTE_DIRECTORY=${REMOTE_DIRECTORY:-/opt/phreakbot}
+      - BOT_VERSION=${BOT_VERSION:-standard}  # Use 'pydle' for the pydle version
     command: /app/startup.sh
 
 volumes:

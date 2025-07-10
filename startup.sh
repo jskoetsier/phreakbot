@@ -8,6 +8,7 @@ echo "IRC Port: $IRC_PORT"
 echo "IRC Nickname: $IRC_NICKNAME"
 echo "IRC Channel: $IRC_CHANNEL"
 echo "Database: $DB_HOST:$DB_PORT/$DB_NAME"
+echo "Bot Version: ${BOT_VERSION:-standard}"
 
 # Run the installation script
 python install.py \
@@ -19,5 +20,11 @@ python install.py \
   --remote-dir "${REMOTE_DIRECTORY:-/opt/phreakbot}" \
   --config /app/config/config.json
 
-# Start the bot
-python phreakbot.py --config /app/config/config.json
+# Start the bot based on the BOT_VERSION environment variable
+if [ "${BOT_VERSION}" = "pydle" ]; then
+  echo "Starting PhreakBot with pydle version..."
+  python phreakbot_pydle.py --config /app/config/config.json
+else
+  echo "Starting PhreakBot with standard version..."
+  python phreakbot.py --config /app/config/config.json
+fi
