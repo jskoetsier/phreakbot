@@ -46,10 +46,10 @@ class PhreakBot(pydle.Client):
         # Set up trigger regex for modules to use
         self.trigger_re = re.compile(f'^{re.escape(self.config["trigger"])}')
         self.bot_trigger_re = re.compile(f'^{re.escape(self.config["trigger"])}')
-        
+
         # Connect to database
         self.db_connect()
-        
+
         # Call the parent constructor with our nickname and realname
         super().__init__(
             nickname=self.config["nickname"],
@@ -506,18 +506,18 @@ class PhreakBot(pydle.Client):
                 # SUPER DIRECT HANDLING FOR PHREAK COMMAND
                 if event_obj["command"] == "phreak":
                     self.logger.info("SUPER DIRECT HANDLING FOR PHREAK COMMAND")
-                    
+
                     # Check if it's a set command (phreak = gek)
                     if event_obj["command_args"].startswith("="):
                         value = event_obj["command_args"][1:].strip()
                         self.logger.info(f"PHREAK SET COMMAND: value = '{value}'")
-                        
+
                         # Get user info
                         user_info = event_obj["user_info"]
                         if not user_info:
                             await self.message(channel, "You need to be a registered user to add info items.")
                             return
-                            
+
                         if self.db_connection:
                             cur = self.db_connection.cursor()
                             try:
@@ -537,11 +537,11 @@ class PhreakBot(pydle.Client):
                                 self.db_connection.rollback()
                             finally:
                                 cur.close()
-                    
+
                     # Check if it's a get command (phreak?)
                     elif event_obj["command_args"] == "?":
                         self.logger.info("PHREAK GET COMMAND")
-                        
+
                         if self.db_connection:
                             cur = self.db_connection.cursor()
                             try:
@@ -554,10 +554,10 @@ class PhreakBot(pydle.Client):
                                     "ORDER BY i.insert_time",
                                     ("phreak", channel)
                                 )
-                                
+
                                 items = cur.fetchall()
                                 self.logger.info(f"Found {len(items)} items for 'phreak' in channel '{channel}'")
-                                
+
                                 if not items:
                                     await self.message(channel, "No info found for 'phreak'.")
                                 else:
@@ -872,7 +872,7 @@ def main():
 
     # Create bot instance
     bot = PhreakBot(args.config)
-    
+
     # Connect to server
     bot.run(
         bot.config["server"],
