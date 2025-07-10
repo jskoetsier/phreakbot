@@ -1,206 +1,228 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-# PhreakBot IRC Bot - Infoitems Module
-# https://github.com/jskoetsier/phreakbot
-
+#
+# PhreakBot - InfoItems module for pydle version
+#
 import re
-import logging
-import traceback
 from datetime import datetime
 
+
 def config(bot):
+    """Return module configuration"""
     return {
-        'events': ['message'],
-        'commands': ['infoitem', 'infoitems'],
-        'help': {
-            'infoitem': 'Manage infoitems. Usage: !infoitem add <item> <value> | !infoitem del <item> | !infoitem list',
-            'infoitems': 'List all infoitems. Usage: !infoitems'
-        }
+        "events": ["pubmsg", "privmsg", "ctcp"],
+        "commands": ["infoitem", "info"],
+        "help": {
+            "infoitem": "Manage info items. Usage: !infoitem add <item> <value> | !infoitem del <id> | !infoitem list [<item>]",
+            "info": "Alias for infoitem",
+        },
+        "permissions": ["user"],
     }
 
-class Module:
-    def __init__(self, bot):
-        self.bot = bot
-        self.logger = logging.getLogger('PhreakBot')
-        self.db = bot.db
-        
-        # Compile regex patterns for direct command handling
-        # Support multiple formats for adding infoitems
-        self.add_patterns = [
-            re.compile(r'^!([a-zA-Z0-9_-]+)\s*=\s*(.+)$'),      # !item = value
-            re.compile(r'^!([a-zA-Z0-9_-]+)\s+is\s+(.+)$'),     # !item is value
-            re.compile(r'^!([a-zA-Z0-9_-]+)\+(.+)$'),           # !item+value
-            re.compile(r'^!([a-zA-Z0-9_-]+):(.+)$')             # !item:value
-        ]
-        
-        # Support multiple formats for retrieving infoitems
-        self.get_patterns = [
-            re.compile(r'^!([a-zA-Z0-9_-]+)\?$'),               # !item?
-            re.compile(r'^!([a-zA-Z0-9_-]+)$')                  # !item
-        ]
-        
-        pattern_descriptions = [p.pattern for p in self.add_patterns] + [p.pattern for p in self.get_patterns]
-        self.logger.info(f"Infoitems module initialized with patterns: {pattern_descriptions}")
 
-    async def handle_event(self, event):
-        if event['event'] == 'message':
-            message = event['message']
-            channel = event['channel']
-            user = event['user']
-            
-            self.logger.debug(f"Checking message '{message}' against infoitem patterns")
-            
-            # Check for add patterns
-            for pattern in self.add_patterns:
-                match = pattern.match(message)
-                if match:
-                    item = match.group(1)
-                    value = match.group(2)
-                    self.logger.info(f"Add match found: item={item}, value={value}")
-                    await self.add_infoitem(channel, user, item, value)
-                    return True
-            
-            # Check for get patterns
-            for pattern in self.get_patterns:
-                match = pattern.match(message)
-                if match:
-                    item = match.group(1)
-                    # Skip if the item is a known command from another module
-                    if item in self.bot.commands and item not in ['infoitem', 'infoitems']:
-                        self.logger.debug(f"Skipping {item} as it's a known command")
-                        continue
-                    
-                    self.logger.info(f"Get match found: item={item}")
-                    await self.get_infoitem(channel, item)
-                    return True
-            
-            # Handle standard commands
-            parts = message.split()
-            if len(parts) > 0 and parts[0] in ['!infoitem', '!infoitems']:
-                if parts[0] == '!infoitems':
-                    await self.list_infoitems(channel)
-                    return True
-                
-                if len(parts) >= 2:
-                    if parts[1] == 'list':
-                        await self.list_infoitems(channel)
-                        return True
-                    elif parts[1] == 'add' and len(parts) >= 4:
-                        item = parts[2]
-                        value = ' '.join(parts[3:])
-                        await self.add_infoitem(channel, user, item, value)
-                        return True
-                    elif parts[1] == 'del' and len(parts) >= 3:
-                        item = parts[2]
-                        await self.delete_infoitem(channel, user, item)
-                        return True
-        
+def run(bot, event):
+    """Handle infoitem commands"""
+    if event["trigger"] != "command":
         return False
 
-    async def add_infoitem(self, channel, user, item, value):
-        try:
-            self.logger.info(f"Adding infoitem: {item}={value} in {channel} by {user}")
-            
-            # Check if item already exists
-            cursor = self.db.cursor()
-            cursor.execute("SELECT id FROM phreakbot_infoitems WHERE item = %s AND channel = %s", (item, channel))
-            result = cursor.fetchone()
-            
-            if result:
-                # Update existing item
-                self.logger.info(f"Updating existing infoitem with ID {result[0]}")
-                cursor.execute(
-                    "UPDATE phreakbot_infoitems SET value = %s, username = %s, insert_time = NOW() WHERE id = %s",
-                    (value, user, result[0])
-                )
-                await self.bot.send_message(channel, f"Updated infoitem: !{item}")
-            else:
-                # Insert new item
-                self.logger.info(f"Creating new infoitem")
-                cursor.execute(
-                    "INSERT INTO phreakbot_infoitems (item, value, channel, username, insert_time) VALUES (%s, %s, %s, %s, NOW())",
-                    (item, value, channel, user)
-                )
-                await self.bot.send_message(channel, f"Added infoitem: !{item}")
-            
-            self.db.commit()
-            cursor.close()
-            
-            # Verify the item was added/updated
-            cursor = self.db.cursor()
-            cursor.execute("SELECT id FROM phreakbot_infoitems WHERE item = %s AND channel = %s", (item, channel))
-            verify = cursor.fetchone()
-            cursor.close()
-            
-            if verify:
-                self.logger.info(f"Successfully added/updated infoitem with ID {verify[0]}")
-            else:
-                self.logger.error(f"Failed to add/update infoitem - not found after commit")
-                
-        except Exception as e:
-            self.logger.error(f"Error adding infoitem: {e}")
-            self.logger.error(traceback.format_exc())
-            await self.bot.send_message(channel, f"Error adding infoitem: {str(e)}")
+    if event["command"] not in ["infoitem", "info"]:
+        return False
 
-    async def get_infoitem(self, channel, item):
-        try:
-            self.logger.info(f"Getting infoitem: {item} from {channel}")
-            
-            cursor = self.db.cursor()
-            cursor.execute("SELECT value, username, insert_time FROM phreakbot_infoitems WHERE item = %s AND channel = %s", (item, channel))
-            result = cursor.fetchone()
-            cursor.close()
-            
-            if result:
-                value, username, insert_time = result
-                formatted_time = insert_time.strftime('%Y-%m-%d') if insert_time else 'unknown date'
-                await self.bot.send_message(channel, f"{item}: {value} (added by {username} on {formatted_time})")
-                return True
-            else:
-                # Don't send a message if the item doesn't exist
-                # This prevents confusion when users type !command that doesn't exist
-                self.logger.debug(f"No infoitem found for !{item}")
-                return False
-        except Exception as e:
-            self.logger.error(f"Error retrieving infoitem: {e}")
-            self.logger.error(traceback.format_exc())
-            await self.bot.send_message(channel, f"Error retrieving infoitem: {str(e)}")
+    args = event["command_args"].split()
+    if not args:
+        bot.reply("Usage: !infoitem add <item> <value> | !infoitem del <id> | !infoitem list [<item>]")
         return True
 
-    async def delete_infoitem(self, channel, user, item):
-        try:
-            self.logger.info(f"Deleting infoitem: {item} from {channel}")
-            
-            cursor = self.db.cursor()
-            cursor.execute("DELETE FROM phreakbot_infoitems WHERE item = %s AND channel = %s RETURNING id", (item, channel))
-            result = cursor.fetchone()
-            self.db.commit()
-            cursor.close()
-            
-            if result:
-                await self.bot.send_message(channel, f"Deleted infoitem: !{item}")
-            else:
-                await self.bot.send_message(channel, f"No infoitem found for !{item}")
-        except Exception as e:
-            self.logger.error(f"Error deleting infoitem: {e}")
-            self.logger.error(traceback.format_exc())
-            await self.bot.send_message(channel, f"Error deleting infoitem: {str(e)}")
+    action = args[0].lower()
 
-    async def list_infoitems(self, channel):
+    if action == "add" and len(args) >= 3:
+        item = args[1].lower()
+        value = " ".join(args[2:])
+        _add_infoitem(bot, event, item, value)
+        return True
+    elif action == "del" and len(args) == 2:
         try:
-            self.logger.info(f"Listing infoitems for channel: {channel}")
-            
-            cursor = self.db.cursor()
-            cursor.execute("SELECT item FROM phreakbot_infoitems WHERE channel = %s ORDER BY item", (channel,))
-            items = cursor.fetchall()
-            cursor.close()
-            
-            if items:
-                item_list = ', '.join([f"!{item[0]}" for item in items])
-                await self.bot.send_message(channel, f"Available infoitems: {item_list}")
-            else:
-                await self.bot.send_message(channel, "No infoitems available")
+            item_id = int(args[1])
+            _delete_infoitem(bot, event, item_id)
+            return True
+        except ValueError:
+            bot.reply("Invalid item ID. Usage: !infoitem del <id>")
+            return True
+    elif action == "list":
+        if len(args) >= 2:
+            item = args[1].lower()
+            _get_infoitem(bot, event, item)
+        else:
+            _list_infoitems(bot, event)
+        return True
+    else:
+        bot.reply("Usage: !infoitem add <item> <value> | !infoitem del <id> | !infoitem list [<item>]")
+        return True
+
+
+def handle_custom_command(bot, event):
+    """Handle custom infoitem commands like !item = value or !item?"""
+    if event["trigger"] == "event" and event["text"].startswith(bot.config["trigger"]):
+        # Check for !item? pattern
+        get_pattern = re.compile(r'^\!([a-zA-Z0-9_-]+)\?$')
+        get_match = get_pattern.match(event["text"])
+        if get_match:
+            item = get_match.group(1).lower()
+            bot.logger.info(f"Custom infoitem get command: {item}")
+            _get_infoitem(bot, event, item)
+            return True
+
+        # Check for !item = value pattern
+        set_pattern = re.compile(r'^\!([a-zA-Z0-9_-]+)(?:\s*[=:+]\s*|\s+)(.+)$')
+        set_match = set_pattern.match(event["text"])
+        if set_match:
+            item = set_match.group(1).lower()
+            value = set_match.group(2).strip()
+
+            # Skip if the item is a registered command
+            registered_commands = []
+            for module in bot.modules.values():
+                registered_commands.extend(module.get('commands', []))
+
+            if item not in registered_commands:
+                bot.logger.info(f"Custom infoitem set command: {item} = {value}")
+                _add_infoitem(bot, event, item, value)
+                return True
+
+    return False
+
+
+def _add_infoitem(bot, event, item, value):
+    """Add a new info item"""
+    # Check if user is registered
+    if not event["user_info"]:
+        bot.reply("You need to be a registered user to add info items.")
+        return
+
+    if bot.db_connection:
+        try:
+            cur = bot.db_connection.cursor()
+            cur.execute(
+                "INSERT INTO phreakbot_infoitems (users_id, item, value, channel) VALUES (%s, %s, %s, %s) RETURNING id",
+                (event["user_info"]["id"], item, value, event["channel"])
+            )
+            item_id = cur.fetchone()[0]
+            bot.db_connection.commit()
+            bot.reply(f"Info item '{item}' added successfully with ID {item_id}.")
+            bot.logger.info(f"Added info item '{item}' with ID {item_id}")
         except Exception as e:
-            self.logger.error(f"Error listing infoitems: {e}")
-            self.logger.error(traceback.format_exc())
-            await self.bot.send_message(channel, f"Error listing infoitems: {str(e)}")
+            bot.logger.error(f"Error adding info item: {e}")
+            bot.reply(f"Error adding info item: {e}")
+            bot.db_connection.rollback()
+        finally:
+            cur.close()
+    else:
+        bot.reply("Database connection not available.")
+
+
+def _delete_infoitem(bot, event, item_id):
+    """Delete an info item by ID"""
+    # Check if user is registered
+    if not event["user_info"]:
+        bot.reply("You need to be a registered user to delete info items.")
+        return
+
+    if bot.db_connection:
+        try:
+            cur = bot.db_connection.cursor()
+
+            # First check if the item exists and belongs to the user or if user is admin
+            cur.execute(
+                "SELECT i.id, i.item, i.users_id FROM phreakbot_infoitems i WHERE i.id = %s",
+                (item_id,)
+            )
+            item = cur.fetchone()
+
+            if not item:
+                bot.reply(f"Info item with ID {item_id} not found.")
+                return
+
+            # Check if user is owner or the item belongs to the user
+            is_owner = False
+            for perm in event["user_info"]["permissions"]["global"]:
+                if perm == "owner":
+                    is_owner = True
+                    break
+
+            if not is_owner and item[2] != event["user_info"]["id"]:
+                bot.reply("You can only delete your own info items.")
+                return
+
+            # Delete the item
+            cur.execute(
+                "DELETE FROM phreakbot_infoitems WHERE id = %s",
+                (item_id,)
+            )
+            bot.db_connection.commit()
+            bot.reply(f"Info item '{item[1]}' with ID {item_id} deleted successfully.")
+            bot.logger.info(f"Deleted info item '{item[1]}' with ID {item_id}")
+        except Exception as e:
+            bot.logger.error(f"Error deleting info item: {e}")
+            bot.reply(f"Error deleting info item: {e}")
+            bot.db_connection.rollback()
+        finally:
+            cur.close()
+    else:
+        bot.reply("Database connection not available.")
+
+
+def _get_infoitem(bot, event, item):
+    """Get all values for an info item"""
+    if bot.db_connection:
+        try:
+            cur = bot.db_connection.cursor()
+            cur.execute(
+                "SELECT i.id, i.value, u.username, i.insert_time FROM phreakbot_infoitems i "
+                "JOIN phreakbot_users u ON i.users_id = u.id "
+                "WHERE i.item = %s AND i.channel = %s "
+                "ORDER BY i.insert_time",
+                (item, event["channel"])
+            )
+
+            items = cur.fetchall()
+
+            if not items:
+                bot.reply(f"No info found for '{item}'.")
+            else:
+                bot.reply(f"Info for '{item}' ({len(items)} entries):")
+                for item_id, value, username, timestamp in items:
+                    bot.reply(f"• [{item_id}] {value} (added by {username} on {timestamp.strftime('%Y-%m-%d')})")
+        except Exception as e:
+            bot.logger.error(f"Error retrieving info item: {e}")
+            bot.reply(f"Error retrieving info item: {e}")
+        finally:
+            cur.close()
+    else:
+        bot.reply("Database connection not available.")
+
+
+def _list_infoitems(bot, event):
+    """List all info items in the current channel"""
+    if bot.db_connection:
+        try:
+            cur = bot.db_connection.cursor()
+            cur.execute(
+                "SELECT DISTINCT item FROM phreakbot_infoitems WHERE channel = %s ORDER BY item",
+                (event["channel"],)
+            )
+
+            items = cur.fetchall()
+
+            if not items:
+                bot.reply("No info items found in this channel.")
+            else:
+                bot.reply(f"Info items in this channel ({len(items)} items):")
+                item_list = ", ".join([item[0] for item in items])
+                bot.reply(f"• {item_list}")
+        except Exception as e:
+            bot.logger.error(f"Error listing info items: {e}")
+            bot.reply(f"Error listing info items: {e}")
+        finally:
+            cur.close()
+    else:
+        bot.reply("Database connection not available.")

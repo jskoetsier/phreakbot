@@ -300,11 +300,11 @@ class PhreakBot(pydle.Client):
     async def on_quit(self, user, message=None):
         """Called when someone quits IRC"""
         await self._handle_event(user, None, "quit")
-        
+
     async def on_ctcp(self, by, target, what, contents):
         """Called when a CTCP request is received"""
         self.logger.info(f"Received CTCP {what} from {by} to {target}: {contents}")
-        
+
         # Create event object for modules
         try:
             user_info = await self.whois(by)
@@ -312,7 +312,7 @@ class PhreakBot(pydle.Client):
         except Exception as e:
             self.logger.error(f"Error getting user info: {e}")
             user_host = f"{by}!unknown@unknown"
-            
+
         event_obj = {
             "server": self.network,
             "signal": "ctcp",
@@ -333,7 +333,7 @@ class PhreakBot(pydle.Client):
                 else None
             ),
         }
-        
+
         # Route to modules that handle CTCP events
         await self._route_to_modules(event_obj)
 
@@ -402,121 +402,16 @@ class PhreakBot(pydle.Client):
             f'^{re.escape(self.config["trigger"])}([-a-zA-Z0-9]+)(?:\\s(.*))?$'
         )
 
-        # Special patterns for infoitems
-        infoitem_set_re = re.compile(r'^\!([a-zA-Z0-9_-]+)\s*=\s*(.+)$')
-        infoitem_get_re = re.compile(r'^\!([a-zA-Z0-9_-]+)\?$')
-
         # Debug message parsing
         self.logger.info(f"Processing message: '{message}'")
         self.logger.info(f"Trigger regex: '{trigger_re.pattern}'")
         self.logger.info(f"Command regex: '{command_re.pattern}'")
         self.logger.info(f"Trigger match: {bool(trigger_re.match(message))}")
 
-        # Handle infoitem commands directly at the top level with robust error handling
-        try:
-            # Check for infoitem set pattern (!item = value)
-            set_match = infoitem_set_re.match(message)
-            if set_match:
-                item_name = set_match.group(1).lower()
-                value = set_match.group(2).strip()
-                self.logger.info(f"DIRECT HANDLER: Matched infoitem set pattern: {item_name} = {value}")
-                
-                # Skip if the item name is a known command
-                registered_commands = []
-                for module in self.modules.values():
-                    registered_commands.extend(module.get('commands', []))
-                
-                if item_name not in registered_commands:
-                    # Get the user's ID
-                    user_info = event_obj["user_info"]
-                    if not user_info:
-                        self.add_response("You need to be a registered user to add info items.")
-                        await self._process_output(event_obj)
-                        return
-                    
-                    if self.db_connection:
-                        cur = self.db_connection.cursor()
-                        try:
-                            # Add the new info item with ON CONFLICT DO NOTHING to handle duplicates
-                            cur.execute(
-                                """
-                                INSERT INTO phreakbot_infoitems (users_id, item, value, channel)
-                                VALUES (%s, %s, %s, %s)
-                                ON CONFLICT (item, value, channel) DO NOTHING
-                                RETURNING id
-                                """,
-                                (user_info["id"], item_name, value, channel)
-                            )
-                            result = cur.fetchone()
-                            self.db_connection.commit()
-                            
-                            if result:
-                                self.add_response(f"Info item '{item_name}' added successfully.")
-                            else:
-                                self.add_response(f"This info item already exists.")
-                        except Exception as e:
-                            self.logger.error(f"Error adding info item: {str(e).replace('\r', '').replace('\n', ' ')}")
-                            self.add_response("Error adding info item. Please try again.")
-                            self.db_connection.rollback()
-                        finally:
-                            cur.close()
-                        
-                        await self._process_output(event_obj)
-                        return
-            
-            # Check for infoitem get pattern (!item?)
-            get_match = infoitem_get_re.match(message)
-            if get_match:
-                item_name = get_match.group(1).lower()
-                self.logger.info(f"DIRECT HANDLER: Matched infoitem get pattern: {item_name}?")
-                
-                # Skip if the item name is a known command
-                registered_commands = []
-                for module in self.modules.values():
-                    registered_commands.extend(module.get('commands', []))
-                
-                if item_name not in registered_commands:
-                    if self.db_connection:
-                        cur = self.db_connection.cursor()
-                        try:
-                            # Get all values for this item in the current channel
-                            cur.execute(
-                                """
-                                SELECT i.value, u.username, i.insert_time 
-                                FROM phreakbot_infoitems i
-                                JOIN phreakbot_users u ON i.users_id = u.id
-                                WHERE i.item = %s AND i.channel = %s
-                                ORDER BY i.insert_time
-                                """,
-                                (item_name, channel)
-                            )
-                            
-                            items = cur.fetchall()
-                            
-                            if not items:
-                                self.add_response(f"No info found for '{item_name}'.")
-                            else:
-                                self.add_response(f"Info for '{item_name}':")
-                                for value, username, timestamp in items:
-                                    self.add_response(f"• {value} (added by {username} on {timestamp.strftime('%Y-%m-%d')})")
-                        except Exception as e:
-                            self.logger.error(f"Error retrieving info item: {str(e).replace('\r', '').replace('\n', ' ')}")
-                            self.add_response("Error retrieving info item. Please try again.")
-                        finally:
-                            cur.close()
-                        
-                        await self._process_output(event_obj)
-                        return
-        except Exception as e:
-            import traceback
-            self.logger.error(f"Error in direct infoitem handler: {str(e).replace('\r', '').replace('\n', ' ')}")
-            self.logger.error(f"Traceback: {traceback.format_exc()}")
-            # Continue with normal message processing if direct handling fails
-
         # Continue with normal message processing if direct handling didn't match
         if trigger_re.match(message):
             self.logger.info(f"RAW MESSAGE: '{message}'")
-            
+
             # Regular command handling
             match = command_re.match(message)
             self.logger.info(f"Command match: {bool(match)}")
@@ -527,7 +422,7 @@ class PhreakBot(pydle.Client):
                 self.logger.info(
                     f"Parsed command: '{event_obj['command']}' with args: '{event_obj['command_args']}'"
                 )
-                
+
                 # Find modules that handle this command
                 await self._route_to_modules(event_obj)
             else:
