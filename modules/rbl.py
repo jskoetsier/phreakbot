@@ -24,14 +24,14 @@ def config(bot):
 
 def run(bot, event):
     """Handle RBL lookup command"""
-    if event["trigger"] != "command" or event["command"] not in ["rbl", "blacklist"]:
-        return False
+    if event["command"] not in ["rbl", "blacklist"]:
+        return
 
     query = event["command_args"].strip()
 
     if not query:
-        bot.reply("Please provide a domain or IP address to check (e.g., !rbl example.com or !rbl 192.0.2.1)")
-        return True
+        bot.add_response("Please provide a domain or IP address to check (e.g., !rbl example.com or !rbl 192.0.2.1)")
+        return
 
     try:
         # Check if the query is an IP address
