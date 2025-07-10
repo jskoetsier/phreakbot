@@ -4,6 +4,8 @@
 # InfoItems module for PhreakBot
 
 import re
+import traceback
+import logging
 
 
 def config(bot):
@@ -32,53 +34,10 @@ def run(bot, event):
         if event["trigger"] == "event" and event["signal"] in ["pubmsg", "privmsg"]:
             message = event["text"]
             bot.logger.info(f"Checking message for infoitem patterns: '{message}'")
-
-            # Check for set patterns with multiple syntaxes
-            # Try !item = value
-            set_match1 = re.match(r'^\!([a-zA-Z0-9_-]+)\s*=\s*(.+)$', message)
-            # Try !item:value
-            set_match2 = re.match(r'^\!([a-zA-Z0-9_-]+)\s*:\s*(.+)$', message)
-            # Try !item+value
-            set_match3 = re.match(r'^\!([a-zA-Z0-9_-]+)\s*\+\s*(.+)$', message)
-
-            set_match = set_match1 or set_match2 or set_match3
-
-            if set_match:
-                bot.logger.info(f"Matched set pattern: {message}")
-                item_name = set_match.group(1).lower()
-                value = set_match.group(2).strip()
-
-                # Skip if the item name is a known command
-                if item_name not in ['infoitem', 'info', 'help', 'avail']:
-                    bot.logger.info(f"Processing set command for item: {item_name}")
-                    _add_infoitem(bot, event, item_name, value)
-                    return
-
-            # Also check for direct syntax !item value (without any separator)
-            direct_match = re.match(r'^\!([a-zA-Z0-9_-]+)\s+(.+)$', message)
-            if direct_match:
-                bot.logger.info(f"Matched direct pattern: {message}")
-                item_name = direct_match.group(1).lower()
-                value = direct_match.group(2).strip()
-
-                # Skip if the item name is a known command or a registered command
-                if (item_name not in ['infoitem', 'info', 'help', 'avail'] and
-                    item_name not in [cmd for mod in bot.modules.values() for cmd in mod.get('commands', [])]):
-                    bot.logger.info(f"Processing direct command for item: {item_name}")
-                    _add_infoitem(bot, event, item_name, value)
-                    return
-
-            # Check for get pattern (!item?)
-            get_match = re.match(r'^\!([a-zA-Z0-9_-]+)\?$', message)
-            if get_match:
-                bot.logger.info(f"Matched get pattern: {message}")
-                item_name = get_match.group(1).lower()
-
-                # Skip if the item name is a known command
-                if item_name not in ['infoitem', 'info', 'help', 'avail']:
-                    bot.logger.info(f"Processing get command for item: {item_name}")
-                    _get_infoitem(bot, event, item_name)
-                    return
+            
+            # Process custom patterns
+            if _process_custom_patterns(bot, event, message):
+                return True
 
         # Handle standard commands
         if event["trigger"] == "command":
@@ -104,78 +63,57 @@ def run(bot, event):
                 else:
                     bot.add_response("Unknown subcommand. Try !help infoitem for usage information.")
 
-            # Handle commands that might be infoitem commands with special syntax
-            else:
-                # Check if the command is not a registered command in any module
-                registered_commands = [cmd for mod in bot.modules.values() for cmd in mod.get('commands', [])]
-                if event["command"] not in registered_commands:
-                    bot.logger.info(f"Checking unregistered command: {event['command']} with args: {event['command_args']}")
-
-                    # Check if args start with special characters
-                    args = event["command_args"]
-                    if args and args.startswith(('=', ':', '+')):
-                        bot.logger.info(f"Detected special character at start of args: {args}")
-
-                        # Extract the value (skip the special character and any whitespace)
-                        value = args[1:].strip()
-                        if value:
-                            bot.logger.info(f"Processing as infoitem: {event['command']} with value: {value}")
-                            _add_infoitem(bot, event, event["command"], value)
-                            return
-
-                    # Also check for direct syntax where args don't start with special chars
-                    elif args and not args.startswith(('=', ':', '+')):
-                        # Check if this command is not handled by any other module
-                        bot.logger.info(f"Processing as direct infoitem: {event['command']} with value: {args}")
-                        _add_infoitem(bot, event, event["command"], args)
-                        return
     except Exception as e:
-        bot.logger.error(f"Error in infoitems module: {e}")
+        bot.logger.error(f"Error in infoitems module: {str(e)}")
+        bot.logger.error(traceback.format_exc())
         bot.add_response("Error processing infoitem command.")
 
 
-def handle_custom_command(bot, event):
-    """Handle custom infoitem commands (!item = value and !item?)"""
-    if not bot.db_connection:
-        bot.logger.info("Infoitems: Database connection not available")
+def _process_custom_patterns(bot, event, message):
+    """Process custom infoitem patterns in messages"""
+    try:
+        # Check for set patterns with multiple syntaxes
+        # Try !item = value
+        set_match1 = re.match(r'^\!([a-zA-Z0-9_-]+)\s*=\s*(.+)$', message)
+        # Try !item:value
+        set_match2 = re.match(r'^\!([a-zA-Z0-9_-]+)\s*:\s*(.+)$', message)
+        # Try !item+value
+        set_match3 = re.match(r'^\!([a-zA-Z0-9_-]+)\s*\+\s*(.+)$', message)
+
+        set_match = set_match1 or set_match2 or set_match3
+
+        if set_match:
+            bot.logger.info(f"Matched set pattern: {message}")
+            item_name = set_match.group(1).lower()
+            value = set_match.group(2).strip()
+
+            # Skip if the item name is a known command or reserved word
+            if item_name in ['infoitem', 'info', 'help', 'avail']:
+                bot.logger.info(f"Skipping reserved command name: {item_name}")
+                return False
+
+            bot.logger.info(f"Processing set command for item: {item_name}")
+            return _add_infoitem(bot, event, item_name, value)
+
+        # Check for get pattern (!item?)
+        get_match = re.match(r'^\!([a-zA-Z0-9_-]+)\?$', message)
+        if get_match:
+            bot.logger.info(f"Matched get pattern: {message}")
+            item_name = get_match.group(1).lower()
+
+            # Skip if the item name is a known command or reserved word
+            if item_name in ['infoitem', 'info', 'help', 'avail']:
+                bot.logger.info(f"Skipping reserved command name: {item_name}")
+                return False
+
+            bot.logger.info(f"Processing get command for item: {item_name}")
+            return _get_infoitem(bot, event, item_name)
+
         return False
-
-    message = event["text"]
-
-    # Log the message and event details for debugging
-    bot.logger.info(f"Infoitems module checking message: '{message}'")
-    bot.logger.info(f"Event trigger: {event['trigger']}")
-    bot.logger.info(f"Event type: {event.get('signal', 'unknown')}")
-
-    # Check if this is an infoitem set command (!item = value)
-    set_match = re.match(r'^\!([a-zA-Z0-9_-]+)\s*=\s*(.+)$', message)
-    if set_match:
-        bot.logger.info(f"Matched infoitem set command: {message}")
-        item_name = set_match.group(1).lower()
-        value = set_match.group(2).strip()
-
-        # Skip if the item name is a known command
-        if item_name in ['infoitem', 'help', 'avail']:
-            bot.logger.info(f"Skipping reserved command name: {item_name}")
-            return False
-
-        return _add_infoitem(bot, event, item_name, value)
-
-    # Check if this is an infoitem get command (!item?)
-    get_match = re.match(r'^\!([a-zA-Z0-9_-]+)\?$', message)
-    if get_match:
-        bot.logger.info(f"Matched infoitem get command: {message}")
-        item_name = get_match.group(1).lower()
-
-        # Skip if the item name is a known command
-        if item_name in ['infoitem', 'help', 'avail']:
-            bot.logger.info(f"Skipping reserved command name: {item_name}")
-            return False
-
-        return _get_infoitem(bot, event, item_name)
-
-    bot.logger.info("No match for infoitem command patterns")
-    return False
+    except Exception as e:
+        bot.logger.error(f"Error processing custom patterns: {str(e)}")
+        bot.logger.error(traceback.format_exc())
+        return False
 
 
 def _add_infoitem(bot, event, item_name, value):
