@@ -189,30 +189,28 @@ def _add_infoitem(bot, event, item_name, value):
     cur = bot.db_connection.cursor()
 
     try:
-        # Check if this exact item/value combination already exists
+        # Add the new info item with ON CONFLICT DO NOTHING to handle duplicates gracefully
         cur.execute(
-            "SELECT id FROM phreakbot_infoitems WHERE item = %s AND value = %s AND channel = %s",
-            (item_name, value, event["channel"])
-        )
-
-        if cur.fetchone():
-            bot.add_response(f"This info item already exists.")
-            cur.close()
-            return True
-
-        # Add the new info item
-        cur.execute(
-            "INSERT INTO phreakbot_infoitems (users_id, item, value, channel) VALUES (%s, %s, %s, %s) RETURNING id",
+            """
+            INSERT INTO phreakbot_infoitems (users_id, item, value, channel)
+            VALUES (%s, %s, %s, %s)
+            ON CONFLICT (item, value, channel) DO NOTHING
+            RETURNING id
+            """,
             (user_info["id"], item_name, value, event["channel"])
         )
 
-        item_id = cur.fetchone()[0]
+        result = cur.fetchone()
         bot.db_connection.commit()
-        bot.add_response(f"Info item '{item_name}' added successfully.")
+
+        if result:
+            bot.add_response(f"Info item '{item_name}' added successfully.")
+        else:
+            bot.add_response(f"This info item already exists.")
 
     except Exception as e:
-        bot.logger.error(f"Error adding info item: {e}")
-        bot.add_response("Error adding info item.")
+        bot.logger.error(f"Error adding info item: {str(e).replace('\r', '').replace('\n', ' ')}")
+        bot.add_response("Error adding info item. Please try again.")
         bot.db_connection.rollback()
     finally:
         cur.close()
