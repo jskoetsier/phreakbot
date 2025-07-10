@@ -11,10 +11,11 @@ def config(bot):
     """Return module configuration"""
     return {
         "events": ["pubmsg", "privmsg", "ctcp"],
-        "commands": ["infoitem", "info"],
+        "commands": ["infoitem", "info", "forget"],
         "help": {
             "infoitem": "Manage info items. Usage: !infoitem add <item> <value> | !infoitem del <id> | !infoitem list [<item>]",
             "info": "Alias for infoitem",
+            "forget": "Delete an info item by name and value. Usage: !forget <item> <value>"
         },
         "permissions": ["user"],
     }
@@ -24,6 +25,22 @@ def run(bot, event):
     """Handle infoitem commands"""
     if event["trigger"] != "command":
         return False
+
+    # Handle forget command
+    if event["command"] == "forget":
+        if not event["command_args"]:
+            bot.reply("Usage: !forget <item> <value>")
+            return True
+            
+        args = event["command_args"].split()
+        if len(args) < 2:
+            bot.reply("Usage: !forget <item> <value>")
+            return True
+            
+        item = args[0].lower()
+        value = " ".join(args[1:])
+        _forget_infoitem(bot, event, item, value)
+        return True
 
     if event["command"] not in ["infoitem", "info"]:
         return False
@@ -195,6 +212,67 @@ def _get_infoitem(bot, event, item):
         except Exception as e:
             bot.logger.error(f"Error retrieving info item: {e}")
             bot.reply(f"Error retrieving info item: {e}")
+        finally:
+            cur.close()
+    else:
+        bot.reply("Database connection not available.")
+
+
+def _forget_infoitem(bot, event, item, value):
+    """Delete an info item by name and value"""
+    # Check if user is registered
+    if not event["user_info"]:
+        bot.reply("You need to be a registered user to delete info items.")
+        return
+
+    if bot.db_connection:
+        try:
+            cur = bot.db_connection.cursor()
+
+            # First check if the item exists with the specified value
+            cur.execute(
+                "SELECT i.id, i.item, i.value, i.users_id FROM phreakbot_infoitems i WHERE i.item = %s AND i.value = %s AND i.channel = %s",
+                (item, value, event["channel"])
+            )
+            items = cur.fetchall()
+
+            if not items:
+                bot.reply(f"No info item '{item}' with value '{value}' found.")
+                return
+
+            # If there are multiple matches, we need to be more specific
+            if len(items) > 1:
+                bot.reply(f"Multiple matches found for '{item}' with value '{value}'. Please use !infoitem del <id> with one of these IDs:")
+                for item_id, item_name, item_value, _ in items:
+                    bot.reply(f"• [{item_id}] {item_value}")
+                return
+
+            # We have exactly one match
+            item_id, item_name, item_value, user_id = items[0]
+
+            # Check if user is owner or the item belongs to the user
+            is_owner = False
+            for perm in event["user_info"]["permissions"]["global"]:
+                if perm == "owner":
+                    is_owner = True
+                    break
+
+            if not is_owner and user_id != event["user_info"]["id"]:
+                bot.reply("You can only delete your own info items.")
+                return
+
+            # Delete the item
+            cur.execute(
+                "DELETE FROM phreakbot_infoitems WHERE id = %s",
+                (item_id,)
+            )
+            bot.db_connection.commit()
+            bot.reply(f"Info item '{item}' with value '{value}' deleted successfully.")
+            bot.logger.info(f"Deleted info item '{item}' with ID {item_id}")
+        except Exception as e:
+            bot.logger.error(f"Error deleting info item: {e}")
+            bot.reply(f"Error deleting info item: {e}")
+            bot.db_connection.rollback()
         finally:
             cur.close()
     else:
