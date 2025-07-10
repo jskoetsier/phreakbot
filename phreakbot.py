@@ -300,6 +300,42 @@ class PhreakBot(pydle.Client):
     async def on_quit(self, user, message=None):
         """Called when someone quits IRC"""
         await self._handle_event(user, None, "quit")
+        
+    async def on_ctcp(self, by, target, what, contents):
+        """Called when a CTCP request is received"""
+        self.logger.info(f"Received CTCP {what} from {by} to {target}: {contents}")
+        
+        # Create event object for modules
+        try:
+            user_info = await self.whois(by)
+            user_host = f"{by}!{user_info.get('username', '')}@{user_info.get('hostname', '')}"
+        except Exception as e:
+            self.logger.error(f"Error getting user info: {e}")
+            user_host = f"{by}!unknown@unknown"
+            
+        event_obj = {
+            "server": self.network,
+            "signal": "ctcp",
+            "nick": by,
+            "hostmask": user_host,
+            "channel": target,
+            "text": contents,
+            "is_privmsg": target == self.nickname,
+            "raw_event": None,
+            "bot_nick": self.nickname,
+            "command": "",
+            "command_args": "",
+            "trigger": "event",
+            "ctcp_command": what.upper(),
+            "user_info": (
+                self.db_get_userinfo_by_userhost(user_host)
+                if self.db_connection
+                else None
+            ),
+        }
+        
+        # Route to modules that handle CTCP events
+        await self._route_to_modules(event_obj)
 
     async def on_names(self, channel, names):
         """Called when the server sends a NAMES reply"""
