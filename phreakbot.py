@@ -398,13 +398,23 @@ class PhreakBot(pydle.Client):
 
         # SUPER EARLY CHECK FOR KARMA MINUS PATTERNS
         # This needs to happen before any other processing
-        karma_minus_regex = re.compile(r"^\!([a-zA-Z0-9_-]+)--(?:\s+#(.+))?$")
-        karma_minus_match = karma_minus_regex.match(message)
-        
-        if karma_minus_match:
-            item = karma_minus_match.group(1)
-            reason = karma_minus_match.group(2)
-            self.logger.info(f"SUPER EARLY KARMA MINUS DETECTION: '{message}' for item '{item}', reason: '{reason}'")
+        if message.startswith("!") and message.endswith("--"):
+            # Simple check first
+            self.logger.info(f"SUPER EARLY KARMA MINUS DETECTION (simple check): '{message}'")
+            
+            # Then use regex for more detailed extraction
+            karma_minus_regex = re.compile(r"^\!([a-zA-Z0-9_-]+)--(?:\s+#(.+))?$")
+            karma_minus_match = karma_minus_regex.match(message)
+            
+            if karma_minus_match:
+                item = karma_minus_match.group(1)
+                reason = karma_minus_match.group(2)
+                self.logger.info(f"SUPER EARLY KARMA MINUS DETECTION: '{message}' for item '{item}', reason: '{reason}'")
+            else:
+                # Fallback to simple extraction if regex fails
+                item = message[1:-2]  # Remove ! and --
+                reason = None
+                self.logger.info(f"SUPER EARLY KARMA MINUS DETECTION (fallback): '{message}' for item '{item}'")
             
             # Don't allow users to give karma to themselves
             if item.lower() == source.lower():
