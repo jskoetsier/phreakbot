@@ -398,17 +398,21 @@ class PhreakBot(pydle.Client):
 
         # SUPER EARLY CHECK FOR KARMA MINUS PATTERNS
         # This needs to happen before any other processing
-        if message.endswith("--") and message.startswith("!"):
-            item = message[1:-2]  # Remove ! and --
-            self.logger.info(f"SUPER EARLY KARMA MINUS DETECTION: '{message}' for item '{item}'")
-
+        karma_minus_regex = re.compile(r"^\!([a-zA-Z0-9_-]+)--(?:\s+#(.+))?$")
+        karma_minus_match = karma_minus_regex.match(message)
+        
+        if karma_minus_match:
+            item = karma_minus_match.group(1)
+            reason = karma_minus_match.group(2)
+            self.logger.info(f"SUPER EARLY KARMA MINUS DETECTION: '{message}' for item '{item}', reason: '{reason}'")
+            
             # Don't allow users to give karma to themselves
             if item.lower() == source.lower():
                 await self.message(channel, "You can't give karma to yourself!")
                 return
-
+                
             # Directly update karma in the database
-            if self.db_connection and event_obj["user_info"]:
+            if self.db_connection:
                 try:
                     self.logger.info(f"Directly updating karma in database for {item}")
                     cur = self.db_connection.cursor()
