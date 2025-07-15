@@ -10,13 +10,13 @@ def config(bot):
     """Return module configuration"""
     return {
         "events": ["pubmsg", "privmsg", "event"],  # Listen to all event types
-        "commands": ["karma", "topkarma"],
+        "commands": ["karma", "topkarma", "kup", "kdown"],
         "permissions": ["user"],
         "help": "Karma tracking system. Usage:\n"
-        "!example++ - Increase karma for 'example'\n"
-        "!example-- - Decrease karma for 'example'\n"
-        "!example++ #reason - Increase karma with a reason\n"
-        "!example-- #reason - Decrease karma with a reason\n"
+        "!kup <item> - Increase karma for an item\n"
+        "!kdown <item> - Decrease karma for an item\n"
+        "!kup <item> #reason - Increase karma with a reason\n"
+        "!kdown <item> #reason - Decrease karma with a reason\n"
         "!karma <item> - Show karma for a specific item\n"
         "!topkarma - Show items with highest and lowest karma",
     }
@@ -38,6 +38,10 @@ def run(bot, event):
                 _show_karma(bot, event)
             elif event["command"] == "topkarma":
                 _show_top_karma(bot, event)
+            elif event["command"] == "kup":
+                _process_karma_up(bot, event)
+            elif event["command"] == "kdown":
+                _process_karma_down(bot, event)
             return
 
         # Handle karma events (++ and --)
@@ -51,6 +55,34 @@ def run(bot, event):
 
         bot.logger.error(f"Traceback: {traceback.format_exc()}")
         bot.add_response("Error processing karma command.")
+
+
+def _process_karma_up(bot, event):
+    """Process karma up command"""
+    if not event["command_args"]:
+        bot.add_response("Please specify an item to give karma to. Usage: !kup <item> [#reason]")
+        return
+    
+    # Split the command args to get the item and optional reason
+    args = event["command_args"].split('#', 1)
+    item = args[0].strip().lower()
+    reason = args[1].strip() if len(args) > 1 else None
+    
+    _update_karma(bot, event, item, "up", reason)
+
+
+def _process_karma_down(bot, event):
+    """Process karma down command"""
+    if not event["command_args"]:
+        bot.add_response("Please specify an item to give karma to. Usage: !kdown <item> [#reason]")
+        return
+    
+    # Split the command args to get the item and optional reason
+    args = event["command_args"].split('#', 1)
+    item = args[0].strip().lower()
+    reason = args[1].strip() if len(args) > 1 else None
+    
+    _update_karma(bot, event, item, "down", reason)
 
 
 def _process_karma_event(bot, event):
@@ -78,7 +110,14 @@ def _process_karma_event(bot, event):
     item = match.group(1).lower()
     direction = "up" if match.group(2) == "++" else "down"
     reason = match.group(3)
+    
+    _update_karma(bot, event, item, direction, reason)
 
+
+def _update_karma(bot, event, item, direction, reason=None):
+    """Update karma for an item"""
+    bot.logger.info(f"Updating karma for {item} in direction {direction} with reason {reason}")
+    
     # Get the user's ID
     user_info = event["user_info"]
     if not user_info:
