@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.20 (2025-07-15)
+- Fixed karma minus pattern handling for all !item-- commands
+- Improved command routing for karma patterns
+- Enhanced logging for better troubleshooting
+- Removed redundant karma modules after consolidation
+- Added comprehensive test coverage for karma commands
+
 ## 0.1.19 (2025-07-15)
 - Consolidate karma functionality into a single module
 - Fix karma pattern routing for both ++ and -- patterns
