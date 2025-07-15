@@ -1,8 +1,15 @@
 # Changelog
 
-## [v0.1.18] - 2025-07-15
-- Fixed karma module to properly handle !item-- syntax for all items
-- Added special handling for karma patterns in the core bot engine
+## 0.1.19 (2025-07-15)
+- Consolidate karma functionality into a single module
+- Fix karma pattern routing for both ++ and -- patterns
+- Improve karma pattern detection and handling
+- Add support for reasons with #reason syntax
+- Add topkarma command to show items with highest and lowest karma
+
+## 0.1.18 (2025-07-15)
+- Add karma module with ++ and -- support
+- Fix karma minus pattern detection
 - Improved regex pattern matching for karma commands
 - Added extensive logging for better troubleshooting
 - Fixed command parsing to prevent karma patterns from being misinterpreted as commands
