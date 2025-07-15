@@ -396,97 +396,41 @@ class PhreakBot(pydle.Client):
             ),
         }
 
-        # SUPER EARLY CHECK FOR KARMA MINUS PATTERNS
-        # This needs to happen before any other processing
+        # Check for karma patterns (++ or --) and route to karma module
+        karma_pattern = re.compile(r"^\!([a-zA-Z0-9_-]+)(\+\+|\-\-)(?:\s+#(.+))?$")
+        karma_match = karma_pattern.match(message)
+        
+        if karma_match:
+            self.logger.info(f"Detected karma pattern: '{message}'")
+            
+            # Create a special event for karma handling
+            karma_event = event_obj.copy()
+            karma_event["trigger"] = "event"  # Set as event for karma module
+            
+            # Route directly to karma module
+            if "karma" in self.modules:
+                try:
+                    self.logger.info("Routing directly to karma module")
+                    result = self.modules["karma"]["object"].run(self, karma_event)
+                    if result:
+                        await self._process_output(karma_event)
+                        return
+                except Exception as e:
+                    import traceback
+                    self.logger.error(f"Error in karma module: {e}")
+                    self.logger.error(f"Traceback: {traceback.format_exc()}")
+
+        # Check if message starts with trigger
+        trigger_re = re.compile(f'^{re.escape(self.config["trigger"])}')
+
+        # DIRECT HANDLER FOR ALL KARMA MINUS PATTERNS
+        # This is a comprehensive approach that should catch all karma minus patterns
         if message.startswith("!") and message.endswith("--"):
-            # Simple check first
-            self.logger.info(f"SUPER EARLY KARMA MINUS DETECTION (simple check): '{message}'")
+            self.logger.info(f"DIRECT KARMA MINUS HANDLER: '{message}'")
             
-            # DIRECT HANDLER FOR !item--
-            if message == "!item--":
-                self.logger.info("DIRECT HANDLER FOR !item--")
-                
-                # Don't allow users to give karma to themselves
-                if "item".lower() == source.lower():
-                    await self.message(channel, "You can't give karma to yourself!")
-                    return
-                    
-                # Directly update karma in the database
-                if self.db_connection and event_obj["user_info"]:
-                    try:
-                        self.logger.info("Directly updating karma in database for item")
-                        cur = self.db_connection.cursor()
-                        
-                        # First, check if the item exists
-                        cur.execute(
-                            "SELECT id, karma FROM phreakbot_karma WHERE item = %s AND channel = %s",
-                            ("item", channel),
-                        )
-                        
-                        karma_row = cur.fetchone()
-                        
-                        if karma_row:
-                            # Item exists, update karma
-                            karma_id, current_karma = karma_row
-                            new_karma = current_karma - 1
-                            
-                            cur.execute(
-                                "UPDATE phreakbot_karma SET karma = %s WHERE id = %s", 
-                                (new_karma, karma_id)
-                            )
-                            
-                            # Record who gave the karma
-                            cur.execute(
-                                """
-                                INSERT INTO phreakbot_karma_who (karma_id, users_id, direction, amount)
-                                VALUES (%s, %s, %s, %s)
-                                ON CONFLICT (karma_id, users_id, direction)
-                                DO UPDATE SET amount = phreakbot_karma_who.amount + 1, update_time = CURRENT_TIMESTAMP
-                                """,
-                                (karma_id, event_obj["user_info"]["id"], "down", 1),
-                            )
-                            
-                            self.db_connection.commit()
-                            await self.message(channel, f"item now has {new_karma} karma")
-                            return
-                        else:
-                            # Item doesn't exist, insert new record
-                            cur.execute(
-                                "INSERT INTO phreakbot_karma (item, karma, channel) VALUES (%s, %s, %s) RETURNING id",
-                                ("item", -1, channel),
-                            )
-                            karma_id = cur.fetchone()[0]
-                            
-                            # Record who gave the karma
-                            cur.execute(
-                                """
-                                INSERT INTO phreakbot_karma_who (karma_id, users_id, direction, amount)
-                                VALUES (%s, %s, %s, %s)
-                                """,
-                                (karma_id, event_obj["user_info"]["id"], "down", 1),
-                            )
-                            
-                            self.db_connection.commit()
-                            await self.message(channel, "item now has -1 karma")
-                            return
-                    except Exception as e:
-                        import traceback
-                        self.logger.error(f"Error in direct handler for !item--: {e}")
-                        self.logger.error(f"Traceback: {traceback.format_exc()}")
-            
-            # Then use regex for more detailed extraction
-            karma_minus_regex = re.compile(r"^\!([a-zA-Z0-9_-]+)--(?:\s+#(.+))?$")
-            karma_minus_match = karma_minus_regex.match(message)
-            
-            if karma_minus_match:
-                item = karma_minus_match.group(1)
-                reason = karma_minus_match.group(2)
-                self.logger.info(f"SUPER EARLY KARMA MINUS DETECTION: '{message}' for item '{item}', reason: '{reason}'")
-            else:
-                # Fallback to simple extraction if regex fails
-                item = message[1:-2]  # Remove ! and --
-                reason = None
-                self.logger.info(f"SUPER EARLY KARMA MINUS DETECTION (fallback): '{message}' for item '{item}'")
+            # Extract the item name
+            item = message[1:-2]  # Remove ! and --
+            self.logger.info(f"Extracted item name: '{item}'")
             
             # Don't allow users to give karma to themselves
             if item.lower() == source.lower():
@@ -494,29 +438,29 @@ class PhreakBot(pydle.Client):
                 return
                 
             # Directly update karma in the database
-            if self.db_connection:
+            if self.db_connection and event_obj["user_info"]:
                 try:
                     self.logger.info(f"Directly updating karma in database for {item}")
                     cur = self.db_connection.cursor()
-
+                    
                     # First, check if the item exists
                     cur.execute(
                         "SELECT id, karma FROM phreakbot_karma WHERE item = %s AND channel = %s",
                         (item, channel),
                     )
-
+                    
                     karma_row = cur.fetchone()
-
+                    
                     if karma_row:
                         # Item exists, update karma
                         karma_id, current_karma = karma_row
                         new_karma = current_karma - 1
-
+                        
                         cur.execute(
-                            "UPDATE phreakbot_karma SET karma = %s WHERE id = %s",
+                            "UPDATE phreakbot_karma SET karma = %s WHERE id = %s", 
                             (new_karma, karma_id)
                         )
-
+                        
                         # Record who gave the karma
                         cur.execute(
                             """
@@ -527,7 +471,7 @@ class PhreakBot(pydle.Client):
                             """,
                             (karma_id, event_obj["user_info"]["id"], "down", 1),
                         )
-
+                        
                         self.db_connection.commit()
                         await self.message(channel, f"{item} now has {new_karma} karma")
                         return
@@ -538,7 +482,7 @@ class PhreakBot(pydle.Client):
                             (item, -1, channel),
                         )
                         karma_id = cur.fetchone()[0]
-
+                        
                         # Record who gave the karma
                         cur.execute(
                             """
@@ -547,28 +491,16 @@ class PhreakBot(pydle.Client):
                             """,
                             (karma_id, event_obj["user_info"]["id"], "down", 1),
                         )
-
+                        
                         self.db_connection.commit()
                         await self.message(channel, f"{item} now has -1 karma")
                         return
                 except Exception as e:
                     import traceback
-                    self.logger.error(f"Error in super early karma minus handler: {e}")
+                    self.logger.error(f"Error in direct karma minus handler: {e}")
                     self.logger.error(f"Traceback: {traceback.format_exc()}")
-
-        # Check if message starts with trigger
-        trigger_re = re.compile(f'^{re.escape(self.config["trigger"])}')
-
-        # Check for karma minus pattern (e.g., !item--)
-        karma_minus_pattern = r"^\!([a-zA-Z0-9_-]+)--(?:\s+#(.+))?$"
-        karma_minus_match = re.match(karma_minus_pattern, message)
-
-        # Debug karma minus pattern matching
-        self.logger.info(f"Karma minus pattern: {karma_minus_pattern}")
-        self.logger.info(f"Message: '{message}'")
-        self.logger.info(f"Karma minus match: {bool(karma_minus_match)}")
-        if karma_minus_match:
-            self.logger.info(f"Karma minus match groups: {karma_minus_match.groups()}")
+                    
+            return
 
         # Special case for google-- and phreak--
         if message == "!google--" or message == "!phreak--":

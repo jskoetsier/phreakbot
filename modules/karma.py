@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 #
-# Karma module for PhreakBot
+# Karma module for PhreakBot - Handles all karma functionality
 
 import re
 
@@ -9,7 +9,7 @@ import re
 def config(bot):
     """Return module configuration"""
     return {
-        "events": ["pubmsg", "privmsg", "event"],  # Listen to all event types
+        "events": ["pubmsg", "privmsg"],  # Listen to all message events
         "commands": ["karma", "topkarma"],
         "permissions": ["user"],
         "help": "Karma tracking system. Usage:\n"
@@ -28,7 +28,7 @@ def run(bot, event):
 
     if not bot.db_connection:
         bot.add_response("Database connection is not available.")
-        return
+        return False
 
     try:
         # Handle explicit commands
@@ -36,46 +36,37 @@ def run(bot, event):
             bot.logger.info(f"Karma module processing command: {event['command']}")
             if event["command"] == "karma":
                 _show_karma(bot, event)
+                return True
             elif event["command"] == "topkarma":
                 _show_top_karma(bot, event)
-            elif event["command"] == "kup":
-                _process_karma_up(bot, event)
-            elif event["command"] == "kdown":
-                _process_karma_down(bot, event)
-            return
+                return True
+            return False
 
-        # Handle karma events (++ and --)
-        if event["trigger"] == "event" and "text" in event and event["text"]:
-            bot.logger.info(f"Karma module processing event text: {event['text']}")
+        # Only process event triggers with text
+        if "text" not in event or not event["text"]:
+            return False
 
-            # Check for karma pattern directly here
-            karma_pattern = (
-                r"^"
-                + re.escape(bot.config["trigger"])
-                + r"([a-zA-Z0-9_-]+)(\+\+|\-\-)(?:\s+#(.+))?$"
-            )
+        # Check for karma pattern (++ or --)
+        karma_pattern = r"^\!([a-zA-Z0-9_-]+)(\+\+|\-\-)(?:\s+#(.+))?$"
+        match = re.match(karma_pattern, event["text"])
 
-            match = re.match(karma_pattern, event["text"])
-            bot.logger.info(f"Direct karma pattern match: {bool(match)}")
+        if match:
+            bot.logger.info(f"Matched karma pattern: {match.groups()}")
+            item = match.group(1).lower()
+            direction = "up" if match.group(2) == "++" else "down"
+            reason = match.group(3)
 
-            if match:
-                bot.logger.info(f"Matched karma pattern directly: {match.groups()}")
-                item = match.group(1).lower()
-                direction = "up" if match.group(2) == "++" else "down"
-                reason = match.group(3)
+            _update_karma(bot, event, item, direction, reason)
+            return True  # Signal that we've handled this event
 
-                _update_karma(bot, event, item, direction, reason)
-                return
-
-            # If no direct match, try the regular process
-            _process_karma_event(bot, event)
+        return False  # We didn't handle this event
 
     except Exception as e:
         bot.logger.error(f"Error in karma module: {e}")
         import traceback
-
         bot.logger.error(f"Traceback: {traceback.format_exc()}")
         bot.add_response("Error processing karma command.")
+        return False
 
 
 def _process_karma_up(bot, event):
