@@ -399,14 +399,14 @@ class PhreakBot(pydle.Client):
         # Check for karma patterns (++ or --) and route to karma module
         karma_pattern = re.compile(r"^\!([a-zA-Z0-9_-]+)(\+\+|\-\-)(?:\s+#(.+))?$")
         karma_match = karma_pattern.match(message)
-        
+
         if karma_match:
             self.logger.info(f"Detected karma pattern: '{message}'")
-            
+
             # Create a special event for karma handling
             karma_event = event_obj.copy()
             karma_event["trigger"] = "event"  # Set as event for karma module
-            
+
             # Route directly to karma module
             if "karma" in self.modules:
                 try:
@@ -427,40 +427,57 @@ class PhreakBot(pydle.Client):
         # This is a comprehensive approach that should catch all karma minus patterns
         if message.startswith("!") and message.endswith("--"):
             self.logger.info(f"DIRECT KARMA MINUS HANDLER: '{message}'")
-            
+
             # Extract the item name
             item = message[1:-2]  # Remove ! and --
             self.logger.info(f"Extracted item name: '{item}'")
-            
+
             # Don't allow users to give karma to themselves
             if item.lower() == source.lower():
                 await self.message(channel, "You can't give karma to yourself!")
                 return
                 
+            # Create a special event for karma handling
+            karma_event = event_obj.copy()
+            karma_event["trigger"] = "event"  # Set as event for karma module
+            
+            # Route directly to karma module
+            if "karma" in self.modules:
+                try:
+                    self.logger.info("Routing directly to karma module for -- pattern")
+                    result = self.modules["karma"]["object"].run(self, karma_event)
+                    if result:
+                        await self._process_output(karma_event)
+                        return
+                except Exception as e:
+                    import traceback
+                    self.logger.error(f"Error in karma module: {e}")
+                    self.logger.error(f"Traceback: {traceback.format_exc()}")
+
             # Directly update karma in the database
             if self.db_connection and event_obj["user_info"]:
                 try:
                     self.logger.info(f"Directly updating karma in database for {item}")
                     cur = self.db_connection.cursor()
-                    
+
                     # First, check if the item exists
                     cur.execute(
                         "SELECT id, karma FROM phreakbot_karma WHERE item = %s AND channel = %s",
                         (item, channel),
                     )
-                    
+
                     karma_row = cur.fetchone()
-                    
+
                     if karma_row:
                         # Item exists, update karma
                         karma_id, current_karma = karma_row
                         new_karma = current_karma - 1
-                        
+
                         cur.execute(
-                            "UPDATE phreakbot_karma SET karma = %s WHERE id = %s", 
+                            "UPDATE phreakbot_karma SET karma = %s WHERE id = %s",
                             (new_karma, karma_id)
                         )
-                        
+
                         # Record who gave the karma
                         cur.execute(
                             """
@@ -471,7 +488,7 @@ class PhreakBot(pydle.Client):
                             """,
                             (karma_id, event_obj["user_info"]["id"], "down", 1),
                         )
-                        
+
                         self.db_connection.commit()
                         await self.message(channel, f"{item} now has {new_karma} karma")
                         return
@@ -482,7 +499,7 @@ class PhreakBot(pydle.Client):
                             (item, -1, channel),
                         )
                         karma_id = cur.fetchone()[0]
-                        
+
                         # Record who gave the karma
                         cur.execute(
                             """
@@ -491,7 +508,7 @@ class PhreakBot(pydle.Client):
                             """,
                             (karma_id, event_obj["user_info"]["id"], "down", 1),
                         )
-                        
+
                         self.db_connection.commit()
                         await self.message(channel, f"{item} now has -1 karma")
                         return
@@ -499,7 +516,7 @@ class PhreakBot(pydle.Client):
                     import traceback
                     self.logger.error(f"Error in direct karma minus handler: {e}")
                     self.logger.error(f"Traceback: {traceback.format_exc()}")
-                    
+
             return
 
         # Special case for google-- and phreak--
@@ -577,7 +594,7 @@ class PhreakBot(pydle.Client):
         # Define a karma minus pattern for direct handling
         karma_minus_pattern = re.compile(r"^\!([a-zA-Z0-9_-]+)--(?:\s+#(.+))?$")
         karma_minus_match = karma_minus_pattern.match(message)
-        
+
         if karma_minus_match:
             self.logger.info(f"KARMA MINUS PATTERN DETECTED: '{message}' in channel '{channel}'")
             item = karma_minus_match.group(1).lower()
