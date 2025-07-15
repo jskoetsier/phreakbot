@@ -398,23 +398,36 @@ class PhreakBot(pydle.Client):
 
         # Check if message starts with trigger
         trigger_re = re.compile(f'^{re.escape(self.config["trigger"])}')
-        command_re = re.compile(
-            f'^{re.escape(self.config["trigger"])}([-a-zA-Z0-9]+)(?:\\s(.*))?$'
-        )
-
+        
+        # Special handling for karma patterns
+        karma_pattern = re.compile(r"^\!([a-zA-Z0-9_-]+)(\+\+|\-\-)(?:\s+#(.+))?$")
+        karma_match = karma_pattern.match(message)
+        
         # Debug message parsing
         self.logger.info(f"Processing message: '{message}'")
         self.logger.info(f"Trigger regex: '{trigger_re.pattern}'")
-        self.logger.info(f"Command regex: '{command_re.pattern}'")
         self.logger.info(f"Trigger match: {bool(trigger_re.match(message))}")
-
-        # Continue with normal message processing if direct handling didn't match
+        self.logger.info(f"Karma match: {bool(karma_match)}")
+        
+        # Special handling for karma patterns
+        if karma_match:
+            self.logger.info(f"EXACT MESSAGE: '{message}' in channel '{channel}'")
+            self.logger.info(f"Detected karma pattern: {karma_match.groups()}")
+            event_obj["trigger"] = "event"
+            await self._route_to_modules(event_obj)
+            return
+            
+        # Continue with normal message processing
         if trigger_re.match(message):
             self.logger.info(f"RAW MESSAGE: '{message}'")
-
+            
             # Regular command handling
+            command_re = re.compile(
+                f'^{re.escape(self.config["trigger"])}([-a-zA-Z0-9]+)(?:\\s(.*))?$'
+            )
             match = command_re.match(message)
             self.logger.info(f"Command match: {bool(match)}")
+            
             if match:
                 event_obj["command"] = match.group(1).lower()
                 event_obj["command_args"] = match.group(2) or ""
