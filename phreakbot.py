@@ -484,8 +484,34 @@ class PhreakBot(pydle.Client):
         # Debug the event
         self.logger.info(f"Routing event: trigger={event['trigger']}, signal={event.get('signal', 'N/A')}, text={event.get('text', 'N/A')}")
 
+        # Special handling for karma patterns
+        if event["trigger"] == "event" and "text" in event and event["text"]:
+            # Check for karma pattern
+            karma_pattern = re.compile(r"^\!([a-zA-Z0-9_-]+)(\+\+|\-\-)(?:\s+#(.+))?$")
+            match = karma_pattern.match(event["text"])
+            
+            if match:
+                self.logger.info(f"Detected karma pattern in message: {event['text']}")
+                self.logger.info(f"Matched groups: {match.groups()}")
+                
+                # Try to route directly to karmaplus module
+                if "karmaplus" in self.modules:
+                    try:
+                        self.logger.info("Routing directly to karmaplus module")
+                        self.modules["karmaplus"]["object"].run(self, event)
+                        handled = True
+                        self.logger.info("Karmaplus module handled the message")
+                        
+                        # Process output and return early
+                        await self._process_output(event)
+                        return
+                    except Exception as e:
+                        import traceback
+                        self.logger.error(f"Error in karmaplus module: {e}")
+                        self.logger.error(f"Traceback: {traceback.format_exc()}")
+
         # Check for custom infoitem commands first
-        if "infoitems" in self.modules:
+        if not handled and "infoitems" in self.modules:
             try:
                 # Try to handle as a custom infoitem command regardless of trigger type
                 self.logger.info("Checking if infoitems module can handle this message")
