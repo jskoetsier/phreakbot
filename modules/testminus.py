@@ -7,30 +7,37 @@ def config(bot):
     """Return module configuration"""
     return {
         "events": ["pubmsg", "privmsg"],  # Listen to all message events
-        "commands": ["test--"],  # Register test-- as a command
+        "commands": ["test--", "phreak--", "google--"],  # Register specific karma-- commands
         "permissions": ["user"],
-        "help": "Special handler for test-- command",
+        "help": "Special handler for karma-- commands",
     }
 
 
 def run(bot, event):
-    """Handle test-- command"""
+    """Handle karma-- commands"""
     bot.logger.info("TestMinus module called")
     
-    # Only process test-- command
-    if event["trigger"] == "command" and event["command"] == "test--":
-        bot.logger.info("TestMinus processing test-- command")
+    # Process karma-- commands
+    if event["trigger"] == "command" and event["command"] in ["test--", "phreak--", "google--"]:
+        # Extract the item name from the command
+        item = event["command"].replace("--", "")
+        bot.logger.info(f"TestMinus processing {item}-- command")
+        
+        # Don't allow users to give karma to themselves
+        if item.lower() == event["nick"].lower():
+            bot.add_response("You can't give karma to yourself!")
+            return
         
         # Update karma in the database
         if bot.db_connection:
             try:
-                bot.logger.info("Directly updating karma in database for test--")
+                bot.logger.info(f"Directly updating karma in database for {item}--")
                 cur = bot.db_connection.cursor()
                 
                 # First, check if the item exists
                 cur.execute(
                     "SELECT id, karma FROM phreakbot_karma WHERE item = %s AND channel = %s",
-                    ("test", event["channel"]),
+                    (item, event["channel"]),
                 )
                 
                 karma_row = cur.fetchone()
@@ -58,12 +65,12 @@ def run(bot, event):
                         )
                     
                     bot.db_connection.commit()
-                    bot.add_response(f"test now has {new_karma} karma")
+                    bot.add_response(f"{item} now has {new_karma} karma")
                 else:
                     # Item doesn't exist, insert new record
                     cur.execute(
                         "INSERT INTO phreakbot_karma (item, karma, channel) VALUES (%s, %s, %s) RETURNING id",
-                        ("test", -1, event["channel"]),
+                        (item, -1, event["channel"]),
                     )
                     karma_id = cur.fetchone()[0]
                     
@@ -78,7 +85,7 @@ def run(bot, event):
                         )
                     
                     bot.db_connection.commit()
-                    bot.add_response("test now has -1 karma")
+                    bot.add_response(f"{item} now has -1 karma")
             except Exception as e:
                 import traceback
                 bot.logger.error(f"Error in TestMinus module: {e}")
