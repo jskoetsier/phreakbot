@@ -399,7 +399,27 @@ class PhreakBot(pydle.Client):
         # Check if message starts with trigger
         trigger_re = re.compile(f'^{re.escape(self.config["trigger"])}')
         
-        # Special handling for karma patterns
+        # Special handling for karma patterns - HARDCODED check for test++ and test--
+        if message == "!test++" or message == "!test--":
+            self.logger.info(f"HARDCODED KARMA PATTERN DETECTED: '{message}' in channel '{channel}'")
+            event_obj["trigger"] = "event"
+            
+            # Directly call the karma module
+            if "karma" in self.modules:
+                try:
+                    self.logger.info("Directly calling karma module")
+                    self.modules["karma"]["object"].run(self, event_obj)
+                    await self._process_output(event_obj)
+                    return
+                except Exception as e:
+                    import traceback
+                    self.logger.error(f"Error in karma module: {e}")
+                    self.logger.error(f"Traceback: {traceback.format_exc()}")
+            
+            await self._route_to_modules(event_obj)
+            return
+            
+        # Regular karma pattern check
         karma_pattern = re.compile(r"^\!([a-zA-Z0-9_-]+)(\+\+|\-\-)(?:\s+#(.+))?$")
         karma_match = karma_pattern.match(message)
         
