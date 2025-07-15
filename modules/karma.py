@@ -172,14 +172,19 @@ def _show_karma(bot, event):
     reasons = cur.fetchall()
     cur.close()
 
-    # Display karma and reasons
-    bot.add_response(f"{item} has {karma_value} karma")
-
+    # Display karma and reasons on a single line
+    response = f"{item} has {karma_value} karma"
+    
     if reasons:
-        bot.add_response("Recent reasons:")
+        reason_texts = []
         for direction, reason in reasons:
             direction_symbol = "+" if direction == "up" else "-"
-            bot.add_response(f"{direction_symbol} {reason}")
+            reason_texts.append(f"{direction_symbol} {reason}")
+        
+        if reason_texts:
+            response += f" (Recent reasons: {', '.join(reason_texts)})"
+    
+    bot.add_response(response)
 
 
 def _show_top_karma(bot, event):
