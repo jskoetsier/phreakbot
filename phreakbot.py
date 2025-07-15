@@ -395,42 +395,42 @@ class PhreakBot(pydle.Client):
                 else None
             ),
         }
-        
+
         # SUPER EARLY CHECK FOR KARMA MINUS PATTERNS
         # This needs to happen before any other processing
         if message.endswith("--") and message.startswith("!"):
             item = message[1:-2]  # Remove ! and --
             self.logger.info(f"SUPER EARLY KARMA MINUS DETECTION: '{message}' for item '{item}'")
-            
+
             # Don't allow users to give karma to themselves
             if item.lower() == source.lower():
                 await self.message(channel, "You can't give karma to yourself!")
                 return
-                
+
             # Directly update karma in the database
             if self.db_connection and event_obj["user_info"]:
                 try:
                     self.logger.info(f"Directly updating karma in database for {item}")
                     cur = self.db_connection.cursor()
-                    
+
                     # First, check if the item exists
                     cur.execute(
                         "SELECT id, karma FROM phreakbot_karma WHERE item = %s AND channel = %s",
                         (item, channel),
                     )
-                    
+
                     karma_row = cur.fetchone()
-                    
+
                     if karma_row:
                         # Item exists, update karma
                         karma_id, current_karma = karma_row
                         new_karma = current_karma - 1
-                        
+
                         cur.execute(
-                            "UPDATE phreakbot_karma SET karma = %s WHERE id = %s", 
+                            "UPDATE phreakbot_karma SET karma = %s WHERE id = %s",
                             (new_karma, karma_id)
                         )
-                        
+
                         # Record who gave the karma
                         cur.execute(
                             """
@@ -441,7 +441,7 @@ class PhreakBot(pydle.Client):
                             """,
                             (karma_id, event_obj["user_info"]["id"], "down", 1),
                         )
-                        
+
                         self.db_connection.commit()
                         await self.message(channel, f"{item} now has {new_karma} karma")
                         return
@@ -452,7 +452,7 @@ class PhreakBot(pydle.Client):
                             (item, -1, channel),
                         )
                         karma_id = cur.fetchone()[0]
-                        
+
                         # Record who gave the karma
                         cur.execute(
                             """
@@ -461,7 +461,7 @@ class PhreakBot(pydle.Client):
                             """,
                             (karma_id, event_obj["user_info"]["id"], "down", 1),
                         )
-                        
+
                         self.db_connection.commit()
                         await self.message(channel, f"{item} now has -1 karma")
                         return
@@ -472,47 +472,47 @@ class PhreakBot(pydle.Client):
 
         # Check if message starts with trigger
         trigger_re = re.compile(f'^{re.escape(self.config["trigger"])}')
-        
+
         # Check for karma minus pattern (e.g., !item--)
         karma_minus_pattern = r"^\!([a-zA-Z0-9_-]+)--(?:\s+#(.+))?$"
         karma_minus_match = re.match(karma_minus_pattern, message)
-        
+
         # Debug karma minus pattern matching
         self.logger.info(f"Karma minus pattern: {karma_minus_pattern}")
         self.logger.info(f"Message: '{message}'")
         self.logger.info(f"Karma minus match: {bool(karma_minus_match)}")
         if karma_minus_match:
             self.logger.info(f"Karma minus match groups: {karma_minus_match.groups()}")
-        
+
         # Special case for google-- and phreak--
         if message == "!google--" or message == "!phreak--":
             self.logger.info(f"SPECIAL CASE DETECTED: '{message}'")
             item = message[1:-2]  # Remove ! and --
-            
+
             # Directly update karma in the database
             if self.db_connection:
                 try:
                     self.logger.info(f"Directly updating karma in database for {item}")
                     cur = self.db_connection.cursor()
-                    
+
                     # First, check if the item exists
                     cur.execute(
                         "SELECT id, karma FROM phreakbot_karma WHERE item = %s AND channel = %s",
                         (item, channel),
                     )
-                    
+
                     karma_row = cur.fetchone()
-                    
+
                     if karma_row:
                         # Item exists, update karma
                         karma_id, current_karma = karma_row
                         new_karma = current_karma - 1
-                        
+
                         cur.execute(
-                            "UPDATE phreakbot_karma SET karma = %s WHERE id = %s", 
+                            "UPDATE phreakbot_karma SET karma = %s WHERE id = %s",
                             (new_karma, karma_id)
                         )
-                        
+
                         # Record who gave the karma
                         if event_obj["user_info"]:
                             cur.execute(
@@ -524,7 +524,7 @@ class PhreakBot(pydle.Client):
                                 """,
                                 (karma_id, event_obj["user_info"]["id"], "down", 1),
                             )
-                        
+
                         self.db_connection.commit()
                         await self.message(channel, f"{item} now has {new_karma} karma")
                         return
@@ -535,7 +535,7 @@ class PhreakBot(pydle.Client):
                             (item, -1, channel),
                         )
                         karma_id = cur.fetchone()[0]
-                        
+
                         # Record who gave the karma
                         if event_obj["user_info"]:
                             cur.execute(
@@ -545,7 +545,7 @@ class PhreakBot(pydle.Client):
                                 """,
                                 (karma_id, event_obj["user_info"]["id"], "down", 1),
                             )
-                        
+
                         self.db_connection.commit()
                         await self.message(channel, f"{item} now has -1 karma")
                         return
@@ -553,38 +553,38 @@ class PhreakBot(pydle.Client):
                     import traceback
                     self.logger.error(f"Error in special case handler: {e}")
                     self.logger.error(f"Traceback: {traceback.format_exc()}")
-            
+
             return
-            
+
         if karma_minus_match:
             self.logger.info(f"KARMA MINUS PATTERN DETECTED: '{message}' in channel '{channel}'")
             item = karma_minus_match.group(1).lower()
             reason = karma_minus_match.group(2)
-            
+
             # Directly update karma in the database
             if self.db_connection:
                 try:
                     self.logger.info(f"Directly updating karma in database for {item}--")
                     cur = self.db_connection.cursor()
-                    
+
                     # First, check if the item exists
                     cur.execute(
                         "SELECT id, karma FROM phreakbot_karma WHERE item = %s AND channel = %s",
                         (item, channel),
                     )
-                    
+
                     karma_row = cur.fetchone()
-                    
+
                     if karma_row:
                         # Item exists, update karma
                         karma_id, current_karma = karma_row
                         new_karma = current_karma - 1
-                        
+
                         cur.execute(
-                            "UPDATE phreakbot_karma SET karma = %s WHERE id = %s", 
+                            "UPDATE phreakbot_karma SET karma = %s WHERE id = %s",
                             (new_karma, karma_id)
                         )
-                        
+
                         # Record who gave the karma
                         if event_obj["user_info"]:
                             cur.execute(
@@ -596,7 +596,7 @@ class PhreakBot(pydle.Client):
                                 """,
                                 (karma_id, event_obj["user_info"]["id"], "down", 1),
                             )
-                        
+
                         # If a reason was provided, record it
                         if reason:
                             cur.execute(
@@ -607,7 +607,7 @@ class PhreakBot(pydle.Client):
                                 """,
                                 (karma_id, "down", reason, channel),
                             )
-                        
+
                         self.db_connection.commit()
                         await self.message(channel, f"{item} now has {new_karma} karma")
                         return
@@ -618,7 +618,7 @@ class PhreakBot(pydle.Client):
                             (item, -1, channel),
                         )
                         karma_id = cur.fetchone()[0]
-                        
+
                         # Record who gave the karma
                         if event_obj["user_info"]:
                             cur.execute(
@@ -628,7 +628,7 @@ class PhreakBot(pydle.Client):
                                 """,
                                 (karma_id, event_obj["user_info"]["id"], "down", 1),
                             )
-                        
+
                         # If a reason was provided, record it
                         if reason:
                             cur.execute(
@@ -639,7 +639,7 @@ class PhreakBot(pydle.Client):
                                 """,
                                 (karma_id, "down", reason, channel),
                             )
-                        
+
                         self.db_connection.commit()
                         await self.message(channel, f"{item} now has -1 karma")
                         return
@@ -647,14 +647,14 @@ class PhreakBot(pydle.Client):
                     import traceback
                     self.logger.error(f"Error in karma minus handler: {e}")
                     self.logger.error(f"Traceback: {traceback.format_exc()}")
-            
+
             return
-            
+
         # Special handling for karma patterns - HARDCODED check for test++
         if message == "!test++":
             self.logger.info(f"HARDCODED KARMA PATTERN DETECTED: '{message}' in channel '{channel}'")
             event_obj["trigger"] = "event"
-            
+
             # Directly call the karma module
             if "karma" in self.modules:
                 try:
@@ -666,20 +666,20 @@ class PhreakBot(pydle.Client):
                     import traceback
                     self.logger.error(f"Error in karma module: {e}")
                     self.logger.error(f"Traceback: {traceback.format_exc()}")
-            
+
             await self._route_to_modules(event_obj)
             return
-            
+
         # Regular karma pattern check
         karma_pattern = re.compile(r"^\!([a-zA-Z0-9_-]+)(\+\+|\-\-)(?:\s+#(.+))?$")
         karma_match = karma_pattern.match(message)
-        
+
         # Debug message parsing
         self.logger.info(f"Processing message: '{message}'")
         self.logger.info(f"Trigger regex: '{trigger_re.pattern}'")
         self.logger.info(f"Trigger match: {bool(trigger_re.match(message))}")
         self.logger.info(f"Karma match: {bool(karma_match)}")
-        
+
         # Special handling for karma patterns
         if karma_match:
             self.logger.info(f"EXACT MESSAGE: '{message}' in channel '{channel}'")
@@ -687,18 +687,134 @@ class PhreakBot(pydle.Client):
             event_obj["trigger"] = "event"
             await self._route_to_modules(event_obj)
             return
-            
+
         # Continue with normal message processing
         if trigger_re.match(message):
             self.logger.info(f"RAW MESSAGE: '{message}'")
-            
+
+            # Check for karma minus pattern first
+            if message.endswith("--") and message.startswith("!"):
+                item = message[1:-2]  # Remove ! and --
+                self.logger.info(f"COMMAND PARSING: Detected karma minus pattern for item '{item}'")
+
+                # Create a special event for karma minus
+                karma_event = event_obj.copy()
+                karma_event["command"] = f"{item}--"
+                karma_event["command_args"] = ""
+                karma_event["trigger"] = "command"
+
+                # Check if any module handles this specific command
+                command_handled = False
+                for module_name, module in self.modules.items():
+                    if karma_event["command"] in module["commands"]:
+                        self.logger.info(f"Found module {module_name} to handle karma minus command {karma_event['command']}")
+                        command_handled = True
+
+                        # Check permissions
+                        has_permission = self._check_permissions(karma_event, module["permissions"])
+                        if has_permission:
+                            try:
+                                self.logger.info(f"Calling module {module_name}.run() with karma minus command {karma_event['command']}")
+                                module["object"].run(self, karma_event)
+                                await self._process_output(karma_event)
+                                return
+                            except Exception as e:
+                                import traceback
+                                self.logger.error(f"Error in module {module_name}: {e}")
+                                self.logger.error(f"Traceback: {traceback.format_exc()}")
+
+                # If no module handles this specific command, use the karmaminus module
+                if not command_handled and "karmaminus" in self.modules:
+                    self.logger.info("Using karmaminus module for general karma minus pattern")
+                    karma_event["trigger"] = "event"  # Set as event for karmaminus
+                    try:
+                        self.modules["karmaminus"]["object"].run(self, karma_event)
+                        await self._process_output(karma_event)
+                        return
+                    except Exception as e:
+                        import traceback
+                        self.logger.error(f"Error in karmaminus module: {e}")
+                        self.logger.error(f"Traceback: {traceback.format_exc()}")
+
+                # If we get here, use the super early handler as a fallback
+                self.logger.info("Using super early handler for karma minus pattern")
+                # Don't allow users to give karma to themselves
+                if item.lower() == event_obj["nick"].lower():
+                    await self.message(channel, "You can't give karma to yourself!")
+                    return
+
+                # Directly update karma in the database
+                if self.db_connection and event_obj["user_info"]:
+                    try:
+                        self.logger.info(f"Directly updating karma in database for {item}")
+                        cur = self.db_connection.cursor()
+
+                        # First, check if the item exists
+                        cur.execute(
+                            "SELECT id, karma FROM phreakbot_karma WHERE item = %s AND channel = %s",
+                            (item, channel),
+                        )
+
+                        karma_row = cur.fetchone()
+
+                        if karma_row:
+                            # Item exists, update karma
+                            karma_id, current_karma = karma_row
+                            new_karma = current_karma - 1
+
+                            cur.execute(
+                                "UPDATE phreakbot_karma SET karma = %s WHERE id = %s",
+                                (new_karma, karma_id)
+                            )
+
+                            # Record who gave the karma
+                            cur.execute(
+                                """
+                                INSERT INTO phreakbot_karma_who (karma_id, users_id, direction, amount)
+                                VALUES (%s, %s, %s, %s)
+                                ON CONFLICT (karma_id, users_id, direction)
+                                DO UPDATE SET amount = phreakbot_karma_who.amount + 1, update_time = CURRENT_TIMESTAMP
+                                """,
+                                (karma_id, event_obj["user_info"]["id"], "down", 1),
+                            )
+
+                            self.db_connection.commit()
+                            await self.message(channel, f"{item} now has {new_karma} karma")
+                            return
+                        else:
+                            # Item doesn't exist, insert new record
+                            cur.execute(
+                                "INSERT INTO phreakbot_karma (item, karma, channel) VALUES (%s, %s, %s) RETURNING id",
+                                (item, -1, channel),
+                            )
+                            karma_id = cur.fetchone()[0]
+
+                            # Record who gave the karma
+                            cur.execute(
+                                """
+                                INSERT INTO phreakbot_karma_who (karma_id, users_id, direction, amount)
+                                VALUES (%s, %s, %s, %s)
+                                """,
+                                (karma_id, event_obj["user_info"]["id"], "down", 1),
+                            )
+
+                            self.db_connection.commit()
+                            await self.message(channel, f"{item} now has -1 karma")
+                            return
+                    except Exception as e:
+                        import traceback
+                        self.logger.error(f"Error in command parsing karma minus handler: {e}")
+                        self.logger.error(f"Traceback: {traceback.format_exc()}")
+
+                return
+
             # Regular command handling - exclude karma patterns
             command_re = re.compile(
                 f'^{re.escape(self.config["trigger"])}([a-zA-Z0-9_][-a-zA-Z0-9_]*)(?:\\s(.*))?$'
             )
             match = command_re.match(message)
             self.logger.info(f"Command match: {bool(match)}")
-            
+
             if match:
                 event_obj["command"] = match.group(1).lower()
                 event_obj["command_args"] = match.group(2) or ""
@@ -773,11 +889,11 @@ class PhreakBot(pydle.Client):
             # Check for karma pattern
             karma_pattern = re.compile(r"^\!([a-zA-Z0-9_-]+)(\+\+|\-\-)(?:\s+#(.+))?$")
             match = karma_pattern.match(event["text"])
-            
+
             if match:
                 self.logger.info(f"Detected karma pattern in message: {event['text']}")
                 self.logger.info(f"Matched groups: {match.groups()}")
-                
+
                 # Try to route directly to karmaplus module
                 if "karmaplus" in self.modules:
                     try:
@@ -785,7 +901,7 @@ class PhreakBot(pydle.Client):
                         self.modules["karmaplus"]["object"].run(self, event)
                         handled = True
                         self.logger.info("Karmaplus module handled the message")
-                        
+
                         # Process output and return early
                         await self._process_output(event)
                         return
