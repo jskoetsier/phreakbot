@@ -277,17 +277,25 @@ def _show_top_karma(bot, event):
 
     cur.close()
 
-    # Display results
+    # Format results in a single line for each category
+    positive_items = []
+    negative_items = []
+    
     if top_positive:
-        bot.add_response("Top positive karma:")
         for item, karma in top_positive:
-            bot.add_response(f"{item}: {karma}")
+            positive_items.append(f"{item}: {karma}")
+    
+    if top_negative:
+        for item, karma in top_negative:
+            negative_items.append(f"{item}: {karma}")
+    
+    # Display results in a single line for each category
+    if positive_items:
+        bot.add_response(f"Top positive karma: {', '.join(positive_items)}")
     else:
         bot.add_response("No items with positive karma found.")
-
-    if top_negative:
-        bot.add_response("Top negative karma:")
-        for item, karma in top_negative:
-            bot.add_response(f"{item}: {karma}")
+        
+    if negative_items:
+        bot.add_response(f"Top negative karma: {', '.join(negative_items)}")
     else:
         bot.add_response("No items with negative karma found.")
