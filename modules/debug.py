@@ -43,10 +43,20 @@ def run(bot, event):
     if bot.state.get("debug_enabled", False):
         # Special handling for karma patterns
         if "text" in event and event["text"]:
-            karma_pattern = re.compile(r"^\!([a-zA-Z0-9_-]+)(\+\+|\-\-)(?:\s+#(.+))?$")
-            match = karma_pattern.match(event["text"])
-            if match:
-                bot.logger.info(
-                    f"DEBUG MODULE - Karma pattern detected: {match.groups()}"
-                )
-                bot.add_response(f"DEBUG: Karma pattern detected: {match.groups()}")
+            # Log all messages that start with ! for debugging
+            if event["text"].startswith("!"):
+                bot.logger.info(f"DEBUG MODULE - Message starts with !: '{event['text']}'")
+                
+            # Check for karma++ pattern
+            karma_plus_pattern = re.compile(r"^\!([a-zA-Z0-9_-]+)\+\+(?:\s+#(.+))?$")
+            match_plus = karma_plus_pattern.match(event["text"])
+            if match_plus:
+                bot.logger.info(f"DEBUG MODULE - Karma++ pattern detected: {match_plus.groups()}")
+                bot.add_response(f"DEBUG: Karma++ pattern detected: {match_plus.groups()}")
+                
+            # Check for karma-- pattern
+            karma_minus_pattern = re.compile(r"^\!([a-zA-Z0-9_-]+)\-\-(?:\s+#(.+))?$")
+            match_minus = karma_minus_pattern.match(event["text"])
+            if match_minus:
+                bot.logger.info(f"DEBUG MODULE - Karma-- pattern detected: {match_minus.groups()}")
+                bot.add_response(f"DEBUG: Karma-- pattern detected: {match_minus.groups()}")
