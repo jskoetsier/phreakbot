@@ -40,6 +40,21 @@ def run(bot, event):
             elif event["command"] == "topkarma":
                 _show_top_karma(bot, event)
                 return True
+            
+            # Special handling for commands that end with -- or ++
+            if event["command"].endswith("--") or event["command"].endswith("++"):
+                bot.logger.info(f"Karma module handling command with karma pattern: {event['command']}")
+                item = event["command"][:-2]  # Remove -- or ++
+                direction = "down" if event["command"].endswith("--") else "up"
+                reason = event["command_args"].strip() if event["command_args"] else None
+                
+                # If reason starts with #, remove it
+                if reason and reason.startswith("#"):
+                    reason = reason[1:].strip()
+                
+                _update_karma(bot, event, item, direction, reason)
+                return True
+                
             return False
 
         # Only process event triggers with text
@@ -58,6 +73,18 @@ def run(bot, event):
 
             _update_karma(bot, event, item, direction, reason)
             return True  # Signal that we've handled this event
+
+        # Direct check for !item-- pattern
+        if event["text"].startswith("!") and event["text"].endswith("--"):
+            bot.logger.info(f"Direct karma minus pattern detected: {event['text']}")
+            item = event["text"][1:-2]  # Remove ! and --
+            
+            # Check if there's a reason (format: !item-- #reason)
+            parts = event["text"].split("#", 1)
+            reason = parts[1].strip() if len(parts) > 1 else None
+            
+            _update_karma(bot, event, item, "down", reason)
+            return True
 
         return False  # We didn't handle this event
 
