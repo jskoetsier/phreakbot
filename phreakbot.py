@@ -395,6 +395,80 @@ class PhreakBot(pydle.Client):
                 else None
             ),
         }
+        
+        # SUPER EARLY CHECK FOR KARMA MINUS PATTERNS
+        # This needs to happen before any other processing
+        if message.endswith("--") and message.startswith("!"):
+            item = message[1:-2]  # Remove ! and --
+            self.logger.info(f"SUPER EARLY KARMA MINUS DETECTION: '{message}' for item '{item}'")
+            
+            # Don't allow users to give karma to themselves
+            if item.lower() == source.lower():
+                await self.message(channel, "You can't give karma to yourself!")
+                return
+                
+            # Directly update karma in the database
+            if self.db_connection and event_obj["user_info"]:
+                try:
+                    self.logger.info(f"Directly updating karma in database for {item}")
+                    cur = self.db_connection.cursor()
+                    
+                    # First, check if the item exists
+                    cur.execute(
+                        "SELECT id, karma FROM phreakbot_karma WHERE item = %s AND channel = %s",
+                        (item, channel),
+                    )
+                    
+                    karma_row = cur.fetchone()
+                    
+                    if karma_row:
+                        # Item exists, update karma
+                        karma_id, current_karma = karma_row
+                        new_karma = current_karma - 1
+                        
+                        cur.execute(
+                            "UPDATE phreakbot_karma SET karma = %s WHERE id = %s", 
+                            (new_karma, karma_id)
+                        )
+                        
+                        # Record who gave the karma
+                        cur.execute(
+                            """
+                            INSERT INTO phreakbot_karma_who (karma_id, users_id, direction, amount)
+                            VALUES (%s, %s, %s, %s)
+                            ON CONFLICT (karma_id, users_id, direction)
+                            DO UPDATE SET amount = phreakbot_karma_who.amount + 1, update_time = CURRENT_TIMESTAMP
+                            """,
+                            (karma_id, event_obj["user_info"]["id"], "down", 1),
+                        )
+                        
+                        self.db_connection.commit()
+                        await self.message(channel, f"{item} now has {new_karma} karma")
+                        return
+                    else:
+                        # Item doesn't exist, insert new record
+                        cur.execute(
+                            "INSERT INTO phreakbot_karma (item, karma, channel) VALUES (%s, %s, %s) RETURNING id",
+                            (item, -1, channel),
+                        )
+                        karma_id = cur.fetchone()[0]
+                        
+                        # Record who gave the karma
+                        cur.execute(
+                            """
+                            INSERT INTO phreakbot_karma_who (karma_id, users_id, direction, amount)
+                            VALUES (%s, %s, %s, %s)
+                            """,
+                            (karma_id, event_obj["user_info"]["id"], "down", 1),
+                        )
+                        
+                        self.db_connection.commit()
+                        await self.message(channel, f"{item} now has -1 karma")
+                        return
+                except Exception as e:
+                    import traceback
+                    self.logger.error(f"Error in super early karma minus handler: {e}")
+                    self.logger.error(f"Traceback: {traceback.format_exc()}")
 
         # Check if message starts with trigger
         trigger_re = re.compile(f'^{re.escape(self.config["trigger"])}')
