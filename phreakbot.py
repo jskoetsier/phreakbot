@@ -574,10 +574,14 @@ class PhreakBot(pydle.Client):
 
             return
 
+        # Define a karma minus pattern for direct handling
+        karma_minus_pattern = re.compile(r"^\!([a-zA-Z0-9_-]+)--(?:\s+#(.+))?$")
+        karma_minus_match = karma_minus_pattern.match(message)
+        
         if karma_minus_match:
             self.logger.info(f"KARMA MINUS PATTERN DETECTED: '{message}' in channel '{channel}'")
             item = karma_minus_match.group(1).lower()
-            reason = karma_minus_match.group(2)
+            reason = karma_minus_match.group(2) if karma_minus_match.groups()[1] else None
 
             # Directly update karma in the database
             if self.db_connection:
