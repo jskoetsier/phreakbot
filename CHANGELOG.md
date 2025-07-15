@@ -1,5 +1,13 @@
 # Changelog
 
+## [v0.1.17] - 2025-07-12
+- Added karma module with ++ and -- support
+- Added support for karma reasons with #reason syntax
+- Added !karma command to show karma for specific items
+- Added !topkarma command to show items with highest and lowest karma
+- Implemented database tracking of who gave karma and why
+- Added protection against self-karma
+
 ## [v0.1.16] - 2025-07-11
 - Consolidated all code to use a single pydle-based implementation
 - Removed redundant infoitems modules (infoitems2.py, infoitems3.py, infoitems4.py)
