@@ -84,10 +84,18 @@ def run(bot, event):
 def handle_custom_command(bot, event):
     """Handle custom infoitem commands like !item = value or !item?"""
     if event["trigger"] == "event" and event["text"].startswith(bot.config["trigger"]):
-        # Check for karma patterns (!item++ or !item--) and skip them
+        # Check for karma patterns (!item++ or !item--) and route to karma module
         karma_pattern = re.compile(r"^\!([a-zA-Z0-9_-]+)(\+\+|\-\-)(?:\s+#(.+))?$")
         if karma_pattern.match(event["text"]):
-            bot.logger.info(f"Skipping karma command: {event['text']}")
+            bot.logger.info(f"Routing karma command to karma module: {event['text']}")
+            if "karma" in bot.modules:
+                try:
+                    bot.modules["karma"]["object"].run(bot, event)
+                    return True
+                except Exception as e:
+                    bot.logger.error(f"Error in karma module: {e}")
+                    import traceback
+                    bot.logger.error(f"Traceback: {traceback.format_exc()}")
             return False
 
         # Check for !item? pattern
