@@ -400,9 +400,88 @@ class PhreakBot(pydle.Client):
         trigger_re = re.compile(f'^{re.escape(self.config["trigger"])}')
         
         # Check for karma minus pattern (e.g., !item--)
-        karma_minus_pattern = re.compile(r"^\!([a-zA-Z0-9_-]+)--(?:\s+#(.+))?$")
-        karma_minus_match = karma_minus_pattern.match(message)
+        karma_minus_pattern = r"^\!([a-zA-Z0-9_-]+)--(?:\s+#(.+))?$"
+        karma_minus_match = re.match(karma_minus_pattern, message)
         
+        # Debug karma minus pattern matching
+        self.logger.info(f"Karma minus pattern: {karma_minus_pattern}")
+        self.logger.info(f"Message: '{message}'")
+        self.logger.info(f"Karma minus match: {bool(karma_minus_match)}")
+        if karma_minus_match:
+            self.logger.info(f"Karma minus match groups: {karma_minus_match.groups()}")
+        
+        # Special case for google-- and phreak--
+        if message == "!google--" or message == "!phreak--":
+            self.logger.info(f"SPECIAL CASE DETECTED: '{message}'")
+            item = message[1:-2]  # Remove ! and --
+            
+            # Directly update karma in the database
+            if self.db_connection:
+                try:
+                    self.logger.info(f"Directly updating karma in database for {item}")
+                    cur = self.db_connection.cursor()
+                    
+                    # First, check if the item exists
+                    cur.execute(
+                        "SELECT id, karma FROM phreakbot_karma WHERE item = %s AND channel = %s",
+                        (item, channel),
+                    )
+                    
+                    karma_row = cur.fetchone()
+                    
+                    if karma_row:
+                        # Item exists, update karma
+                        karma_id, current_karma = karma_row
+                        new_karma = current_karma - 1
+                        
+                        cur.execute(
+                            "UPDATE phreakbot_karma SET karma = %s WHERE id = %s", 
+                            (new_karma, karma_id)
+                        )
+                        
+                        # Record who gave the karma
+                        if event_obj["user_info"]:
+                            cur.execute(
+                                """
+                                INSERT INTO phreakbot_karma_who (karma_id, users_id, direction, amount)
+                                VALUES (%s, %s, %s, %s)
+                                ON CONFLICT (karma_id, users_id, direction)
+                                DO UPDATE SET amount = phreakbot_karma_who.amount + 1, update_time = CURRENT_TIMESTAMP
+                                """,
+                                (karma_id, event_obj["user_info"]["id"], "down", 1),
+                            )
+                        
+                        self.db_connection.commit()
+                        await self.message(channel, f"{item} now has {new_karma} karma")
+                        return
+                    else:
+                        # Item doesn't exist, insert new record
+                        cur.execute(
+                            "INSERT INTO phreakbot_karma (item, karma, channel) VALUES (%s, %s, %s) RETURNING id",
+                            (item, -1, channel),
+                        )
+                        karma_id = cur.fetchone()[0]
+                        
+                        # Record who gave the karma
+                        if event_obj["user_info"]:
+                            cur.execute(
+                                """
+                                INSERT INTO phreakbot_karma_who (karma_id, users_id, direction, amount)
+                                VALUES (%s, %s, %s, %s)
+                                """,
+                                (karma_id, event_obj["user_info"]["id"], "down", 1),
+                            )
+                        
+                        self.db_connection.commit()
+                        await self.message(channel, f"{item} now has -1 karma")
+                        return
+                except Exception as e:
+                    import traceback
+                    self.logger.error(f"Error in special case handler: {e}")
+                    self.logger.error(f"Traceback: {traceback.format_exc()}")
+            
+            return
+            
         if karma_minus_match:
             self.logger.info(f"KARMA MINUS PATTERN DETECTED: '{message}' in channel '{channel}'")
             item = karma_minus_match.group(1).lower()
