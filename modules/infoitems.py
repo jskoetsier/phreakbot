@@ -15,7 +15,7 @@ def config(bot):
         "help": {
             "infoitem": "Manage info items. Usage: !infoitem add <item> <value> | !infoitem del <id> | !infoitem list [<item>]",
             "info": "Alias for infoitem",
-            "forget": "Delete an info item by name and value. Usage: !forget <item> <value>"
+            "forget": "Delete an info item by name and value. Usage: !forget <item> <value>",
         },
         "permissions": ["user"],
     }
@@ -47,7 +47,9 @@ def run(bot, event):
 
     args = event["command_args"].split()
     if not args:
-        bot.reply("Usage: !infoitem add <item> <value> | !infoitem del <id> | !infoitem list [<item>]")
+        bot.reply(
+            "Usage: !infoitem add <item> <value> | !infoitem del <id> | !infoitem list [<item>]"
+        )
         return True
 
     action = args[0].lower()
@@ -73,15 +75,23 @@ def run(bot, event):
             _list_infoitems(bot, event)
         return True
     else:
-        bot.reply("Usage: !infoitem add <item> <value> | !infoitem del <id> | !infoitem list [<item>]")
+        bot.reply(
+            "Usage: !infoitem add <item> <value> | !infoitem del <id> | !infoitem list [<item>]"
+        )
         return True
 
 
 def handle_custom_command(bot, event):
     """Handle custom infoitem commands like !item = value or !item?"""
     if event["trigger"] == "event" and event["text"].startswith(bot.config["trigger"]):
+        # Check for karma patterns (!item++ or !item--) and skip them
+        karma_pattern = re.compile(r"^\!([a-zA-Z0-9_-]+)(\+\+|\-\-)(?:\s+#(.+))?$")
+        if karma_pattern.match(event["text"]):
+            bot.logger.info(f"Skipping karma command: {event['text']}")
+            return False
+
         # Check for !item? pattern
-        get_pattern = re.compile(r'^\!([a-zA-Z0-9_-]+)\?$')
+        get_pattern = re.compile(r"^\!([a-zA-Z0-9_-]+)\?$")
         get_match = get_pattern.match(event["text"])
         if get_match:
             item = get_match.group(1).lower()
@@ -90,7 +100,7 @@ def handle_custom_command(bot, event):
             return True
 
         # Check for !item = value pattern
-        set_pattern = re.compile(r'^\!([a-zA-Z0-9_-]+)(?:\s*[=:+]\s*|\s+)(.+)$')
+        set_pattern = re.compile(r"^\!([a-zA-Z0-9_-]+)(?:\s*[=:+]\s*|\s+)(.+)$")
         set_match = set_pattern.match(event["text"])
         if set_match:
             item = set_match.group(1).lower()
@@ -99,7 +109,7 @@ def handle_custom_command(bot, event):
             # Skip if the item is a registered command
             registered_commands = []
             for module in bot.modules.values():
-                registered_commands.extend(module.get('commands', []))
+                registered_commands.extend(module.get("commands", []))
 
             if item not in registered_commands:
                 bot.logger.info(f"Custom infoitem set command: {item} = {value}")
@@ -121,7 +131,7 @@ def _add_infoitem(bot, event, item, value):
             cur = bot.db_connection.cursor()
             cur.execute(
                 "INSERT INTO phreakbot_infoitems (users_id, item, value, channel) VALUES (%s, %s, %s, %s) RETURNING id",
-                (event["user_info"]["id"], item, value, event["channel"])
+                (event["user_info"]["id"], item, value, event["channel"]),
             )
             item_id = cur.fetchone()[0]
             bot.db_connection.commit()
@@ -151,7 +161,7 @@ def _delete_infoitem(bot, event, item_id):
             # First check if the item exists and belongs to the user or if user is admin
             cur.execute(
                 "SELECT i.id, i.item, i.users_id FROM phreakbot_infoitems i WHERE i.id = %s",
-                (item_id,)
+                (item_id,),
             )
             item = cur.fetchone()
 
@@ -171,10 +181,7 @@ def _delete_infoitem(bot, event, item_id):
                 return
 
             # Delete the item
-            cur.execute(
-                "DELETE FROM phreakbot_infoitems WHERE id = %s",
-                (item_id,)
-            )
+            cur.execute("DELETE FROM phreakbot_infoitems WHERE id = %s", (item_id,))
             bot.db_connection.commit()
             bot.reply(f"Info item '{item[1]}' with ID {item_id} deleted successfully.")
             bot.logger.info(f"Deleted info item '{item[1]}' with ID {item_id}")
@@ -198,7 +205,7 @@ def _get_infoitem(bot, event, item):
                 "JOIN phreakbot_users u ON i.users_id = u.id "
                 "WHERE i.item = %s AND i.channel = %s "
                 "ORDER BY i.insert_time",
-                (item, event["channel"])
+                (item, event["channel"]),
             )
 
             items = cur.fetchall()
@@ -208,7 +215,9 @@ def _get_infoitem(bot, event, item):
             else:
                 bot.reply(f"Info for '{item}' ({len(items)} entries):")
                 for item_id, value, username, timestamp in items:
-                    bot.reply(f"• [{item_id}] {value} (added by {username} on {timestamp.strftime('%Y-%m-%d')})")
+                    bot.reply(
+                        f"• [{item_id}] {value} (added by {username} on {timestamp.strftime('%Y-%m-%d')})"
+                    )
         except Exception as e:
             bot.logger.error(f"Error retrieving info item: {e}")
             bot.reply(f"Error retrieving info item: {e}")
@@ -232,7 +241,7 @@ def _forget_infoitem(bot, event, item, value):
             # First check if the item exists with the specified value
             cur.execute(
                 "SELECT i.id, i.item, i.value, i.users_id FROM phreakbot_infoitems i WHERE i.item = %s AND i.value = %s AND i.channel = %s",
-                (item, value, event["channel"])
+                (item, value, event["channel"]),
             )
             items = cur.fetchall()
 
@@ -242,7 +251,9 @@ def _forget_infoitem(bot, event, item, value):
 
             # If there are multiple matches, we need to be more specific
             if len(items) > 1:
-                bot.reply(f"Multiple matches found for '{item}' with value '{value}'. Please use !infoitem del <id> with one of these IDs:")
+                bot.reply(
+                    f"Multiple matches found for '{item}' with value '{value}'. Please use !infoitem del <id> with one of these IDs:"
+                )
                 for item_id, item_name, item_value, _ in items:
                     bot.reply(f"• [{item_id}] {item_value}")
                 return
@@ -262,10 +273,7 @@ def _forget_infoitem(bot, event, item, value):
                 return
 
             # Delete the item
-            cur.execute(
-                "DELETE FROM phreakbot_infoitems WHERE id = %s",
-                (item_id,)
-            )
+            cur.execute("DELETE FROM phreakbot_infoitems WHERE id = %s", (item_id,))
             bot.db_connection.commit()
             bot.reply(f"Info item '{item}' with value '{value}' deleted successfully.")
             bot.logger.info(f"Deleted info item '{item}' with ID {item_id}")
@@ -286,7 +294,7 @@ def _list_infoitems(bot, event):
             cur = bot.db_connection.cursor()
             cur.execute(
                 "SELECT DISTINCT item FROM phreakbot_infoitems WHERE channel = %s ORDER BY item",
-                (event["channel"],)
+                (event["channel"],),
             )
 
             items = cur.fetchall()
