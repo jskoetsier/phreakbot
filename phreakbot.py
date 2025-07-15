@@ -421,9 +421,9 @@ class PhreakBot(pydle.Client):
         if trigger_re.match(message):
             self.logger.info(f"RAW MESSAGE: '{message}'")
             
-            # Regular command handling
+            # Regular command handling - exclude karma patterns
             command_re = re.compile(
-                f'^{re.escape(self.config["trigger"])}([-a-zA-Z0-9]+)(?:\\s(.*))?$'
+                f'^{re.escape(self.config["trigger"])}([a-zA-Z0-9_][-a-zA-Z0-9_]*)(?:\\s(.*))?$'
             )
             match = command_re.match(message)
             self.logger.info(f"Command match: {bool(match)}")
