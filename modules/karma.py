@@ -24,6 +24,8 @@ def config(bot):
 
 def run(bot, event):
     """Handle karma commands and events"""
+    bot.logger.info(f"Karma module run called with event: {event}")
+
     if not bot.db_connection:
         bot.add_response("Database connection is not available.")
         return
@@ -31,6 +33,7 @@ def run(bot, event):
     try:
         # Handle explicit commands
         if event["trigger"] == "command":
+            bot.logger.info(f"Karma module processing command: {event['command']}")
             if event["command"] == "karma":
                 _show_karma(bot, event)
             elif event["command"] == "topkarma":
@@ -39,6 +42,7 @@ def run(bot, event):
 
         # Handle karma events (++ and --)
         if event["trigger"] == "event":
+            bot.logger.info(f"Karma module processing event: {event['text']}")
             _process_karma_event(bot, event)
 
     except Exception as e:
@@ -52,6 +56,7 @@ def run(bot, event):
 def _process_karma_event(bot, event):
     """Process messages for karma events (++ and --)"""
     text = event["text"]
+    bot.logger.info(f"Processing karma event: {text}")
 
     # Pattern for !item++ or !item-- with optional #reason
     karma_pattern = (
@@ -60,9 +65,15 @@ def _process_karma_event(bot, event):
         + r"([a-zA-Z0-9_-]+)(\+\+|\-\-)(?:\s+#(.+))?$"
     )
 
+    bot.logger.info(f"Karma pattern: {karma_pattern}")
     match = re.match(karma_pattern, text)
+    bot.logger.info(f"Karma match: {bool(match)}")
+
     if not match:
+        bot.logger.info(f"No match for karma pattern in text: {text}")
         return
+
+    bot.logger.info(f"Matched karma pattern: {match.groups()}")
 
     item = match.group(1).lower()
     direction = "up" if match.group(2) == "++" else "down"
