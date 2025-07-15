@@ -9,7 +9,7 @@ import re
 def config(bot):
     """Return module configuration"""
     return {
-        "events": ["pubmsg", "privmsg"],  # Listen to both public and private messages
+        "events": ["pubmsg", "privmsg", "event"],  # Listen to all event types
         "commands": ["karma", "topkarma"],
         "permissions": ["user"],
         "help": "Karma tracking system. Usage:\n"
@@ -174,16 +174,16 @@ def _show_karma(bot, event):
 
     # Display karma and reasons on a single line
     response = f"{item} has {karma_value} karma"
-    
+
     if reasons:
         reason_texts = []
         for direction, reason in reasons:
             direction_symbol = "+" if direction == "up" else "-"
             reason_texts.append(f"{direction_symbol} {reason}")
-        
+
         if reason_texts:
             response += f" (Recent reasons: {', '.join(reason_texts)})"
-    
+
     bot.add_response(response)
 
 
