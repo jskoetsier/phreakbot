@@ -84,6 +84,8 @@ def run(bot, event):
 def handle_custom_command(bot, event):
     """Handle custom infoitem commands like !item = value or !item?"""
     if event["trigger"] == "event" and event["text"].startswith(bot.config["trigger"]):
+        bot.logger.info(f"Infoitems handle_custom_command processing: {event['text']}")
+        
         # SUPER EARLY CHECK for karma patterns (!item++ or !item--) and ALWAYS return False to let other modules handle it
         # This is the first check we do to ensure karma patterns are never handled by infoitems
         if event["text"].endswith("++") or event["text"].endswith("--"):
