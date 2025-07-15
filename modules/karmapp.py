@@ -29,21 +29,21 @@ def run(bot, event):
 
     # Log every message for debugging
     bot.logger.info(f"KarmaPP checking message: {event['text']}")
-    
+
     # Check for karma pattern
     karma_pattern = r"^\!([a-zA-Z0-9_-]+)(\+\+|\-\-)(?:\s+#(.+))?$"
     match = re.match(karma_pattern, event["text"])
-    
+
     if not match:
         bot.logger.info(f"KarmaPP: No match for karma pattern")
         return False
-    
+
     bot.logger.info(f"KarmaPP: Matched karma pattern: {match.groups()}")
-    
+
     item = match.group(1).lower()
     direction = "up" if match.group(2) == "++" else "down"
     reason = match.group(3)
-    
+
     # Process the karma
     _update_karma(bot, event, item, direction, reason)
     return True  # Signal that we've handled this event
@@ -51,8 +51,10 @@ def run(bot, event):
 
 def _update_karma(bot, event, item, direction, reason=None):
     """Update karma for an item"""
-    bot.logger.info(f"KarmaPP: Updating karma for {item} in direction {direction} with reason {reason}")
-    
+    bot.logger.info(
+        f"KarmaPP: Updating karma for {item} in direction {direction} with reason {reason}"
+    )
+
     # Get the user's ID
     user_info = event["user_info"]
     if not user_info:

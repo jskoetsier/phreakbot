@@ -34,33 +34,36 @@ def run(bot, event):
             return
 
         bot.logger.info(f"KarmaPlus processing event text: {event['text']}")
-        
+
         # Check for karma pattern
         karma_pattern = (
             r"^"
             + re.escape(bot.config["trigger"])
             + r"([a-zA-Z0-9_-]+)(\+\+|\-\-)(?:\s+#(.+))?$"
         )
-        
+
         match = re.match(karma_pattern, event["text"])
         bot.logger.info(f"KarmaPlus karma pattern match: {bool(match)}")
-        
+
         if not match:
-            bot.logger.info(f"KarmaPlus: No match for karma pattern in text: {event['text']}")
+            bot.logger.info(
+                f"KarmaPlus: No match for karma pattern in text: {event['text']}"
+            )
             return False
-        
+
         bot.logger.info(f"KarmaPlus: Matched karma pattern: {match.groups()}")
-        
+
         item = match.group(1).lower()
         direction = "up" if match.group(2) == "++" else "down"
         reason = match.group(3)
-        
+
         _update_karma(bot, event, item, direction, reason)
         return True  # Signal that we've handled this event
 
     except Exception as e:
         bot.logger.error(f"Error in KarmaPlus module: {e}")
         import traceback
+
         bot.logger.error(f"Traceback: {traceback.format_exc()}")
         bot.add_response("Error processing karma command.")
         return False
@@ -68,8 +71,10 @@ def run(bot, event):
 
 def _update_karma(bot, event, item, direction, reason=None):
     """Update karma for an item"""
-    bot.logger.info(f"KarmaPlus: Updating karma for {item} in direction {direction} with reason {reason}")
-    
+    bot.logger.info(
+        f"KarmaPlus: Updating karma for {item} in direction {direction} with reason {reason}"
+    )
+
     # Get the user's ID
     user_info = event["user_info"]
     if not user_info:

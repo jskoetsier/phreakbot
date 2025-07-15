@@ -10,13 +10,13 @@ def config(bot):
     """Return module configuration"""
     return {
         "events": ["pubmsg", "privmsg", "event"],  # Listen to all event types
-        "commands": ["karma", "topkarma", "kup", "kdown"],
+        "commands": ["karma", "topkarma"],
         "permissions": ["user"],
         "help": "Karma tracking system. Usage:\n"
-        "!kup <item> - Increase karma for an item\n"
-        "!kdown <item> - Decrease karma for an item\n"
-        "!kup <item> #reason - Increase karma with a reason\n"
-        "!kdown <item> #reason - Decrease karma with a reason\n"
+        "!example++ - Increase karma for 'example'\n"
+        "!example-- - Decrease karma for 'example'\n"
+        "!example++ #reason - Increase karma with a reason\n"
+        "!example-- #reason - Decrease karma with a reason\n"
         "!karma <item> - Show karma for a specific item\n"
         "!topkarma - Show items with highest and lowest karma",
     }
@@ -47,26 +47,26 @@ def run(bot, event):
         # Handle karma events (++ and --)
         if event["trigger"] == "event" and "text" in event and event["text"]:
             bot.logger.info(f"Karma module processing event text: {event['text']}")
-            
+
             # Check for karma pattern directly here
             karma_pattern = (
                 r"^"
                 + re.escape(bot.config["trigger"])
                 + r"([a-zA-Z0-9_-]+)(\+\+|\-\-)(?:\s+#(.+))?$"
             )
-            
+
             match = re.match(karma_pattern, event["text"])
             bot.logger.info(f"Direct karma pattern match: {bool(match)}")
-            
+
             if match:
                 bot.logger.info(f"Matched karma pattern directly: {match.groups()}")
                 item = match.group(1).lower()
                 direction = "up" if match.group(2) == "++" else "down"
                 reason = match.group(3)
-                
+
                 _update_karma(bot, event, item, direction, reason)
                 return
-            
+
             # If no direct match, try the regular process
             _process_karma_event(bot, event)
 
@@ -81,28 +81,32 @@ def run(bot, event):
 def _process_karma_up(bot, event):
     """Process karma up command"""
     if not event["command_args"]:
-        bot.add_response("Please specify an item to give karma to. Usage: !kup <item> [#reason]")
+        bot.add_response(
+            "Please specify an item to give karma to. Usage: !kup <item> [#reason]"
+        )
         return
-    
+
     # Split the command args to get the item and optional reason
-    args = event["command_args"].split('#', 1)
+    args = event["command_args"].split("#", 1)
     item = args[0].strip().lower()
     reason = args[1].strip() if len(args) > 1 else None
-    
+
     _update_karma(bot, event, item, "up", reason)
 
 
 def _process_karma_down(bot, event):
     """Process karma down command"""
     if not event["command_args"]:
-        bot.add_response("Please specify an item to give karma to. Usage: !kdown <item> [#reason]")
+        bot.add_response(
+            "Please specify an item to give karma to. Usage: !kdown <item> [#reason]"
+        )
         return
-    
+
     # Split the command args to get the item and optional reason
-    args = event["command_args"].split('#', 1)
+    args = event["command_args"].split("#", 1)
     item = args[0].strip().lower()
     reason = args[1].strip() if len(args) > 1 else None
-    
+
     _update_karma(bot, event, item, "down", reason)
 
 
@@ -131,14 +135,16 @@ def _process_karma_event(bot, event):
     item = match.group(1).lower()
     direction = "up" if match.group(2) == "++" else "down"
     reason = match.group(3)
-    
+
     _update_karma(bot, event, item, direction, reason)
 
 
 def _update_karma(bot, event, item, direction, reason=None):
     """Update karma for an item"""
-    bot.logger.info(f"Updating karma for {item} in direction {direction} with reason {reason}")
-    
+    bot.logger.info(
+        f"Updating karma for {item} in direction {direction} with reason {reason}"
+    )
+
     # Get the user's ID
     user_info = event["user_info"]
     if not user_info:

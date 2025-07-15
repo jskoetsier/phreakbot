@@ -27,15 +27,15 @@ def run(bot, event):
     # Check for karma pattern
     karma_pattern = r"^\!([a-zA-Z0-9_-]+)(\-\-)(?:\s+#(.+))?$"
     match = re.match(karma_pattern, event["text"])
-    
+
     if not match:
         return False
-    
+
     bot.logger.info(f"KarmaMinus: Matched karma pattern: {match.groups()}")
-    
+
     item = match.group(1).lower()
     reason = match.group(3)
-    
+
     # Process the karma
     _update_karma(bot, event, item, reason)
     return True  # Signal that we've handled this event
@@ -44,7 +44,7 @@ def run(bot, event):
 def _update_karma(bot, event, item, reason=None):
     """Update karma for an item"""
     bot.logger.info(f"KarmaMinus: Updating karma for {item} with reason {reason}")
-    
+
     # Get the user's ID
     user_info = event["user_info"]
     if not user_info:
