@@ -45,8 +45,29 @@ def run(bot, event):
             return
 
         # Handle karma events (++ and --)
-        if event["trigger"] == "event":
-            bot.logger.info(f"Karma module processing event: {event['text']}")
+        if event["trigger"] == "event" and "text" in event and event["text"]:
+            bot.logger.info(f"Karma module processing event text: {event['text']}")
+            
+            # Check for karma pattern directly here
+            karma_pattern = (
+                r"^"
+                + re.escape(bot.config["trigger"])
+                + r"([a-zA-Z0-9_-]+)(\+\+|\-\-)(?:\s+#(.+))?$"
+            )
+            
+            match = re.match(karma_pattern, event["text"])
+            bot.logger.info(f"Direct karma pattern match: {bool(match)}")
+            
+            if match:
+                bot.logger.info(f"Matched karma pattern directly: {match.groups()}")
+                item = match.group(1).lower()
+                direction = "up" if match.group(2) == "++" else "down"
+                reason = match.group(3)
+                
+                _update_karma(bot, event, item, direction, reason)
+                return
+            
+            # If no direct match, try the regular process
             _process_karma_event(bot, event)
 
     except Exception as e:
