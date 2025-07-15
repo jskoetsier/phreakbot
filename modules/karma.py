@@ -57,7 +57,7 @@ def _process_karma_event(bot, event):
     karma_pattern = (
         r"^"
         + re.escape(bot.config["trigger"])
-        + r"([^\s+\-#]+)(\+\+|\-\-)(?:\s+#(.+))?$"
+        + r"([a-zA-Z0-9_-]+)(\+\+|\-\-)(?:\s+#(.+))?$"
     )
 
     match = re.match(karma_pattern, text)
