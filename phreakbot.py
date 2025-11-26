@@ -146,12 +146,16 @@ class PhreakBot(pydle.Client):
                 self.logger.info("Database connection established successfully")
                 return True
             except Exception as e:
-                self.logger.error(f"Database connection attempt {attempt + 1} failed: {e}")
+                self.logger.error(
+                    f"Database connection attempt {attempt + 1} failed: {e}"
+                )
                 if attempt < max_retries - 1:
                     self.logger.info(f"Retrying in {retry_delay} seconds...")
                     time.sleep(retry_delay)
                 else:
-                    self.logger.warning("All database connection attempts failed. Bot will run with limited functionality.")
+                    self.logger.warning(
+                        "All database connection attempts failed. Bot will run with limited functionality."
+                    )
                     self.db_connection = None
                     return False
 
@@ -160,7 +164,7 @@ class PhreakBot(pydle.Client):
         if self.db_connection is None:
             self.logger.warning("No database connection, attempting to reconnect...")
             return self.db_connect(max_retries=2, retry_delay=3)
-        
+
         try:
             cur = self.db_connection.cursor()
             cur.execute("SELECT 1")
@@ -224,7 +228,9 @@ class PhreakBot(pydle.Client):
             cur.close()
             return ret
         except psycopg2.OperationalError as e:
-            self.logger.error(f"Database connection lost in db_get_userinfo_by_userhost: {e}")
+            self.logger.error(
+                f"Database connection lost in db_get_userinfo_by_userhost: {e}"
+            )
             self.db_connection = None
             return None
         except Exception as e:
@@ -340,7 +346,10 @@ class PhreakBot(pydle.Client):
         except Exception as e:
             self.logger.error(f"Error handling message from {source}: {e}")
             if is_private or message.startswith(self.config["trigger"]):
-                await self.message(channel, f"Error processing command: {type(e).__name__}. Please try again or contact bot administrator.")
+                await self.message(
+                    channel,
+                    f"Error processing command: {type(e).__name__}. Please try again or contact bot administrator.",
+                )
 
     async def on_raw_join(self, message):
         """Capture hostmask from raw JOIN message"""
@@ -687,7 +696,7 @@ class PhreakBot(pydle.Client):
                             self.logger.info(
                                 f"Calling module {module_name}.run() with command {event['command']}"
                             )
-                            await module["object"].run(self, event)
+                            module["object"].run(self, event)
                             handled = True
                             self.logger.info(
                                 f"Module {module_name} handled command {event['command']}"
@@ -744,7 +753,7 @@ class PhreakBot(pydle.Client):
                         self.logger.info(
                             f"Calling module {module_name}.run() with event"
                         )
-                        await module["object"].run(self, event)
+                        module["object"].run(self, event)
                         self.logger.info(f"Module {module_name} processed event")
                         handled = True
                     except Exception as e:
