@@ -295,16 +295,15 @@ class PhreakBot(pydle.Client):
         """Capture hostmask from raw JOIN message"""
         # message.source contains the full hostmask: nick!user@host
         if message.source:
-            nick = message.params[0] if len(message.params) > 0 else message.source.split('!')[0]
-            # Get nick from source if params don't have it
-            if '!' not in message.source:
-                return
-            
-            source_nick = message.source.split('!')[0]
-            self.user_hostmasks[source_nick.lower()] = message.source
-            self.logger.info(f"Cached hostmask from JOIN: {message.source}")
-        
-        # Call the parent handler
+            # The source is already the full hostmask
+            hostmask = message.source
+            nick = hostmask.split("!")[0] if "!" in hostmask else hostmask
+
+            # Cache the full hostmask for the meet command
+            self.user_hostmasks[nick.lower()] = hostmask
+            self.logger.info(f"Cached hostmask from raw JOIN: {hostmask}")
+
+        # Call the parent handler to continue normal processing
         await super().on_raw_join(message)
 
     async def on_join(self, channel, user):
