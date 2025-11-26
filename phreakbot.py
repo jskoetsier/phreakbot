@@ -42,6 +42,7 @@ class PhreakBot(pydle.Client):
         self.db_connection = None
         self.re = re  # Expose re module for modules to use
         self.state = {}  # State dictionary for modules to use
+        self.user_hostmasks = {}  # Cache of user hostmasks from JOIN/PRIVMSG events
 
         # Set up trigger regex for modules to use
         self.trigger_re = re.compile(f'^{re.escape(self.config["trigger"])}')
@@ -384,6 +385,9 @@ class PhreakBot(pydle.Client):
         self.logger.info(f"Formatted hostmask: {user_host}")
         self.logger.info(f"Processing message from {source} in {channel}: '{message}'")
 
+        # Cache the hostmask for later use
+        self.user_hostmasks[source.lower()] = user_host
+
         # Create event object similar to the original bot
         event_obj = {
             "server": self.network,
@@ -484,6 +488,9 @@ class PhreakBot(pydle.Client):
             self.logger.error(f"Error getting user info: {e}")
             user_host = f"{user}!unknown@unknown"
 
+        # Cache the hostmask for later use
+        self.user_hostmasks[user.lower()] = user_host
+
         # Log join and part events
         if event_type == "join":
             self.logger.info(f"JOIN: {user} ({user_host}) joined {channel}")
@@ -491,6 +498,9 @@ class PhreakBot(pydle.Client):
             self.logger.info(f"PART: {user} ({user_host}) left {channel}")
         elif event_type == "quit":
             self.logger.info(f"QUIT: {user} ({user_host}) quit")
+            # Remove from cache on quit
+            if user.lower() in self.user_hostmasks:
+                del self.user_hostmasks[user.lower()]
 
         event_obj = {
             "server": self.network,
@@ -593,7 +603,7 @@ class PhreakBot(pydle.Client):
 
             # Create a copy of the modules dict to avoid "dictionary changed during iteration" errors
             modules_copy = dict(self.modules)
-            
+
             for module_name, module in modules_copy.items():
                 if event["command"] in module["commands"]:
                     self.logger.info(

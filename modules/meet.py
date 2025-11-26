@@ -76,10 +76,14 @@ def run(bot, event):
             bot.logger.info(f"User '{tnick}' not found in any channel")
             return
 
-        # Get the actual hostmask - pydle's whois() doesn't work on IRCnet, so we'll construct a basic one
-        # The real hostmask will be captured when the user sends a message
-        tuserhost = f"{found_user}!{found_user}@user.unknown"
-        bot.logger.info(f"Using constructed hostmask for '{found_user}': {tuserhost}")
+        # Get the actual hostmask from cache (populated when user joins or sends messages)
+        if found_user.lower() in bot.user_hostmasks:
+            tuserhost = bot.user_hostmasks[found_user.lower()]
+            bot.logger.info(f"Using cached hostmask for '{found_user}': {tuserhost}")
+        else:
+            # User hasn't joined or sent a message yet, use placeholder
+            tuserhost = f"{found_user}!{found_user}@user.unknown"
+            bot.logger.info(f"No cached hostmask found, using placeholder: {tuserhost}")
 
         # Check if the user already exists in the database
         cur = bot.db_connection.cursor()
