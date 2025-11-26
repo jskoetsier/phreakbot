@@ -1,51 +1,78 @@
-version: '3'
+version: '3.8'
 
 services:
   postgres:
-    image: postgres:14-alpine
+    image: docker.io/postgres:14-alpine
+    container_name: phreakbot-postgres
     restart: unless-stopped
     environment:
-      - POSTGRES_USER=phreakbot
-      - POSTGRES_PASSWORD=phreakbot
-      - POSTGRES_DB=phreakbot
+      POSTGRES_USER: phreakbot
+      POSTGRES_PASSWORD: phreakbot
+      POSTGRES_DB: phreakbot
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - postgres_data:/var/lib/postgresql/data:Z
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U phreakbot"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - phreakbot-network
 
   db-init:
-    image: postgres:14-alpine
+    image: docker.io/postgres:14-alpine
+    container_name: phreakbot-db-init
     depends_on:
-      - postgres
+      postgres:
+        condition: service_healthy
     volumes:
-      - ./scripts/direct-init.sh:/direct-init.sh
+      - ./scripts/direct-init.sh:/direct-init.sh:Z
+      - ./dbschema.psql:/dbschema.psql:Z
     command: /direct-init.sh
     environment:
-      - PGPASSWORD=phreakbot
+      PGPASSWORD: phreakbot
+      PGHOST: postgres
+      PGUSER: phreakbot
+      PGDATABASE: phreakbot
+    networks:
+      - phreakbot-network
 
   phreakbot:
-    build: .
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: phreakbot
     restart: unless-stopped
     depends_on:
-      - db-init
+      db-init:
+        condition: service_completed_successfully
     volumes:
-      - ./config:/app/config
-      - ./modules:/app/modules
-      - ./extra_modules:/app/extra_modules
-      - ./logs:/app/logs
-      - ./scripts/startup.sh:/app/scripts/startup.sh
+      - ./config:/app/config:Z
+      - ./modules:/app/modules:Z
+      - ./extra_modules:/app/extra_modules:Z
+      - ./logs:/app/logs:Z
+      - ./scripts/startup.sh:/app/scripts/startup.sh:Z
     environment:
-      - DB_HOST=postgres
-      - DB_PORT=5432
-      - DB_USER=phreakbot
-      - DB_PASSWORD=phreakbot
-      - DB_NAME=phreakbot
-      - IRC_SERVER=${IRC_SERVER:-irc.libera.chat}
-      - IRC_PORT=${IRC_PORT:-6667}
-      - IRC_NICKNAME=${IRC_NICKNAME:-PhreakBot}
-      - IRC_CHANNEL=${IRC_CHANNEL:-#phreakbot}
-      - REMOTE_SSH_COMMAND=${REMOTE_SSH_COMMAND:-}
-      - REMOTE_DIRECTORY=${REMOTE_DIRECTORY:-/opt/phreakbot}
-      - BOT_VERSION=${BOT_VERSION:-standard}  # Use 'pydle' for the pydle version
-    command: /app/startup.sh
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USER: phreakbot
+      DB_PASSWORD: phreakbot
+      DB_NAME: phreakbot
+      IRC_SERVER: ${IRC_SERVER:-irc.libera.chat}
+      IRC_PORT: ${IRC_PORT:-6667}
+      IRC_NICKNAME: ${IRC_NICKNAME:-PhreakBot}
+      IRC_CHANNEL: ${IRC_CHANNEL:-#phreakbot}
+      REMOTE_SSH_COMMAND: ${REMOTE_SSH_COMMAND:-}
+      REMOTE_DIRECTORY: ${REMOTE_DIRECTORY:-/opt/phreakbot}
+      BOT_VERSION: ${BOT_VERSION:-standard}
+    command: /app/scripts/startup.sh
+    networks:
+      - phreakbot-network
 
 volumes:
   postgres_data:
+    driver: local
+
+networks:
+  phreakbot-network:
+    driver: bridge

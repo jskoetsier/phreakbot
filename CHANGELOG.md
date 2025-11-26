@@ -1,5 +1,24 @@
 # Changelog
 
+## 0.1.22 (2025-11-26)
+- Added full Podman/podman-compose compatibility
+- Updated docker-compose.yml with Podman-specific features:
+  - Added SELinux volume labels (`:Z`) for better security
+  - Added explicit container names for easier management
+  - Added health checks for PostgreSQL
+  - Added proper service dependencies with conditions
+  - Added explicit network configuration
+  - Updated to use `docker.io/` registry prefix for better compatibility
+  - Added more environment variables for database initialization
+- Created comprehensive PODMAN.md documentation with:
+  - Installation instructions for various Linux distributions
+  - Usage examples for both podman-compose and podman CLI
+  - Troubleshooting guide
+  - Systemd integration examples
+  - Migration guide from Docker to Podman
+- Updated README.md to highlight Docker/Podman support
+- Improved container orchestration with explicit dependencies
+
 ## 0.1.21 (2025-11-26)
 - Updated all dependencies to latest stable versions:
   - irc>=20.5.0 (was 20.0.0)

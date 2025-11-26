@@ -1,4 +1,4 @@
-# PhreakBot (v0.1.21)
+# PhreakBot (v0.1.22)
 
 PhreakBot is a modular IRC bot written in Python.
 
@@ -22,10 +22,21 @@ PhreakBot is a modular IRC bot written in Python.
 
 ## Installation
 
-### Docker (Recommended)
+### Docker / Podman (Recommended)
 
-1. Clone the repository
-2. Run `docker-compose up -d`
+PhreakBot supports both Docker and Podman:
+
+**Using Docker:**
+```bash
+docker-compose up -d
+```
+
+**Using Podman:**
+```bash
+podman-compose up -d
+```
+
+For detailed Podman instructions and features, see [PODMAN.md](PODMAN.md).
 
 ### Manual Installation
 
