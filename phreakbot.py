@@ -591,7 +591,10 @@ class PhreakBot(pydle.Client):
                     f"Module: {module_name}, Commands: {module['commands']}"
                 )
 
-            for module_name, module in self.modules.items():
+            # Create a copy of the modules dict to avoid "dictionary changed during iteration" errors
+            modules_copy = dict(self.modules)
+            
+            for module_name, module in modules_copy.items():
                 if event["command"] in module["commands"]:
                     self.logger.info(
                         f"Found module {module_name} to handle command {event['command']}"
