@@ -686,27 +686,21 @@ class PhreakBot(pydle.Client):
                         f"Module {module_name} handles event signal {event['signal']}"
                     )
 
-                    # Check permissions
-                    has_permission = self._check_permissions(
-                        event, module["permissions"]
-                    )
-                    self.logger.info(
-                        f"User has permission for module {module_name}: {has_permission}"
-                    )
+                    # Don't check permissions for passive events like join, part, quit
+                    # These events should be processed by all modules that listen for them
+                    # The module itself will handle any permission or validation logic
+                    try:
+                        self.logger.info(
+                            f"Calling module {module_name}.run() with event"
+                        )
+                        await module["object"].run(self, event)
+                        self.logger.info(f"Module {module_name} processed event")
+                        handled = True
+                    except Exception as e:
+                        import traceback
 
-                    if has_permission:
-                        try:
-                            self.logger.info(
-                                f"Calling module {module_name}.run() with event"
-                            )
-                            await module["object"].run(self, event)
-                            self.logger.info(f"Module {module_name} processed event")
-                            handled = True
-                        except Exception as e:
-                            import traceback
-
-                            self.logger.error(f"Error in module {module_name}: {e}")
-                            self.logger.error(f"Traceback: {traceback.format_exc()}")
+                        self.logger.error(f"Error in module {module_name}: {e}")
+                        self.logger.error(f"Traceback: {traceback.format_exc()}")
 
         # Process output
         await self._process_output(event)
