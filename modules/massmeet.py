@@ -60,7 +60,7 @@ def run(bot, event):
         all_users[triggering_user] = triggering_hostmask
         
         # Add the bot itself (for debugging purposes)
-        bot_nick = bot.connection.get_nickname()
+        bot_nick = bot.nickname
         bot_hostmask = f"{bot_nick}!~phreakybo@vuurstorm.nl"  # Hardcoded for now
         bot.logger.info(f"Bot: {bot_nick} with hostmask: {bot_hostmask}")
         
