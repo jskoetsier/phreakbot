@@ -7,6 +7,7 @@ Welcome to the PhreakBot documentation! This directory contains all the document
 ### Getting Started
 - [Main README](../README.md) - Overview, installation, and basic usage
 - [CHANGELOG](CHANGELOG.md) - Version history and changes
+- [ROADMAP](ROADMAP.md) - Future plans and feature roadmap
 
 ### Advanced Topics
 - [Podman Guide](PODMAN.md) - Using PhreakBot with Podman and podman-compose

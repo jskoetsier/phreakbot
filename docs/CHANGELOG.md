@@ -1,5 +1,56 @@
 # Changelog
 
+## 0.1.24 (2025-11-26)
+
+### Added
+- **New chanop module** - Channel operator management commands
+  - Added `.op <nickname>` command to give operator status (+o)
+  - Added `.deop <nickname>` command to remove operator status (-o)
+  - Added `.voice <nickname>` command to give voice (+v)
+  - Added `.devoice <nickname>` command to remove voice (-v)
+  - All commands require owner/admin/op permissions
+  - Added validation to check if user is in channel before mode change
+  - Added protection to prevent bot from deopping itself
+
+### Fixed
+- **Critical: Fixed auto-op and autovoice not working**
+  - Removed permission checks for passive events (join, part, quit)
+  - Events are now always processed by all listening modules
+  - Modules handle their own internal logic and validation
+  - Only commands now check permissions, not passive events
+
+- **Fixed IRC mode setting across all modules**
+  - Corrected `set_mode()` syntax from `set_mode(channel, "+o nick")` to `set_mode(channel, "+o", nick)`
+  - Fixed auto-op module to properly grant operator status on join
+  - Fixed autovoice module to properly grant voice and set moderated mode
+  - Fixed kickban module to properly set/unset ban modes
+  - Fixed chanop module mode commands to work correctly
+
+- **Fixed hostmask capture for user registration**
+  - Removed broken WHOIS-based caching approach (WHOIS hangs on IRCnet)
+  - Implemented WHO command lookup to fetch real hostmasks on-demand
+  - Added WHO support to meet.py, whois.py, and userinfo.py modules
+  - Bot now captures real hostmasks like `user!ident@host` instead of placeholders
+  - Fixed RuntimeError: dictionary changed during iteration in module reloading
+
+- **Fixed Docker deployment issues**
+  - Identified that phreakbot.py is baked into Docker image at build time
+  - Updated deployment process to rebuild Docker image when core files change
+  - Fixed Python bytecode caching issues by rebuilding containers
+  - Modules directory properly mounted as volume for hot-reloading
+
+### Improved
+- Enhanced logging throughout hostmask capture and mode setting operations
+- Better error handling in WHO command responses
+- Improved module event routing with clearer separation of commands vs events
+- Added fallback hostmask handling when WHO doesn't return results
+
+### Technical Details
+- Pydle's `set_mode()` expects mode and parameters as separate arguments
+- WHO command populates pydle's internal `users` cache with real hostmask data
+- Event handlers (join/part/quit) should not check permissions - only commands should
+- Docker image must be rebuilt when phreakbot.py changes, not just restarted
+
 ## 0.1.23 (2025-11-26)
 - Reorganized all documentation into `docs/` directory for better project structure
 - Moved PODMAN.md, MODULE_DEVELOPMENT_GUIDE.md, and CHANGELOG.md to docs/

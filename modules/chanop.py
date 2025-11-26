@@ -226,17 +226,17 @@ def _bot_is_op(bot, channel):
         # Check if the bot is in the channel
         if channel not in bot.channels:
             return False
-        
+
         # In pydle, we can check if bot's nickname is in the channel
         # But pydle doesn't track individual user modes easily
         # For now, we'll just return True and let IRC reject the command
         # A better implementation would check bot.channels[channel] for operator info
-        
+
         # Try to check if we have channel info
         channel_data = bot.channels.get(channel)
         if not channel_data:
             return False
-            
+
         # Pydle doesn't easily expose individual user modes
         # So we'll just return True and rely on IRC to reject if bot isn't op
         # This prevents the error message but IRC will silently ignore
