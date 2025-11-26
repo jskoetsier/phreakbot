@@ -791,11 +791,17 @@ class PhreakBot(pydle.Client):
 
         # Limit number of output lines
         if len(self.output) > self.config["max_output_lines"]:
+            self.logger.info(
+                f"Output has {len(self.output)} lines, sending privately to {event['nick']}"
+            )
             await self.message(
                 event["channel"],
                 f"There's more than {self.config['max_output_lines']} lines of output, I'll message you privately.",
             )
-            for line in self.output:
+            for i, line in enumerate(self.output):
+                self.logger.info(
+                    f"Sending private message {i+1}/{len(self.output)} to {event['nick']}: {line['msg'][:50]}..."
+                )
                 await self.message(event["nick"], line["msg"])
         else:
             for line in self.output:
