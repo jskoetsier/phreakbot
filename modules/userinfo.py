@@ -42,6 +42,12 @@ def run(bot, event):
         if current_channel in bot.channels:
             try:
                 channel_data = bot.channels[current_channel]
+                bot.logger.info(f"Channel data type: {type(channel_data)}")
+                bot.logger.info(
+                    f"Channel data keys: {list(channel_data.keys()) if isinstance(channel_data, dict) else 'Not a dict'}"
+                )
+                bot.logger.info(f"Channel data: {channel_data}")
+
                 if "users" in channel_data:
                     users = list(channel_data["users"].keys())
                     bot.logger.info(f"Current channel {current_channel} users: {users}")
