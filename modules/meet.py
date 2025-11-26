@@ -41,28 +41,40 @@ def run(bot, event):
 
         # Log all channels and users for debugging
         bot.logger.info(f"Looking for user '{tnick}' in channels:")
-        for channel_name, channel in bot.channels.items():
+        for channel_name in bot.channels:
             # Get the users in the channel
             try:
-                # Get the channel's users
-                users = channel.users()
-                bot.logger.info(f"Channel {channel_name} users: {list(users)}")
+                # In pydle, bot.channels[channel_name] is a dict with 'users' key
+                # or we can use bot.channels[channel_name] directly if it's the users dict
+                channel_data = bot.channels[channel_name]
 
-                # Check if the user is in this channel (case insensitive)
-                for user in users:
-                    bot.logger.info(f"Checking user: {user}")
-                    if user.lower() == tnick.lower():
-                        # Since we can't get the hostmask directly, we'll create a generic one
-                        # Format: nickname!username@hostname
-                        # We'll use the nickname for both the nickname and username parts
-                        tuserhost = f"{user}!{user}@{bot.network}"
-                        bot.logger.info(
-                            f"Found user '{user}' with generated hostmask '{tuserhost}'"
-                        )
+                # Try to get users - pydle stores users as a dict
+                if hasattr(channel_data, "__iter__") and not isinstance(
+                    channel_data, str
+                ):
+                    # channel_data might be the users dict directly
+                    users = (
+                        list(channel_data.keys())
+                        if isinstance(channel_data, dict)
+                        else list(channel_data)
+                    )
+                    bot.logger.info(f"Channel {channel_name} users: {users}")
+
+                    # Check if the user is in this channel (case insensitive)
+                    for user in users:
+                        bot.logger.info(f"Checking user: {user}")
+                        if user.lower() == tnick.lower():
+                            # Since we can't get the hostmask directly, we'll create a generic one
+                            # Format: nickname!username@hostname
+                            # We'll use the nickname for both the nickname and username parts
+                            tuserhost = f"{user}!{user}@{bot.network}"
+                            bot.logger.info(
+                                f"Found user '{user}' with generated hostmask '{tuserhost}'"
+                            )
+                            break
+
+                    if tuserhost:
                         break
-
-                if tuserhost:
-                    break
             except Exception as e:
                 bot.logger.error(f"Error accessing channel users: {e}")
                 import traceback

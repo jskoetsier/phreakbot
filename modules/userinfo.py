@@ -41,7 +41,12 @@ def run(bot, event):
         current_channel = event["channel"]
         if current_channel in bot.channels:
             try:
-                users = list(bot.channels[current_channel].users())
+                channel_data = bot.channels[current_channel]
+                users = (
+                    list(channel_data.keys())
+                    if isinstance(channel_data, dict)
+                    else list(channel_data)
+                )
                 bot.logger.info(f"Current channel {current_channel} users: {users}")
 
                 # Check if the user is in this channel (case insensitive)
@@ -64,12 +69,17 @@ def run(bot, event):
 
         # If not found in current channel, check all other channels
         if not found_user:
-            for channel_name, channel in bot.channels.items():
+            for channel_name in bot.channels:
                 if channel_name == current_channel:
                     continue  # Skip current channel as we already checked it
 
                 try:
-                    users = list(channel.users())
+                    channel_data = bot.channels[channel_name]
+                    users = (
+                        list(channel_data.keys())
+                        if isinstance(channel_data, dict)
+                        else list(channel_data)
+                    )
                     bot.logger.info(f"Channel {channel_name} users: {users}")
 
                     # Check if the user is in this channel (case insensitive)
