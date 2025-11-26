@@ -47,9 +47,9 @@ def run(bot, event):
                 # In pydle, bot.channels[channel_name] is a dict with a 'users' key
                 channel_data = bot.channels[channel_name]
 
-                # The 'users' key contains a dict of users
+                # The 'users' key contains a set of users
                 if "users" in channel_data:
-                    users = list(channel_data["users"].keys())
+                    users = list(channel_data["users"])
                     bot.logger.info(f"Channel {channel_name} users: {users}")
 
                     # Check if the user is in this channel (case insensitive)

@@ -46,10 +46,10 @@ def run(bot, event):
                 bot.logger.info(
                     f"Channel data keys: {list(channel_data.keys()) if isinstance(channel_data, dict) else 'Not a dict'}"
                 )
-                bot.logger.info(f"Channel data: {channel_data}")
 
                 if "users" in channel_data:
-                    users = list(channel_data["users"].keys())
+                    # In pydle, channel['users'] is a set, not a dict
+                    users = list(channel_data["users"])
                     bot.logger.info(f"Current channel {current_channel} users: {users}")
 
                 # Check if the user is in this channel (case insensitive)
@@ -79,7 +79,8 @@ def run(bot, event):
                 try:
                     channel_data = bot.channels[channel_name]
                     if "users" in channel_data:
-                        users = list(channel_data["users"].keys())
+                        # In pydle, channel['users'] is a set, not a dict
+                        users = list(channel_data["users"])
                         bot.logger.info(f"Channel {channel_name} users: {users}")
 
                     # Check if the user is in this channel (case insensitive)

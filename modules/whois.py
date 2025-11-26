@@ -35,10 +35,10 @@ def run(bot, event):
     bot.logger.info(f"All channels: {list(bot.channels.keys())}")
     for channel_name in bot.channels:
         try:
-            # In pydle, channels data structure contains users as a dict under 'users' key
+            # In pydle, channels data structure contains users as a set under 'users' key
             channel_data = bot.channels[channel_name]
             if "users" in channel_data:
-                users = list(channel_data["users"].keys())
+                users = list(channel_data["users"])
                 bot.logger.info(f"Channel {channel_name} users: {users}")
         except Exception as e:
             bot.logger.error(f"Error listing users in {channel_name}: {e}")
@@ -49,7 +49,7 @@ def run(bot, event):
         try:
             channel_data = bot.channels[current_channel]
             if "users" in channel_data:
-                users = list(channel_data["users"].keys())
+                users = list(channel_data["users"])
                 bot.logger.info(f"Current channel {current_channel} users: {users}")
 
                 # Check if the user is in this channel (case insensitive)
@@ -83,7 +83,7 @@ def run(bot, event):
                 # Get the users in the channel
                 channel_data = bot.channels[channel_name]
                 if "users" in channel_data:
-                    users = list(channel_data["users"].keys())
+                    users = list(channel_data["users"])
 
                     # Check if the user is in this channel (case insensitive)
                     bot.logger.info(
