@@ -68,7 +68,7 @@ def _check_auto_op(bot, event):
             try:
                 # Create a coroutine to set the mode
                 async def set_op():
-                    await bot.set_mode(channel, f"+o {nick}")
+                    await bot.set_mode(channel, "+o", nick)
 
                 # Schedule it to run
                 asyncio.create_task(set_op())

@@ -74,7 +74,7 @@ def _check_autovoice(bot, event):
             try:
 
                 async def set_voice():
-                    await bot.set_mode(channel, f"+v {nick}")
+                    await bot.set_mode(channel, "+v", nick)
 
                 asyncio.create_task(set_voice())
             except Exception as e:

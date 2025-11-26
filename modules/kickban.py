@@ -65,9 +65,12 @@ def _kick_user(bot, event):
     try:
         # Kick the user
         import asyncio
+
         try:
+
             async def kick_user():
                 await bot.kick(channel, nick, reason)
+
             asyncio.create_task(kick_user())
             bot.add_response(f"Kicked {nick} from {channel}: {reason}")
         except Exception as e:
@@ -172,10 +175,13 @@ def _kickban_user(bot, event):
         # Set ban on the user
         bot.logger.info(f"Setting ban on {hostmask} in {channel}")
         import asyncio
+
         try:
+
             async def ban_and_kick():
-                await bot.set_mode(channel, f"+b {hostmask}")
+                await bot.set_mode(channel, "+b", hostmask)
                 await bot.kick(channel, nick, reason)
+
             asyncio.create_task(ban_and_kick())
         except Exception as e:
             bot.logger.error(f"Error banning and kicking user {nick}: {str(e)}")
@@ -223,9 +229,12 @@ def _unban_user(bot, event):
         # Remove the ban
         bot.logger.info(f"Removing ban on {hostmask} in {channel}")
         import asyncio
+
         try:
+
             async def unban():
-                await bot.set_mode(channel, f"-b {hostmask}")
+                await bot.set_mode(channel, "-b", hostmask)
+
             asyncio.create_task(unban())
             bot.add_response(f"Unbanned {hostmask} from {channel}")
         except Exception as e:
@@ -253,9 +262,12 @@ def _schedule_unban(bot, channel, hostmask, minutes):
         try:
             bot.logger.info(f"Auto-unbanning {hostmask} in {channel}")
             import asyncio
+
             try:
+
                 async def auto_unban():
-                    await bot.set_mode(channel, f"-b {hostmask}")
+                    await bot.set_mode(channel, "-b", hostmask)
+
                 asyncio.create_task(auto_unban())
                 bot.add_response(f"Auto-unban: {hostmask} has been unbanned")
             except Exception as e:
