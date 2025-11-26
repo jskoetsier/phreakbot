@@ -22,7 +22,7 @@ def run(bot, event):
         bot.add_response("Please specify a nickname to delete.")
         return
 
-    if tnick == bot.connection.get_nickname():
+    if tnick == bot.nickname:
         bot.add_response("Why are you so mean? :(")
         return
 

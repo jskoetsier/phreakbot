@@ -23,8 +23,8 @@ def run(bot, event):
         bot.add_response("Please specify a nickname to look up.")
         return
 
-    if tnick == bot.connection.get_nickname():
-        bot.add_response(f"I am the channel bot, {bot.connection.get_nickname()}")
+    if tnick == bot.nickname:
+        bot.add_response(f"I am the channel bot, {bot.nickname}")
         return
 
     # Get the user's hostmask
@@ -42,24 +42,31 @@ def run(bot, event):
             bot.logger.error(f"Error listing users in {channel_name}: {e}")
 
     # First check the current channel
-    current_channel = event['channel']
+    current_channel = event["channel"]
     if current_channel in bot.channels:
         try:
             users = list(bot.channels[current_channel].users())
             bot.logger.info(f"Current channel {current_channel} users: {users}")
 
             # Check if the user is in this channel (case insensitive)
-            bot.logger.info(f"Looking for user '{tnick}' (lowercase: '{tnick.lower()}') in channel {current_channel}")
+            bot.logger.info(
+                f"Looking for user '{tnick}' (lowercase: '{tnick.lower()}') in channel {current_channel}"
+            )
             for user in users:
-                bot.logger.info(f"Comparing with user '{user}' (lowercase: '{user.lower()}')")
+                bot.logger.info(
+                    f"Comparing with user '{user}' (lowercase: '{user.lower()}')"
+                )
                 if user.lower() == tnick.lower():
-                    tuserhost = f"{user}!{user}@{bot.connection.server}"
+                    tuserhost = f"{user}!{user}@{bot.network}"
                     found_channel = current_channel
-                    bot.logger.info(f"MATCH FOUND: User '{user}' in current channel '{current_channel}' with generated hostmask '{tuserhost}'")
+                    bot.logger.info(
+                        f"MATCH FOUND: User '{user}' in current channel '{current_channel}' with generated hostmask '{tuserhost}'"
+                    )
                     break
         except Exception as e:
             bot.logger.error(f"Error checking current channel {current_channel}: {e}")
             import traceback
+
             bot.logger.error(f"Traceback: {traceback.format_exc()}")
 
     # If not found in current channel, check all other channels
@@ -73,13 +80,19 @@ def run(bot, event):
                 users = list(channel.users())
 
                 # Check if the user is in this channel (case insensitive)
-                bot.logger.info(f"Looking for user '{tnick}' (lowercase: '{tnick.lower()}') in channel {channel_name}")
+                bot.logger.info(
+                    f"Looking for user '{tnick}' (lowercase: '{tnick.lower()}') in channel {channel_name}"
+                )
                 for user in users:
-                    bot.logger.info(f"Comparing with user '{user}' (lowercase: '{user.lower()}')")
+                    bot.logger.info(
+                        f"Comparing with user '{user}' (lowercase: '{user.lower()}')"
+                    )
                     if user.lower() == tnick.lower():
-                        tuserhost = f"{user}!{user}@{bot.connection.server}"
+                        tuserhost = f"{user}!{user}@{bot.network}"
                         found_channel = channel_name
-                        bot.logger.info(f"MATCH FOUND: User '{user}' in channel '{channel_name}' with generated hostmask '{tuserhost}'")
+                        bot.logger.info(
+                            f"MATCH FOUND: User '{user}' in channel '{channel_name}' with generated hostmask '{tuserhost}'"
+                        )
                         break
 
                 if tuserhost:
@@ -87,6 +100,7 @@ def run(bot, event):
             except Exception as e:
                 bot.logger.error(f"Error checking channel {channel_name}: {e}")
                 import traceback
+
                 bot.logger.error(f"Traceback: {traceback.format_exc()}")
 
     if not tuserhost:
@@ -192,7 +206,9 @@ def run(bot, event):
                 bot.add_response(perms_text)
 
                 # Show hostmasks
-                hostmasks_text = f"Hostmasks: {', '.join(user_by_hostmask['hostmasks'])}"
+                hostmasks_text = (
+                    f"Hostmasks: {', '.join(user_by_hostmask['hostmasks'])}"
+                )
                 bot.add_response(hostmasks_text)
             else:
                 bot.add_response("Unrecognized user.")

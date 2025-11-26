@@ -4,6 +4,7 @@
 # Userinfo module for PhreakBot
 # A simpler alternative to the whois module
 
+
 def config(bot):
     """Return module configuration"""
     return {
@@ -24,8 +25,8 @@ def run(bot, event):
             bot.add_response("Please specify a nickname to look up.")
             return
 
-        if tnick == bot.connection.get_nickname():
-            bot.add_response(f"I am the channel bot, {bot.connection.get_nickname()}")
+        if tnick == bot.nickname:
+            bot.add_response(f"I am the channel bot, {bot.nickname}")
             return
 
         # First check if the user is in any channel
@@ -37,7 +38,7 @@ def run(bot, event):
         bot.logger.info(f"All channels: {list(bot.channels.keys())}")
 
         # Check current channel first
-        current_channel = event['channel']
+        current_channel = event["channel"]
         if current_channel in bot.channels:
             try:
                 users = list(bot.channels[current_channel].users())
@@ -46,14 +47,19 @@ def run(bot, event):
                 # Check if the user is in this channel (case insensitive)
                 for user in users:
                     if user.lower() == tnick.lower():
-                        user_hostmask = f"{user}!{user}@{bot.connection.server}"
+                        user_hostmask = f"{user}!{user}@{bot.network}"
                         found_channel = current_channel
                         found_user = True
-                        bot.logger.info(f"Found user '{user}' in current channel '{current_channel}'")
+                        bot.logger.info(
+                            f"Found user '{user}' in current channel '{current_channel}'"
+                        )
                         break
             except Exception as e:
-                bot.logger.error(f"Error checking current channel {current_channel}: {e}")
+                bot.logger.error(
+                    f"Error checking current channel {current_channel}: {e}"
+                )
                 import traceback
+
                 bot.logger.error(f"Traceback: {traceback.format_exc()}")
 
         # If not found in current channel, check all other channels
@@ -69,10 +75,12 @@ def run(bot, event):
                     # Check if the user is in this channel (case insensitive)
                     for user in users:
                         if user.lower() == tnick.lower():
-                            user_hostmask = f"{user}!{user}@{bot.connection.server}"
+                            user_hostmask = f"{user}!{user}@{bot.network}"
                             found_channel = channel_name
                             found_user = True
-                            bot.logger.info(f"Found user '{user}' in channel '{channel_name}'")
+                            bot.logger.info(
+                                f"Found user '{user}' in channel '{channel_name}'"
+                            )
                             break
 
                     if found_user:
@@ -80,6 +88,7 @@ def run(bot, event):
                 except Exception as e:
                     bot.logger.error(f"Error checking channel {channel_name}: {e}")
                     import traceback
+
                     bot.logger.error(f"Traceback: {traceback.format_exc()}")
 
         if not found_user:
@@ -95,7 +104,8 @@ def run(bot, event):
                 # Try to get user info from the database by username first
                 cur = bot.db_connection.cursor()
                 cur.execute(
-                    "SELECT * FROM phreakbot_users WHERE username ILIKE %s", (tnick.lower(),)
+                    "SELECT * FROM phreakbot_users WHERE username ILIKE %s",
+                    (tnick.lower(),),
                 )
                 user_by_username = cur.fetchone()
                 cur.close()
@@ -104,7 +114,8 @@ def run(bot, event):
                     # Get full user info by ID
                     cur = bot.db_connection.cursor()
                     cur.execute(
-                        "SELECT * FROM phreakbot_users WHERE id = %s", (user_by_username[0],)
+                        "SELECT * FROM phreakbot_users WHERE id = %s",
+                        (user_by_username[0],),
                     )
                     user_info = cur.fetchone()
                     cur.close()
@@ -142,7 +153,9 @@ def run(bot, event):
                             channel_perms[perm[1]].append(perm[0])
 
                     if global_perms:
-                        bot.add_response(f"Global permissions: {', '.join(global_perms)}")
+                        bot.add_response(
+                            f"Global permissions: {', '.join(global_perms)}"
+                        )
 
                     channel = event["channel"]
                     if channel in channel_perms:
@@ -180,7 +193,9 @@ def run(bot, event):
                         bot.add_response(perms_text)
 
                         # Show hostmasks
-                        hostmasks_text = f"Hostmasks: {', '.join(user_by_hostmask['hostmasks'])}"
+                        hostmasks_text = (
+                            f"Hostmasks: {', '.join(user_by_hostmask['hostmasks'])}"
+                        )
                         bot.add_response(hostmasks_text)
                     else:
                         bot.add_response("Unrecognized user (not in database).")

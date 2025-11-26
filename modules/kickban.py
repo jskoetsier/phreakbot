@@ -10,6 +10,7 @@ import time
 # Dictionary to track scheduled unbans
 scheduled_unbans = {}
 
+
 def config(bot):
     """Return module configuration"""
     return {
@@ -57,15 +58,21 @@ def _kick_user(bot, event):
         return
 
     # Don't allow kicking the bot itself
-    if nick.lower() == bot.connection.get_nickname().lower():
+    if nick.lower() == bot.nickname.lower():
         bot.add_response("I won't kick myself.")
         return
 
     try:
         # Kick the user
-        bot.logger.info(f"Kicking {nick} from {channel} with reason: {reason}")
-        bot.connection.kick(channel, nick, reason)
-        bot.add_response(f"Kicked {nick} from {channel}: {reason}")
+        import asyncio
+        try:
+            async def kick_user():
+                await bot.kick(channel, nick, reason)
+            asyncio.create_task(kick_user())
+            bot.add_response(f"Kicked {nick} from {channel}: {reason}")
+        except Exception as e:
+            bot.logger.error(f"Error kicking user {nick}: {str(e)}")
+            bot.add_response(f"Error kicking user {nick}: {str(e)}")
     except Exception as e:
         bot.logger.error(f"Error kicking user {nick}: {str(e)}")
         bot.add_response(f"Error kicking user {nick}: {str(e)}")
@@ -95,7 +102,11 @@ def _kickban_user(bot, event):
         unban_minutes = int(args[1])
         reason_start_index = 2
 
-    reason = " ".join(args[reason_start_index:]) if len(args) > reason_start_index else "Banned by operator"
+    reason = (
+        " ".join(args[reason_start_index:])
+        if len(args) > reason_start_index
+        else "Banned by operator"
+    )
     channel = event["channel"]
 
     # Check if this is a channel
@@ -104,7 +115,7 @@ def _kickban_user(bot, event):
         return
 
     # Don't allow banning the bot itself
-    if nick.lower() == bot.connection.get_nickname().lower():
+    if nick.lower() == bot.nickname.lower():
         bot.add_response("I won't ban myself.")
         return
 
@@ -130,12 +141,12 @@ def _kickban_user(bot, event):
                 bot.logger.info(f"Raw event data: {event['raw_event']}")
 
                 # Try to extract the source from the raw event
-                if hasattr(event['raw_event'], 'source') and event['raw_event'].source:
-                    source = event['raw_event'].source
+                if hasattr(event["raw_event"], "source") and event["raw_event"].source:
+                    source = event["raw_event"].source
                     bot.logger.info(f"Event source: {source}")
 
                     # If the source has a host attribute, use it
-                    if hasattr(source, 'host') and source.host:
+                    if hasattr(source, "host") and source.host:
                         hostname = source.host
                         hostmask = f"*!*@{hostname}"
                         bot.logger.info(f"Using hostname from raw event: {hostmask}")
@@ -151,23 +162,36 @@ def _kickban_user(bot, event):
             else:
                 # Use a nick-based mask but with a warning
                 hostmask = f"{nick}!*@*"
-                bot.logger.warning(f"Could not determine hostname for {nick}, using nick-based mask")
-                bot.add_response(f"Warning: Using nick-based ban mask for {nick}. This may not be as effective as a hostname-based mask.")
+                bot.logger.warning(
+                    f"Could not determine hostname for {nick}, using nick-based mask"
+                )
+                bot.add_response(
+                    f"Warning: Using nick-based ban mask for {nick}. This may not be as effective as a hostname-based mask."
+                )
 
         # Set ban on the user
         bot.logger.info(f"Setting ban on {hostmask} in {channel}")
-        bot.connection.mode(channel, f"+b {hostmask}")
-
-        # Kick the user
-        bot.logger.info(f"Kicking {nick} from {channel} with reason: {reason}")
-        bot.connection.kick(channel, nick, reason)
+        import asyncio
+        try:
+            async def ban_and_kick():
+                await bot.set_mode(channel, f"+b {hostmask}")
+                await bot.kick(channel, nick, reason)
+            asyncio.create_task(ban_and_kick())
+        except Exception as e:
+            bot.logger.error(f"Error banning and kicking user {nick}: {str(e)}")
+            bot.add_response(f"Error kicking and banning user {nick}: {str(e)}")
+            return
 
         # Schedule unban if minutes are specified
         if unban_minutes:
             _schedule_unban(bot, channel, hostmask, unban_minutes)
-            bot.add_response(f"Kicked and banned {nick} ({hostmask}) from {channel} for {unban_minutes} minutes: {reason}")
+            bot.add_response(
+                f"Kicked and banned {nick} ({hostmask}) from {channel} for {unban_minutes} minutes: {reason}"
+            )
         else:
-            bot.add_response(f"Kicked and banned {nick} ({hostmask}) from {channel}: {reason}")
+            bot.add_response(
+                f"Kicked and banned {nick} ({hostmask}) from {channel}: {reason}"
+            )
     except Exception as e:
         bot.logger.error(f"Error kicking and banning user {nick}: {str(e)}")
         bot.add_response(f"Error kicking and banning user {nick}: {str(e)}")
@@ -198,8 +222,15 @@ def _unban_user(bot, event):
     try:
         # Remove the ban
         bot.logger.info(f"Removing ban on {hostmask} in {channel}")
-        bot.connection.mode(channel, f"-b {hostmask}")
-        bot.add_response(f"Unbanned {hostmask} from {channel}")
+        import asyncio
+        try:
+            async def unban():
+                await bot.set_mode(channel, f"-b {hostmask}")
+            asyncio.create_task(unban())
+            bot.add_response(f"Unbanned {hostmask} from {channel}")
+        except Exception as e:
+            bot.logger.error(f"Error unbanning {hostmask}: {str(e)}")
+            bot.add_response(f"Error unbanning {hostmask}: {str(e)}")
     except Exception as e:
         bot.logger.error(f"Error unbanning {hostmask}: {str(e)}")
         bot.add_response(f"Error unbanning {hostmask}: {str(e)}")
@@ -214,13 +245,21 @@ def _schedule_unban(bot, channel, hostmask, minutes):
         scheduled_unbans[key].cancel()
 
     # Schedule the unban
-    bot.logger.info(f"Scheduling unban for {hostmask} in {channel} in {minutes} minutes")
+    bot.logger.info(
+        f"Scheduling unban for {hostmask} in {channel} in {minutes} minutes"
+    )
 
     def unban_task():
         try:
             bot.logger.info(f"Auto-unbanning {hostmask} in {channel}")
-            bot.connection.mode(channel, f"-b {hostmask}")
-            bot.add_response(f"Auto-unban: {hostmask} has been unbanned")
+            import asyncio
+            try:
+                async def auto_unban():
+                    await bot.set_mode(channel, f"-b {hostmask}")
+                asyncio.create_task(auto_unban())
+                bot.add_response(f"Auto-unban: {hostmask} has been unbanned")
+            except Exception as e:
+                bot.logger.error(f"Error in auto-unban: {str(e)}")
             # Remove from scheduled unbans
             if key in scheduled_unbans:
                 del scheduled_unbans[key]
@@ -229,7 +268,9 @@ def _schedule_unban(bot, channel, hostmask, minutes):
 
     # Create and start the timer
     timer = threading.Timer(minutes * 60, unban_task)
-    timer.daemon = True  # Make sure the timer doesn't prevent the bot from shutting down
+    timer.daemon = (
+        True  # Make sure the timer doesn't prevent the bot from shutting down
+    )
     timer.start()
 
     # Store the timer
@@ -245,7 +286,9 @@ def _has_permission(bot, event):
     # Check if the user has the required permissions
     if event["user_info"]:
         # Check global permissions
-        if "op" in event["user_info"]["permissions"]["global"] or event["user_info"].get("is_admin"):
+        if "op" in event["user_info"]["permissions"]["global"] or event[
+            "user_info"
+        ].get("is_admin"):
             return True
 
         # Check channel-specific permissions

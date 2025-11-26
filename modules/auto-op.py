@@ -64,11 +64,12 @@ def _check_auto_op(bot, event):
             bot.logger.info(f"Auto-opping {nick} in {channel}")
             # Schedule mode change asynchronously
             import asyncio
+
             try:
                 # Create a coroutine to set the mode
                 async def set_op():
                     await bot.set_mode(channel, f"+o {nick}")
-                
+
                 # Schedule it to run
                 asyncio.create_task(set_op())
             except Exception as e:

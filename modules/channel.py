@@ -21,8 +21,15 @@ def run(bot, event):
         bot.logger.info(f"Received invite to {event['args'][1]} from {event['source']}")
         # Auto-join on invite if from owner or admin
         if bot.check_permission(event, "owner") or bot.check_permission(event, "admin"):
-            bot.connection.join(event["args"][1])
-        return
+            import asyncio
+            try:
+                async def join_channel():
+                    await bot.join(event["args"][1])
+                asyncio.create_task(join_channel())
+                bot.add_response(f"Joining {event['args'][1]}")
+            except Exception as e:
+                bot.logger.error(f"Error joining channel: {e}")
+                bot.add_response(f"Error joining channel: {str(e)}")
 
     # Handle join command
     if event["command"] == "join":
@@ -40,8 +47,15 @@ def run(bot, event):
             return
 
         bot.logger.info(f"Joining channel '{chan}' on command from '{event['nick']}'")
-        bot.connection.join(chan)
-        bot.add_response(f"Joining channel {chan}")
+        import asyncio
+        try:
+            async def join_channel():
+                await bot.join(chan)
+            asyncio.create_task(join_channel())
+            bot.add_response(f"Joining {chan}")
+        except Exception as e:
+            bot.logger.error(f"Error joining channel: {e}")
+            bot.add_response(f"Error joining channel: {str(e)}")
         return
 
     # Handle part command
@@ -61,9 +75,15 @@ def run(bot, event):
             chan = event["channel"]
 
         bot.logger.info(f"Leaving channel '{chan}' on command from '{event['nick']}'")
-        bot.connection.part(chan, f"Requested by {event['nick']}")
-
-        # Only add a response if we're not leaving the current channel
+        import asyncio
+        try:
+            async def part_channel():
+                await bot.part(chan, f"Requested by {event['nick']}")
+            asyncio.create_task(part_channel())
+            bot.add_response(f"Leaving {chan}")
+        except Exception as e:
+            bot.logger.error(f"Error parting channel: {e}")
+            bot.add_response(f"Error parting channel: {str(e)}")
         if chan != event["channel"]:
             bot.add_response(f"Left channel {chan}")
         return

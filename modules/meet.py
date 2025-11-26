@@ -26,7 +26,7 @@ def run(bot, event):
         bot.add_response("Please specify who you want me to meet.")
         return
 
-    if tnick == bot.connection.get_nickname():
+    if tnick == bot.nickname:
         bot.add_response("I know who I am.")
         return
 
@@ -55,8 +55,10 @@ def run(bot, event):
                         # Since we can't get the hostmask directly, we'll create a generic one
                         # Format: nickname!username@hostname
                         # We'll use the nickname for both the nickname and username parts
-                        tuserhost = f"{user}!{user}@{bot.connection.server}"
-                        bot.logger.info(f"Found user '{user}' with generated hostmask '{tuserhost}'")
+                        tuserhost = f"{user}!{user}@{bot.network}"
+                        bot.logger.info(
+                            f"Found user '{user}' with generated hostmask '{tuserhost}'"
+                        )
                         break
 
                 if tuserhost:
@@ -64,6 +66,7 @@ def run(bot, event):
             except Exception as e:
                 bot.logger.error(f"Error accessing channel users: {e}")
                 import traceback
+
                 bot.logger.error(f"Traceback: {traceback.format_exc()}")
 
         if not tuserhost:

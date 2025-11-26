@@ -32,7 +32,7 @@ def run(bot, event):
 def _check_autovoice(bot, event):
     """Check if a user should be autovoiced when they join"""
     # Don't autovoice the bot itself
-    if event["nick"] == bot.connection.get_nickname():
+    if event["nick"] == bot.nickname:
         return
 
     # Check if the database connection is available
@@ -67,8 +67,18 @@ def _check_autovoice(bot, event):
 
         if cur.fetchone():
             # Give the user voice status
-            bot.logger.info(f"Autovoicing {nick} in {channel}")
-            bot.connection.mode(channel, f"+v {nick}")
+            bot.logger.info(f"Auto-voicing {nick} in {channel}")
+            # Schedule mode change asynchronously
+            import asyncio
+
+            try:
+
+                async def set_voice():
+                    await bot.set_mode(channel, f"+v {nick}")
+
+                asyncio.create_task(set_voice())
+            except Exception as e:
+                bot.logger.error(f"Error setting voice mode: {e}")
 
         cur.close()
 
@@ -115,10 +125,22 @@ def _manage_autovoice(bot, event):
             )
             bot.db_connection.commit()
 
-            # Set the channel to moderated mode (+m)
-            bot.connection.mode(channel, "+m")
+            # Set moderated mode on the channel
+            bot.logger.info(f"Setting moderated mode on {channel}")
+            import asyncio
 
-            bot.add_response(f"Autovoice enabled for {channel}. Channel set to moderated mode (+m).")
+            try:
+
+                async def set_moderated():
+                    await bot.set_mode(channel, "+m")
+
+                asyncio.create_task(set_moderated())
+            except Exception as e:
+                bot.logger.error(f"Error setting moderated mode: {e}")
+
+            bot.add_response(
+                f"Autovoice enabled for {channel}. Channel set to moderated mode (+m)."
+            )
 
         elif action == "off":
             # Disable autovoice for the channel
@@ -129,10 +151,22 @@ def _manage_autovoice(bot, event):
             )
             bot.db_connection.commit()
 
-            # Remove moderated mode (-m)
-            bot.connection.mode(channel, "-m")
+            # Remove moderated mode from the channel
+            bot.logger.info(f"Removing moderated mode from {channel}")
+            import asyncio
 
-            bot.add_response(f"Autovoice disabled for {channel}. Channel moderated mode removed (-m).")
+            try:
+
+                async def unset_moderated():
+                    await bot.set_mode(channel, "-m")
+
+                asyncio.create_task(unset_moderated())
+            except Exception as e:
+                bot.logger.error(f"Error removing moderated mode: {e}")
+
+            bot.add_response(
+                f"Autovoice disabled for {channel}. Channel moderated mode removed (-m)."
+            )
 
         elif action == "status":
             # Check if autovoice is enabled for the channel
