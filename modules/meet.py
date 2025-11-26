@@ -77,13 +77,23 @@ def run(bot, event):
             return
 
         # Get the actual hostmask from cache (populated when user joins or sends messages)
-        if found_user.lower() in bot.user_hostmasks:
-            tuserhost = bot.user_hostmasks[found_user.lower()]
-            bot.logger.info(f"Using cached hostmask for '{found_user}': {tuserhost}")
-        else:
-            # User hasn't joined or sent a message yet, use placeholder
+        try:
+            if found_user.lower() in bot.user_hostmasks:
+                tuserhost = bot.user_hostmasks[found_user.lower()]
+                bot.logger.info(
+                    f"Using cached hostmask for '{found_user}': {tuserhost}"
+                )
+            else:
+                # User hasn't joined or sent a message yet, use placeholder
+                tuserhost = f"{found_user}!{found_user}@user.unknown"
+                bot.logger.info(
+                    f"No cached hostmask found, using placeholder: {tuserhost}"
+                )
+        except AttributeError as e:
+            bot.logger.error(f"AttributeError accessing user_hostmasks: {e}")
+            # Fallback to placeholder
             tuserhost = f"{found_user}!{found_user}@user.unknown"
-            bot.logger.info(f"No cached hostmask found, using placeholder: {tuserhost}")
+            bot.logger.info(f"Using placeholder due to error: {tuserhost}")
 
         # Check if the user already exists in the database
         cur = bot.db_connection.cursor()
