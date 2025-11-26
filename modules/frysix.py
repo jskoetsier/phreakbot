@@ -286,7 +286,8 @@ class FrysIX:
             asn = asn[2:]
 
         if not asn.isdigit():
-            return bot.notice(user, f"Invalid ASN format: {args[0]}. Please provide a numeric ASN.")
+            bot.reply(f"Invalid ASN format: {args[0]}. Please provide a numeric ASN.")
+            return
 
         # We should always have members due to mock data initialization
         # But just in case, try to update if empty
@@ -328,9 +329,9 @@ class FrysIX:
             response += f" - IP: {ip}"
             response += f" - Max Prefixes: {max_prefix}"
 
-            bot.say(channel, response)
+            bot.add_response(response)
         else:
-            bot.say(channel, f"No member found with ASN {asn} at Frys-IX.")
+            bot.add_response(f"No member found with ASN {asn} at Frys-IX.")
 
     def cmd_members(self, bot, user, channel, args):
         """Handle the !members command"""
@@ -339,13 +340,13 @@ class FrysIX:
             self._update_members()
 
         if not self.members:
-            bot.say(channel, "No Frys-IX member data available yet. Please try again later.")
+            bot.add_response("No Frys-IX member data available yet. Please try again later.")
             return
 
         # Count members
         count = len(self.members)
-        bot.say(channel, f"Frys-IX has {count} members. Use !member <ASN> for details about a specific member.")
+        bot.add_response(f"Frys-IX has {count} members. Use .member <ASN> for details about a specific member.")
 
     def cmd_frysix(self, bot, user, channel, args):
         """Handle the !frysix command"""
-        bot.say(channel, "Frys-IX is an Internet Exchange Point in The Netherlands. Visit https://www.frys-ix.net/ for more information.")
+        bot.add_response("Frys-IX is an Internet Exchange Point in The Netherlands. Visit https://www.frys-ix.net/ for more information.")
