@@ -15,7 +15,7 @@ def config(bot):
     }
 
 
-def run(bot, event):
+async def run(bot, event):
     """Handle meet commands"""
     # Strip whitespace from the nickname
     tnick = event["command_args"].strip() if event["command_args"] else ""
@@ -76,24 +76,32 @@ def run(bot, event):
             bot.logger.info(f"User '{tnick}' not found in any channel")
             return
 
-        # Get the actual hostmask from cache (populated when user joins or sends messages)
-        try:
-            if found_user.lower() in bot.user_hostmasks:
-                tuserhost = bot.user_hostmasks[found_user.lower()]
-                bot.logger.info(
-                    f"Using cached hostmask for '{found_user}': {tuserhost}"
-                )
-            else:
-                # User hasn't joined or sent a message yet, use placeholder
-                tuserhost = f"{found_user}!{found_user}@user.unknown"
-                bot.logger.info(
-                    f"No cached hostmask found, using placeholder: {tuserhost}"
-                )
-        except AttributeError as e:
-            bot.logger.error(f"AttributeError accessing user_hostmasks: {e}")
-            # Fallback to placeholder
+        # Use WHO command to get the user's real hostmask
+        bot.logger.info(f"Sending WHO command for user '{found_user}'")
+        await bot.rawmsg("WHO", found_user)
+
+        # Wait briefly for WHO response (pydle handles this async)
+        import asyncio
+
+        await asyncio.sleep(0.5)
+
+        # Try to get user info from pydle's user cache
+        # The WHO response should have populated pydle's internal user tracking
+        tuserhost = None
+
+        # Check if pydle has user info stored
+        if hasattr(bot, "users") and found_user in bot.users:
+            user_data = bot.users[found_user]
+            username = user_data.get("username", found_user)
+            hostname = user_data.get("hostname", "unknown")
+            tuserhost = f"{found_user}!{username}@{hostname}"
+            bot.logger.info(f"Got hostmask from pydle users cache: {tuserhost}")
+        else:
+            # Fallback: construct basic hostmask
+            bot.logger.warning(
+                f"Could not get real hostmask for '{found_user}', using placeholder"
+            )
             tuserhost = f"{found_user}!{found_user}@user.unknown"
-            bot.logger.info(f"Using placeholder due to error: {tuserhost}")
 
         # Check if the user already exists in the database
         cur = bot.db_connection.cursor()
