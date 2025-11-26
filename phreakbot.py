@@ -4,12 +4,14 @@
 # PhreakBot - A modular IRC bot using pydle
 #
 import argparse
+import asyncio
 import importlib.util
 import json
 import logging
 import os
 import re
 import sys
+import time
 from datetime import datetime
 
 # Database library
@@ -126,28 +128,57 @@ class PhreakBot(pydle.Client):
         except Exception as e:
             self.logger.error(f"Failed to save config: {e}")
 
-    def db_connect(self):
-        """Connect to the PostgreSQL database"""
+    def db_connect(self, max_retries=3, retry_delay=5):
+        """Connect to the PostgreSQL database with retry logic"""
+        for attempt in range(max_retries):
+            try:
+                self.logger.info(
+                    f"Connecting to database at {self.config['db_host']}:{self.config['db_port']} (attempt {attempt + 1}/{max_retries})"
+                )
+                self.db_connection = psycopg2.connect(
+                    host=self.config["db_host"],
+                    port=self.config["db_port"],
+                    user=self.config["db_user"],
+                    password=self.config["db_password"],
+                    dbname=self.config["db_name"],
+                    connect_timeout=10,
+                )
+                self.logger.info("Database connection established successfully")
+                return True
+            except Exception as e:
+                self.logger.error(f"Database connection attempt {attempt + 1} failed: {e}")
+                if attempt < max_retries - 1:
+                    self.logger.info(f"Retrying in {retry_delay} seconds...")
+                    time.sleep(retry_delay)
+                else:
+                    self.logger.warning("All database connection attempts failed. Bot will run with limited functionality.")
+                    self.db_connection = None
+                    return False
+
+    def ensure_db_connection(self):
+        """Ensure database connection is alive, reconnect if needed"""
+        if self.db_connection is None:
+            self.logger.warning("No database connection, attempting to reconnect...")
+            return self.db_connect(max_retries=2, retry_delay=3)
+        
         try:
-            self.logger.info(
-                f"Connecting to database at {self.config['db_host']}:{self.config['db_port']}"
-            )
-            self.db_connection = psycopg2.connect(
-                host=self.config["db_host"],
-                port=self.config["db_port"],
-                user=self.config["db_user"],
-                password=self.config["db_password"],
-                dbname=self.config["db_name"],
-            )
-            self.logger.info("Database connection established")
+            cur = self.db_connection.cursor()
+            cur.execute("SELECT 1")
+            cur.close()
+            return True
         except Exception as e:
-            self.logger.error(f"Failed to connect to database: {e}")
-            # Don't exit, allow the bot to run without database functionality
+            self.logger.warning(f"Database connection lost: {e}. Reconnecting...")
+            try:
+                self.db_connection.close()
+            except:
+                pass
             self.db_connection = None
+            return self.db_connect(max_retries=2, retry_delay=3)
 
     def db_get_userinfo_by_userhost(self, hostmask):
         """Get user information from the database by hostmask"""
-        if not self.db_connection:
+        if not self.ensure_db_connection():
+            self.logger.debug("Database unavailable, returning None for user info")
             return None
 
         ret = {}
@@ -192,6 +223,10 @@ class PhreakBot(pydle.Client):
 
             cur.close()
             return ret
+        except psycopg2.OperationalError as e:
+            self.logger.error(f"Database connection lost in db_get_userinfo_by_userhost: {e}")
+            self.db_connection = None
+            return None
         except Exception as e:
             self.logger.error(f"Database error in db_get_userinfo_by_userhost: {e}")
             return None
@@ -278,18 +313,34 @@ class PhreakBot(pydle.Client):
 
     async def on_connect(self):
         """Called when bot has successfully connected to the server"""
-        self.logger.info(f"Connected to {self.network}")
+        self.logger.info(f"Successfully connected to {self.network}")
 
-        # Join channels
+        # Join channels with error handling
         for channel in self.config["channels"]:
-            await self.join(channel)
-            self.logger.info(f"Joined channel: {channel}")
+            try:
+                await self.join(channel)
+                self.logger.info(f"Joined channel: {channel}")
+            except Exception as e:
+                self.logger.error(f"Failed to join channel {channel}: {e}")
+
+    async def on_disconnect(self, expected):
+        """Called when disconnected from server"""
+        if expected:
+            self.logger.info("Disconnected from server as expected")
+        else:
+            self.logger.warning("Unexpectedly disconnected from server")
+            self.logger.info("Automatic reconnection will be attempted by pydle")
 
     async def on_message(self, target, source, message):
         """Called when a message is received in a channel or privately"""
         is_private = target == self.nickname
         channel = source if is_private else target
-        await self._handle_message(source, channel, message, is_private)
+        try:
+            await self._handle_message(source, channel, message, is_private)
+        except Exception as e:
+            self.logger.error(f"Error handling message from {source}: {e}")
+            if is_private or message.startswith(self.config["trigger"]):
+                await self.message(channel, f"Error processing command: {type(e).__name__}. Please try again or contact bot administrator.")
 
     async def on_raw_join(self, message):
         """Capture hostmask from raw JOIN message"""
