@@ -371,7 +371,9 @@ class PhreakBot(pydle.Client):
         try:
             user_info = await self.whois(source)
             if user_info is None or not isinstance(user_info, dict):
-                self.logger.warning(f"WHOIS returned None or invalid data for {source}, using fallback")
+                self.logger.warning(
+                    f"WHOIS returned None or invalid data for {source}, using fallback"
+                )
                 user_host = f"{source}!unknown@unknown"
             else:
                 user_host = f"{source}!{user_info.get('username', 'unknown')}@{user_info.get('hostname', 'unknown')}"
@@ -669,7 +671,7 @@ class PhreakBot(pydle.Client):
                             self.logger.info(
                                 f"Calling module {module_name}.run() with event"
                             )
-                            module["object"].run(self, event)
+                            await module["object"].run(self, event)
                             self.logger.info(f"Module {module_name} processed event")
                             handled = True
                         except Exception as e:
