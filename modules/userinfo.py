@@ -103,14 +103,28 @@ async def run(bot, event):
             bot.add_response(f"{tnick} is not in any channel I'm in.")
             return
 
-        # Get the actual hostmask using WHOIS
-        try:
-            user_info = await bot.whois(found_user)
-            user_hostmask = f"{found_user}!{user_info.get('username', '')}@{user_info.get('hostname', '')}"
-            bot.logger.info(f"Retrieved hostmask for '{found_user}': {user_hostmask}")
-        except Exception as e:
-            bot.logger.error(f"Error getting user info via WHOIS: {e}")
-            user_hostmask = None
+        # Use WHO command to get the user's real hostmask
+        bot.logger.info(f"Sending WHO command for user '{found_user}'")
+        await bot.rawmsg("WHO", found_user)
+        
+        # Wait briefly for WHO response (pydle handles this async)
+        import asyncio
+        await asyncio.sleep(0.5)
+        
+        # Try to get user info from pydle's user cache
+        user_hostmask = None
+        
+        # Check if pydle has user info stored
+        if hasattr(bot, 'users') and found_user in bot.users:
+            user_data = bot.users[found_user]
+            username = user_data.get('username', found_user)
+            hostname = user_data.get('hostname', 'unknown')
+            user_hostmask = f"{found_user}!{username}@{hostname}"
+            bot.logger.info(f"Got hostmask from pydle users cache: {user_hostmask}")
+        else:
+            # Fallback: construct basic hostmask
+            bot.logger.warning(f"Could not get real hostmask for '{found_user}', using placeholder")
+            user_hostmask = f"{found_user}!{found_user}@user.unknown"
 
         # User found, display information
         if user_hostmask:
