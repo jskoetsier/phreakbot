@@ -20,7 +20,9 @@ def run(bot, event):
     if event["trigger"] == "event" and event["signal"] == "irc_in2_INVITE":
         bot.logger.info(f"Received invite to {event['args'][1]} from {event['source']}")
         # Auto-join on invite if from owner or admin
-        if bot._is_owner(event["hostmask"]) or (event["user_info"] and event["user_info"].get("is_admin")):
+        if bot._is_owner(event["hostmask"]) or (
+            event["user_info"] and event["user_info"].get("is_admin")
+        ):
             import asyncio
 
             try:
