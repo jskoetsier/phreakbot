@@ -1,4 +1,4 @@
-# PhreakBot (v0.1.16)
+# PhreakBot (v0.1.21)
 
 PhreakBot is a modular IRC bot written in Python.
 
@@ -17,6 +17,7 @@ PhreakBot is a modular IRC bot written in Python.
 - MAC address vendor lookup for both full and partial MAC addresses
 - Mass user registration and hostmask merging
 - ROA validation and routing information
+- Karma system with ++ and -- support
 - And more!
 
 ## Installation
@@ -41,6 +42,10 @@ PhreakBot uses the [pydle](https://github.com/shizmob/pydle) IRC library, which 
 - Enhanced support for custom commands like `!item = value` and `!item?`
 - More detailed logging
 - Asynchronous operation for better performance
+
+## Scripts
+
+All utility scripts are located in the `scripts/` directory. See [scripts/README.md](scripts/README.md) for detailed information about each script.
 
 ## Configuration
 

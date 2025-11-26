@@ -396,13 +396,15 @@ class PhreakBot(pydle.Client):
             ),
         }
 
-        # COMPREHENSIVE KARMA PATTERN DETECTION
-        # This is the primary handler for all karma patterns (++ and --)
+        # Check if message starts with trigger
+        trigger_re = re.compile(f'^{re.escape(self.config["trigger"])}')
+
+        # Check for karma pattern first
         karma_pattern = re.compile(r"^\!([a-zA-Z0-9_-]+)(\+\+|\-\-)(?:\s+#(.+))?$")
         karma_match = karma_pattern.match(message)
 
         if karma_match:
-            self.logger.info(f"COMPREHENSIVE KARMA HANDLER: Detected karma pattern: '{message}'")
+            self.logger.info(f"Detected karma pattern: '{message}'")
             item = karma_match.group(1).lower()
             direction = "up" if karma_match.group(2) == "++" else "down"
             reason = karma_match.group(3)
@@ -414,12 +416,12 @@ class PhreakBot(pydle.Client):
 
             # Create a special event for karma handling
             karma_event = event_obj.copy()
-            karma_event["trigger"] = "event"  # Set as event for karma module
+            karma_event["trigger"] = "event"
 
-            # Route directly to karma module
+            # Route directly to karma module if available
             if "karma" in self.modules:
                 try:
-                    self.logger.info(f"Routing directly to karma module for {direction} karma")
+                    self.logger.info(f"Routing to karma module for {direction} karma")
                     result = self.modules["karma"]["object"].run(self, karma_event)
                     if result:
                         await self._process_output(karma_event)
@@ -428,137 +430,13 @@ class PhreakBot(pydle.Client):
                     import traceback
                     self.logger.error(f"Error in karma module: {e}")
                     self.logger.error(f"Traceback: {traceback.format_exc()}")
-
-        # Check if message starts with trigger
-        trigger_re = re.compile(f'^{re.escape(self.config["trigger"])}')
-
-            # If karma module didn't handle it, update karma directly in the database
-            if self.db_connection and event_obj["user_info"]:
-                try:
-                    self.logger.info(f"Directly updating karma in database for {item}")
-                    cur = self.db_connection.cursor()
-
-                    # First, check if the item exists
-                    cur.execute(
-                        "SELECT id, karma FROM phreakbot_karma WHERE item = %s AND channel = %s",
-                        (item, channel),
-                    )
-
-                    karma_row = cur.fetchone()
-                    karma_change = 1 if direction == "up" else -1
-
-                    if karma_row:
-                        # Item exists, update karma
-                        karma_id, current_karma = karma_row
-                        new_karma = current_karma + karma_change
-
-                        cur.execute(
-                            "UPDATE phreakbot_karma SET karma = %s WHERE id = %s",
-                            (new_karma, karma_id)
-                        )
-
-                        # Record who gave the karma
-                        cur.execute(
-                            """
-                            INSERT INTO phreakbot_karma_who (karma_id, users_id, direction, amount)
-                            VALUES (%s, %s, %s, %s)
-                            ON CONFLICT (karma_id, users_id, direction)
-                            DO UPDATE SET amount = phreakbot_karma_who.amount + 1, update_time = CURRENT_TIMESTAMP
-                            """,
-                            (karma_id, event_obj["user_info"]["id"], direction, 1),
-                        )
-
-                        # If a reason was provided, record it
-                        if reason:
-                            cur.execute(
-                                """
-                                INSERT INTO phreakbot_karma_why (karma_id, direction, reason, channel)
-                                VALUES (%s, %s, %s, %s)
-                                ON CONFLICT (karma_id, direction, reason, channel) DO NOTHING
-                                """,
-                                (karma_id, direction, reason, channel),
-                            )
-
-                        self.db_connection.commit()
-                        await self.message(channel, f"{item} now has {new_karma} karma")
-                    else:
-                        # Item doesn't exist, insert new record
-                        initial_karma = karma_change
-                        cur.execute(
-                            "INSERT INTO phreakbot_karma (item, karma, channel) VALUES (%s, %s, %s) RETURNING id",
-                            (item, initial_karma, channel),
-                        )
-                        karma_id = cur.fetchone()[0]
-
-                        # Record who gave the karma
-                        cur.execute(
-                            """
-                            INSERT INTO phreakbot_karma_who (karma_id, users_id, direction, amount)
-                            VALUES (%s, %s, %s, %s)
-                            """,
-                            (karma_id, event_obj["user_info"]["id"], direction, 1),
-                        )
-
-                        # If a reason was provided, record it
-                        if reason:
-                            cur.execute(
-                                """
-                                INSERT INTO phreakbot_karma_why (karma_id, direction, reason, channel)
-                                VALUES (%s, %s, %s, %s)
-                                ON CONFLICT (karma_id, direction, reason, channel) DO NOTHING
-                                """,
-                                (karma_id, direction, reason, channel),
-                            )
-
-                        self.db_connection.commit()
-                        await self.message(channel, f"{item} now has {initial_karma} karma")
-                except Exception as e:
-                    import traceback
-                    self.logger.error(f"Error in direct karma handler: {e}")
-                    self.logger.error(f"Traceback: {traceback.format_exc()}")
-
             return
-
 
         # Continue with normal message processing
         if trigger_re.match(message):
             self.logger.info(f"RAW MESSAGE: '{message}'")
 
-            # Check for karma pattern first
-            karma_pattern = re.compile(r"^\!([a-zA-Z0-9_-]+)(\+\+|\-\-)(?:\s+#(.+))?$")
-            karma_match = karma_pattern.match(message)
-
-            if karma_match:
-                self.logger.info(f"COMMAND PARSING: Detected karma pattern: '{message}'")
-                item = karma_match.group(1).lower()
-                direction = "up" if karma_match.group(2) == "++" else "down"
-                reason = karma_match.group(3)
-
-                # Don't allow users to give karma to themselves
-                if item.lower() == source.lower():
-                    await self.message(channel, "You can't give karma to yourself!")
-                    return
-
-                # Create a special event for karma handling
-                karma_event = event_obj.copy()
-                karma_event["trigger"] = "event"  # Set as event for karma module
-
-                # Route directly to karma module
-                if "karma" in self.modules:
-                    try:
-                        self.logger.info(f"Routing directly to karma module for {direction} karma")
-                        result = self.modules["karma"]["object"].run(self, karma_event)
-                        if result:
-                            await self._process_output(karma_event)
-                            return
-                    except Exception as e:
-                        import traceback
-                        self.logger.error(f"Error in karma module: {e}")
-                        self.logger.error(f"Traceback: {traceback.format_exc()}")
-
-                # If karma module didn't handle it, continue with normal command processing
-
-            # Regular command handling - exclude karma patterns
+            # Regular command handling
             command_re = re.compile(
                 f'^{re.escape(self.config["trigger"])}([a-zA-Z0-9_][-a-zA-Z0-9_]*)(?:\\s(.*))?$'
             )

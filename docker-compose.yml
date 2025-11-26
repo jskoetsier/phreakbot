@@ -16,7 +16,7 @@ services:
     depends_on:
       - postgres
     volumes:
-      - ./direct-init.sh:/direct-init.sh
+      - ./scripts/direct-init.sh:/direct-init.sh
     command: /direct-init.sh
     environment:
       - PGPASSWORD=phreakbot
@@ -31,7 +31,7 @@ services:
       - ./modules:/app/modules
       - ./extra_modules:/app/extra_modules
       - ./logs:/app/logs
-      - ./startup.sh:/app/startup.sh
+      - ./scripts/startup.sh:/app/scripts/startup.sh
     environment:
       - DB_HOST=postgres
       - DB_PORT=5432

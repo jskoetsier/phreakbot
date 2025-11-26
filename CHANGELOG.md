@@ -1,5 +1,22 @@
 # Changelog
 
+## 0.1.21 (2025-11-26)
+- Updated all dependencies to latest stable versions:
+  - irc>=20.5.0 (was 20.0.0)
+  - requests>=2.32.3 (was 2.28.0)
+  - psycopg2>=2.9.9 (was 2.8.0)
+  - iso3166>=2.1.1 (was 2.0.2)
+  - pycurl>=7.45.3 (was 7.43.0)
+  - beautifulsoup4>=4.13.4 (was 4.9.0)
+  - netaddr>=1.3.0 (was 0.8.0)
+  - dnspython>=2.7.0 (was 2.2.0)
+  - pydle>=1.0.1 (was 1.0.0)
+- Improved code quality by removing duplicate karma handling logic
+- Consolidated all utility scripts into scripts/ directory for better organization
+- Updated Dockerfile and docker-compose.yml to reference new script locations
+- Added comprehensive scripts/README.md to document all utility scripts
+- Updated main README.md to reference scripts directory
+
 ## 0.1.20 (2025-07-15)
 - Fixed karma minus pattern handling for all !item-- commands
 - Improved command routing for karma patterns

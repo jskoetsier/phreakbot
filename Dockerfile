@@ -19,11 +19,11 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy application code
 COPY . .
 
-# Set the entrypoint
-ENTRYPOINT ["/app/startup.sh"]
-
 # Make scripts executable
-RUN chmod +x phreakbot.py install.py
+RUN chmod +x phreakbot.py install.py scripts/*.sh
+
+# Set the entrypoint
+ENTRYPOINT ["/app/scripts/startup.sh"]
 
 # Set environment variables
 ENV PYTHONUNBUFFERED=1
