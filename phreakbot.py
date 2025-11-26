@@ -370,7 +370,11 @@ class PhreakBot(pydle.Client):
         # Get the user's hostmask
         try:
             user_info = await self.whois(source)
-            user_host = f"{source}!{user_info.get('username', '')}@{user_info.get('hostname', '')}"
+            if user_info is None or not isinstance(user_info, dict):
+                self.logger.warning(f"WHOIS returned None or invalid data for {source}, using fallback")
+                user_host = f"{source}!unknown@unknown"
+            else:
+                user_host = f"{source}!{user_info.get('username', 'unknown')}@{user_info.get('hostname', 'unknown')}"
         except Exception as e:
             self.logger.error(f"Error getting user info: {e}")
             user_host = f"{source}!unknown@unknown"

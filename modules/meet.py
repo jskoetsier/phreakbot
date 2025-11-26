@@ -79,14 +79,20 @@ async def run(bot, event):
         # Get the actual hostmask using WHOIS
         try:
             user_info = await bot.whois(found_user)
-            tuserhost = f"{found_user}!{user_info.get('username', '')}@{user_info.get('hostname', '')}"
+            if user_info is None:
+                bot.logger.warning(f"WHOIS returned None for '{found_user}', using placeholder")
+                # Use placeholder hostmask for now
+                tuserhost = f"{found_user}!user@host.unknown"
+            else:
+                tuserhost = f"{found_user}!{user_info.get('username', 'user')}@{user_info.get('hostname', 'host.unknown')}"
             bot.logger.info(f"Retrieved hostmask for '{found_user}': {tuserhost}")
         except Exception as e:
             bot.logger.error(f"Error getting user info via WHOIS: {e}")
-            bot.add_response(
-                f"Failed to retrieve hostmask for '{tnick}'. Try again later."
-            )
-            return
+            import traceback
+            bot.logger.error(f"Traceback: {traceback.format_exc()}")
+            # Use placeholder hostmask
+            tuserhost = f"{found_user}!user@host.unknown"
+            bot.logger.warning(f"Using placeholder hostmask: {tuserhost}")
 
         # Check if the user already exists in the database
         cur = bot.db_connection.cursor()
