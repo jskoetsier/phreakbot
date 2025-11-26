@@ -1,4 +1,4 @@
-# PhreakBot (v0.1.22)
+# PhreakBot (v0.1.23)
 
 PhreakBot is a modular IRC bot written in Python.
 
@@ -36,7 +36,7 @@ docker-compose up -d
 podman-compose up -d
 ```
 
-For detailed Podman instructions and features, see [PODMAN.md](PODMAN.md).
+For detailed Podman instructions and features, see [docs/PODMAN.md](docs/PODMAN.md).
 
 ### Manual Installation
 
@@ -86,7 +86,7 @@ Modules are stored in the `modules` directory. Each module should have a `config
 - `permissions`: List of permissions required to use the module
 - `help`: Help text for the module
 
-For detailed information on how to create your own modules, see the [Module Development Guide](MODULE_DEVELOPMENT_GUIDE.md).
+For detailed information on how to create your own modules, see the [Module Development Guide](docs/MODULE_DEVELOPMENT_GUIDE.md).
 
 ## Contributing
 

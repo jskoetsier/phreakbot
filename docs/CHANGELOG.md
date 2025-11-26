@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.23 (2025-11-26)
+- Reorganized all documentation into `docs/` directory for better project structure
+- Moved PODMAN.md, MODULE_DEVELOPMENT_GUIDE.md, and CHANGELOG.md to docs/
+- Created comprehensive docs/README.md with documentation index and quick links
+- Updated all documentation references in README.md
+- Improved documentation discoverability and organization
+
 ## 0.1.22 (2025-11-26)
 - Added full Podman/podman-compose compatibility
 - Updated docker-compose.yml with Podman-specific features:
