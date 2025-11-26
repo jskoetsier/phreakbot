@@ -42,12 +42,9 @@ def run(bot, event):
         if current_channel in bot.channels:
             try:
                 channel_data = bot.channels[current_channel]
-                users = (
-                    list(channel_data.keys())
-                    if isinstance(channel_data, dict)
-                    else list(channel_data)
-                )
-                bot.logger.info(f"Current channel {current_channel} users: {users}")
+                if "users" in channel_data:
+                    users = list(channel_data["users"].keys())
+                    bot.logger.info(f"Current channel {current_channel} users: {users}")
 
                 # Check if the user is in this channel (case insensitive)
                 for user in users:
@@ -75,12 +72,9 @@ def run(bot, event):
 
                 try:
                     channel_data = bot.channels[channel_name]
-                    users = (
-                        list(channel_data.keys())
-                        if isinstance(channel_data, dict)
-                        else list(channel_data)
-                    )
-                    bot.logger.info(f"Channel {channel_name} users: {users}")
+                    if "users" in channel_data:
+                        users = list(channel_data["users"].keys())
+                        bot.logger.info(f"Channel {channel_name} users: {users}")
 
                     # Check if the user is in this channel (case insensitive)
                     for user in users:

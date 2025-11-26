@@ -35,14 +35,11 @@ def run(bot, event):
     bot.logger.info(f"All channels: {list(bot.channels.keys())}")
     for channel_name in bot.channels:
         try:
-            # In pydle, channels data structure contains users as a dict
+            # In pydle, channels data structure contains users as a dict under 'users' key
             channel_data = bot.channels[channel_name]
-            users = (
-                list(channel_data.keys())
-                if isinstance(channel_data, dict)
-                else list(channel_data)
-            )
-            bot.logger.info(f"Channel {channel_name} users: {users}")
+            if "users" in channel_data:
+                users = list(channel_data["users"].keys())
+                bot.logger.info(f"Channel {channel_name} users: {users}")
         except Exception as e:
             bot.logger.error(f"Error listing users in {channel_name}: {e}")
 
@@ -51,28 +48,25 @@ def run(bot, event):
     if current_channel in bot.channels:
         try:
             channel_data = bot.channels[current_channel]
-            users = (
-                list(channel_data.keys())
-                if isinstance(channel_data, dict)
-                else list(channel_data)
-            )
-            bot.logger.info(f"Current channel {current_channel} users: {users}")
+            if "users" in channel_data:
+                users = list(channel_data["users"].keys())
+                bot.logger.info(f"Current channel {current_channel} users: {users}")
 
-            # Check if the user is in this channel (case insensitive)
-            bot.logger.info(
-                f"Looking for user '{tnick}' (lowercase: '{tnick.lower()}') in channel {current_channel}"
-            )
-            for user in users:
+                # Check if the user is in this channel (case insensitive)
                 bot.logger.info(
-                    f"Comparing with user '{user}' (lowercase: '{user.lower()}')"
+                    f"Looking for user '{tnick}' (lowercase: '{tnick.lower()}') in channel {current_channel}"
                 )
-                if user.lower() == tnick.lower():
-                    tuserhost = f"{user}!{user}@{bot.network}"
-                    found_channel = current_channel
+                for user in users:
                     bot.logger.info(
-                        f"MATCH FOUND: User '{user}' in current channel '{current_channel}' with generated hostmask '{tuserhost}'"
+                        f"Comparing with user '{user}' (lowercase: '{user.lower()}')"
                     )
-                    break
+                    if user.lower() == tnick.lower():
+                        tuserhost = f"{user}!{user}@{bot.network}"
+                        found_channel = current_channel
+                        bot.logger.info(
+                            f"MATCH FOUND: User '{user}' in current channel '{current_channel}' with generated hostmask '{tuserhost}'"
+                        )
+                        break
         except Exception as e:
             bot.logger.error(f"Error checking current channel {current_channel}: {e}")
             import traceback
@@ -88,30 +82,27 @@ def run(bot, event):
             try:
                 # Get the users in the channel
                 channel_data = bot.channels[channel_name]
-                users = (
-                    list(channel_data.keys())
-                    if isinstance(channel_data, dict)
-                    else list(channel_data)
-                )
+                if "users" in channel_data:
+                    users = list(channel_data["users"].keys())
 
-                # Check if the user is in this channel (case insensitive)
-                bot.logger.info(
-                    f"Looking for user '{tnick}' (lowercase: '{tnick.lower()}') in channel {channel_name}"
-                )
-                for user in users:
+                    # Check if the user is in this channel (case insensitive)
                     bot.logger.info(
-                        f"Comparing with user '{user}' (lowercase: '{user.lower()}')"
+                        f"Looking for user '{tnick}' (lowercase: '{tnick.lower()}') in channel {channel_name}"
                     )
-                    if user.lower() == tnick.lower():
-                        tuserhost = f"{user}!{user}@{bot.network}"
-                        found_channel = channel_name
+                    for user in users:
                         bot.logger.info(
-                            f"MATCH FOUND: User '{user}' in channel '{channel_name}' with generated hostmask '{tuserhost}'"
+                            f"Comparing with user '{user}' (lowercase: '{user.lower()}')"
                         )
-                        break
+                        if user.lower() == tnick.lower():
+                            tuserhost = f"{user}!{user}@{bot.network}"
+                            found_channel = channel_name
+                            bot.logger.info(
+                                f"MATCH FOUND: User '{user}' in channel '{channel_name}' with generated hostmask '{tuserhost}'"
+                            )
+                            break
 
-                if tuserhost:
-                    break
+                    if tuserhost:
+                        break
             except Exception as e:
                 bot.logger.error(f"Error checking channel {channel_name}: {e}")
                 import traceback

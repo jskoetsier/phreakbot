@@ -44,20 +44,12 @@ def run(bot, event):
         for channel_name in bot.channels:
             # Get the users in the channel
             try:
-                # In pydle, bot.channels[channel_name] is a dict with 'users' key
-                # or we can use bot.channels[channel_name] directly if it's the users dict
+                # In pydle, bot.channels[channel_name] is a dict with a 'users' key
                 channel_data = bot.channels[channel_name]
 
-                # Try to get users - pydle stores users as a dict
-                if hasattr(channel_data, "__iter__") and not isinstance(
-                    channel_data, str
-                ):
-                    # channel_data might be the users dict directly
-                    users = (
-                        list(channel_data.keys())
-                        if isinstance(channel_data, dict)
-                        else list(channel_data)
-                    )
+                # The 'users' key contains a dict of users
+                if "users" in channel_data:
+                    users = list(channel_data["users"].keys())
                     bot.logger.info(f"Channel {channel_name} users: {users}")
 
                     # Check if the user is in this channel (case insensitive)
@@ -73,8 +65,8 @@ def run(bot, event):
                             )
                             break
 
-                    if tuserhost:
-                        break
+                if tuserhost:
+                    break
             except Exception as e:
                 bot.logger.error(f"Error accessing channel users: {e}")
                 import traceback
