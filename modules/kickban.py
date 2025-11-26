@@ -220,7 +220,7 @@ def _schedule_unban(bot, channel, hostmask, minutes):
         try:
             bot.logger.info(f"Auto-unbanning {hostmask} in {channel}")
             bot.connection.mode(channel, f"-b {hostmask}")
-            bot.say(channel, f"Auto-unban: {hostmask} has been unbanned")
+            bot.add_response(f"Auto-unban: {hostmask} has been unbanned")
             # Remove from scheduled unbans
             if key in scheduled_unbans:
                 del scheduled_unbans[key]

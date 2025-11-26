@@ -49,12 +49,12 @@ def run(bot, event):
 
         try:
             # Send a message to the channel immediately
-            bot.connection.privmsg(event["channel"], f"Starting reload of {module_name} module")
+            bot.add_response(f"Starting reload of {module_name} module")
 
             # Try a simpler approach - use importlib directly
             import importlib
-            import sys
             import os
+            import sys
 
             # Construct the full path to the module
             module_path = os.path.join(bot.bot_base, "modules", f"{module_name}.py")
@@ -76,11 +76,13 @@ def run(bot, event):
                     bot.logger.info(f"Module {module_name} unloaded")
                 except Exception as unload_error:
                     # Log the error but continue with the reload process
-                    bot.logger.error(f"Error unloading module {module_name}: {unload_error}")
+                    bot.logger.error(
+                        f"Error unloading module {module_name}: {unload_error}"
+                    )
                     # Don't send the error to the channel to avoid confusion
 
             # Force a message to be sent before attempting to reload
-            bot.connection.privmsg(event["channel"], f"Unloaded {module_name}, now reloading...")
+            bot.add_response(f"Unloaded {module_name}, now reloading...")
 
             # Try to load the module
             bot.logger.info(f"Loading module {module_name} from {module_path}")
@@ -91,19 +93,19 @@ def run(bot, event):
                 bot.logger.info(f"Module {module_name} load result: {success}")
             except Exception as load_error:
                 bot.logger.error(f"Error loading module {module_name}: {load_error}")
-                bot.connection.privmsg(event["channel"], f"Error loading module: {str(load_error)[:100]}")
+                bot.add_response(f"Error loading module: {str(load_error)[:100]}")
                 return
 
             if success:
-                bot.connection.privmsg(event["channel"], f"Successfully reloaded module: {module_name}")
+                bot.add_response(f"Successfully reloaded module: {module_name}")
             else:
-                bot.connection.privmsg(event["channel"], f"Failed to reload module: {module_name}")
+                bot.add_response(f"Failed to reload module: {module_name}")
 
         except Exception as e:
             bot.logger.error(f"Error in module reload process: {e}")
             # Try to send a message even if there's an error
             try:
-                bot.connection.privmsg(event["channel"], f"Error reloading {module_name}: {str(e)[:100]}")
+                bot.add_response(f"Error reloading {module_name}: {str(e)[:100]}")
             except:
                 pass
 

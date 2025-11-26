@@ -36,7 +36,7 @@ def run(bot, event):
 def _check_auto_op(bot, event):
     """Check if a user should be auto-opped when they join"""
     # Don't auto-op the bot itself
-    if event["nick"] == bot.connection.get_nickname():
+    if event["nick"] == bot.nickname:
         return
 
     # Check if the database connection is available
@@ -62,7 +62,17 @@ def _check_auto_op(bot, event):
         if cur.fetchone():
             # Give the user operator status
             bot.logger.info(f"Auto-opping {nick} in {channel}")
-            bot.connection.mode(channel, f"+o {nick}")
+            # Schedule mode change asynchronously
+            import asyncio
+            try:
+                # Create a coroutine to set the mode
+                async def set_op():
+                    await bot.set_mode(channel, f"+o {nick}")
+                
+                # Schedule it to run
+                asyncio.create_task(set_op())
+            except Exception as e:
+                bot.logger.error(f"Error setting mode: {e}")
 
         cur.close()
 
