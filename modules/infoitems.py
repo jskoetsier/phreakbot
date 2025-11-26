@@ -42,6 +42,25 @@ def run(bot, event):
         _forget_infoitem(bot, event, item, value)
         return True
 
+    # Check for custom infoitem pattern (!item = value) even when parsed as command
+    if event["command_args"] and event["command_args"].strip().startswith("="):
+        item = event["command"].lower()
+        value = (
+            event["command_args"].strip()[1:].strip()
+        )  # Remove the '=' and strip whitespace
+
+        # Make sure the item is not a registered command
+        registered_commands = []
+        for module in bot.modules.values():
+            registered_commands.extend(module.get("commands", []))
+
+        if item not in registered_commands:
+            bot.logger.info(
+                f"Custom infoitem set command (from command parsing): {item} = {value}"
+            )
+            _add_infoitem(bot, event, item, value)
+            return True
+
     if event["command"] not in ["infoitem", "info"]:
         return False
 
@@ -85,14 +104,18 @@ def handle_custom_command(bot, event):
     """Handle custom infoitem commands like !item = value or !item?"""
     if event["trigger"] == "event" and event["text"].startswith(bot.config["trigger"]):
         bot.logger.info(f"Infoitems handle_custom_command processing: {event['text']}")
-        
+
         # SUPER EARLY CHECK for karma patterns (!item++ or !item--) and ALWAYS return False to let other modules handle it
         # This is the first check we do to ensure karma patterns are never handled by infoitems
         if event["text"].endswith("++") or event["text"].endswith("--"):
-            bot.logger.info(f"Infoitems module detected karma pattern by suffix: {event['text']}")
-            bot.logger.info("IMMEDIATELY returning False to allow karma module to process this")
+            bot.logger.info(
+                f"Infoitems module detected karma pattern by suffix: {event['text']}"
+            )
+            bot.logger.info(
+                "IMMEDIATELY returning False to allow karma module to process this"
+            )
             return False
-            
+
         # More detailed check for karma patterns with regex
         karma_pattern = re.compile(r"^\!([a-zA-Z0-9_-]+)(\+\+|\-\-)(?:\s+#(.+))?$")
         match = karma_pattern.match(event["text"])
