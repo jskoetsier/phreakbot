@@ -567,7 +567,7 @@ class PhreakBot(pydle.Client):
                     f"Module: {module_name}, Commands: {module['commands']}"
                 )
 
-            for module_name, module in self.modules.items():
+              for module_name, module in self.modules.items():
                 if event["command"] in module["commands"]:
                     self.logger.info(
                         f"Found module {module_name} to handle command {event['command']}"
@@ -594,6 +594,22 @@ class PhreakBot(pydle.Client):
 
                             self.logger.error(f"Error in module {module_name}: {e}")
                             self.logger.error(f"Traceback: {traceback.format_exc()}")
+
+              # If command not handled and it looks like an infoitem pattern, try infoitems module
+              if not handled and "infoitems" in self.modules:
+                  if event["command_args"] and ("=" in event["command_args"] or event["command_args"].strip() == "?"):
+                      self.logger.info(f"Trying infoitems module for unhandled command pattern")
+                      has_permission = self._check_permissions(event, self.modules["infoitems"]["permissions"])
+                      if has_permission:
+                          try:
+                              result = self.modules["infoitems"]["object"].run(self, event)
+                              if result:
+                                  handled = True
+                                  self.logger.info("Infoitems module handled the command")
+                          except Exception as e:
+                              import traceback
+                              self.logger.error(f"Error in infoitems module: {e}")
+                              self.logger.error(f"Traceback: {traceback.format_exc()}")
 
         # Then try modules that handle events
         if not handled and event["trigger"] == "event":
