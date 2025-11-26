@@ -12,12 +12,12 @@ import re
 import sys
 from datetime import datetime
 
-# Pydle IRC library
-import pydle
-
 # Database library
 import psycopg2
 import psycopg2.extras
+
+# Pydle IRC library
+import pydle
 
 
 class PhreakBot(pydle.Client):
@@ -54,7 +54,8 @@ class PhreakBot(pydle.Client):
         super().__init__(
             nickname=self.config["nickname"],
             realname=self.config["realname"],
-            *args, **kwargs
+            *args,
+            **kwargs,
         )
 
         # Load modules
@@ -308,7 +309,9 @@ class PhreakBot(pydle.Client):
         # Create event object for modules
         try:
             user_info = await self.whois(by)
-            user_host = f"{by}!{user_info.get('username', '')}@{user_info.get('hostname', '')}"
+            user_host = (
+                f"{by}!{user_info.get('username', '')}@{user_info.get('hostname', '')}"
+            )
         except Exception as e:
             self.logger.error(f"Error getting user info: {e}")
             user_host = f"{by}!unknown@unknown"
@@ -428,6 +431,7 @@ class PhreakBot(pydle.Client):
                         return
                 except Exception as e:
                     import traceback
+
                     self.logger.error(f"Error in karma module: {e}")
                     self.logger.error(f"Traceback: {traceback.format_exc()}")
             return
@@ -455,7 +459,9 @@ class PhreakBot(pydle.Client):
                 await self._route_to_modules(event_obj)
             else:
                 # This is a message that starts with the trigger but doesn't match the command pattern
-                self.logger.info(f"Message starts with trigger but doesn't match command pattern: '{message}'")
+                self.logger.info(
+                    f"Message starts with trigger but doesn't match command pattern: '{message}'"
+                )
                 event_obj["trigger"] = "event"
                 await self._route_to_modules(event_obj)
         else:
@@ -510,7 +516,9 @@ class PhreakBot(pydle.Client):
         handled = False
 
         # Debug the event
-        self.logger.info(f"Routing event: trigger={event['trigger']}, signal={event.get('signal', 'N/A')}, text={event.get('text', 'N/A')}")
+        self.logger.info(
+            f"Routing event: trigger={event['trigger']}, signal={event.get('signal', 'N/A')}, text={event.get('text', 'N/A')}"
+        )
 
         # Special handling for karma patterns in event routing
         if event["trigger"] == "event" and "text" in event and event["text"]:
@@ -519,7 +527,9 @@ class PhreakBot(pydle.Client):
             match = karma_pattern.match(event["text"])
 
             if match:
-                self.logger.info(f"EVENT ROUTING: Detected karma pattern in message: {event['text']}")
+                self.logger.info(
+                    f"EVENT ROUTING: Detected karma pattern in message: {event['text']}"
+                )
                 self.logger.info(f"Matched groups: {match.groups()}")
                 item = match.group(1).lower()
                 direction = "up" if match.group(2) == "++" else "down"
@@ -527,7 +537,9 @@ class PhreakBot(pydle.Client):
                 # Try to route directly to karma module
                 if "karma" in self.modules:
                     try:
-                        self.logger.info(f"Routing directly to karma module for {direction} karma")
+                        self.logger.info(
+                            f"Routing directly to karma module for {direction} karma"
+                        )
                         result = self.modules["karma"]["object"].run(self, event)
                         if result:
                             handled = True
@@ -538,6 +550,7 @@ class PhreakBot(pydle.Client):
                             return
                     except Exception as e:
                         import traceback
+
                         self.logger.error(f"Error in karma module: {e}")
                         self.logger.error(f"Traceback: {traceback.format_exc()}")
 
@@ -546,11 +559,16 @@ class PhreakBot(pydle.Client):
             try:
                 # Try to handle as a custom infoitem command regardless of trigger type
                 self.logger.info("Checking if infoitems module can handle this message")
-                if hasattr(self.modules["infoitems"]["object"], "handle_custom_command"):
-                    handled = self.modules["infoitems"]["object"].handle_custom_command(self, event)
+                if hasattr(
+                    self.modules["infoitems"]["object"], "handle_custom_command"
+                ):
+                    handled = self.modules["infoitems"]["object"].handle_custom_command(
+                        self, event
+                    )
                     self.logger.info(f"Infoitems module handled message: {handled}")
             except Exception as e:
                 import traceback
+
                 self.logger.error(f"Error in infoitems custom command handler: {e}")
                 self.logger.error(f"Traceback: {traceback.format_exc()}")
 
@@ -567,7 +585,7 @@ class PhreakBot(pydle.Client):
                     f"Module: {module_name}, Commands: {module['commands']}"
                 )
 
-              for module_name, module in self.modules.items():
+            for module_name, module in self.modules.items():
                 if event["command"] in module["commands"]:
                     self.logger.info(
                         f"Found module {module_name} to handle command {event['command']}"
@@ -595,44 +613,64 @@ class PhreakBot(pydle.Client):
                             self.logger.error(f"Error in module {module_name}: {e}")
                             self.logger.error(f"Traceback: {traceback.format_exc()}")
 
-              # If command not handled and it looks like an infoitem pattern, try infoitems module
-              if not handled and "infoitems" in self.modules:
-                  if event["command_args"] and ("=" in event["command_args"] or event["command_args"].strip() == "?"):
-                      self.logger.info(f"Trying infoitems module for unhandled command pattern")
-                      has_permission = self._check_permissions(event, self.modules["infoitems"]["permissions"])
-                      if has_permission:
-                          try:
-                              result = self.modules["infoitems"]["object"].run(self, event)
-                              if result:
-                                  handled = True
-                                  self.logger.info("Infoitems module handled the command")
-                          except Exception as e:
-                              import traceback
-                              self.logger.error(f"Error in infoitems module: {e}")
-                              self.logger.error(f"Traceback: {traceback.format_exc()}")
+            # If command not handled and it looks like an infoitem pattern, try infoitems module
+            if not handled and "infoitems" in self.modules:
+                if event["command_args"] and (
+                    "=" in event["command_args"] or event["command_args"].strip() == "?"
+                ):
+                    self.logger.info(
+                        f"Trying infoitems module for unhandled command pattern"
+                    )
+                    has_permission = self._check_permissions(
+                        event, self.modules["infoitems"]["permissions"]
+                    )
+                    if has_permission:
+                        try:
+                            result = self.modules["infoitems"]["object"].run(
+                                self, event
+                            )
+                            if result:
+                                handled = True
+                                self.logger.info("Infoitems module handled the command")
+                        except Exception as e:
+                            import traceback
+
+                            self.logger.error(f"Error in infoitems module: {e}")
+                            self.logger.error(f"Traceback: {traceback.format_exc()}")
 
         # Then try modules that handle events
         if not handled and event["trigger"] == "event":
             self.logger.info("Routing event to modules that handle events")
             for module_name, module in self.modules.items():
-                self.logger.info(f"Checking if module {module_name} handles event signal {event['signal']}")
+                self.logger.info(
+                    f"Checking if module {module_name} handles event signal {event['signal']}"
+                )
                 self.logger.info(f"Module {module_name} events: {module['events']}")
 
                 if event["signal"] in module["events"]:
-                    self.logger.info(f"Module {module_name} handles event signal {event['signal']}")
+                    self.logger.info(
+                        f"Module {module_name} handles event signal {event['signal']}"
+                    )
 
                     # Check permissions
-                    has_permission = self._check_permissions(event, module["permissions"])
-                    self.logger.info(f"User has permission for module {module_name}: {has_permission}")
+                    has_permission = self._check_permissions(
+                        event, module["permissions"]
+                    )
+                    self.logger.info(
+                        f"User has permission for module {module_name}: {has_permission}"
+                    )
 
                     if has_permission:
                         try:
-                            self.logger.info(f"Calling module {module_name}.run() with event")
+                            self.logger.info(
+                                f"Calling module {module_name}.run() with event"
+                            )
                             module["object"].run(self, event)
                             self.logger.info(f"Module {module_name} processed event")
                             handled = True
                         except Exception as e:
                             import traceback
+
                             self.logger.error(f"Error in module {module_name}: {e}")
                             self.logger.error(f"Traceback: {traceback.format_exc()}")
 
@@ -764,7 +802,9 @@ class PhreakBot(pydle.Client):
                 if line["type"] == "say":
                     await self.message(event["channel"], line["msg"])
                 elif line["type"] == "reply":
-                    await self.message(event["channel"], f"{event['nick']}, {line['msg']}")
+                    await self.message(
+                        event["channel"], f"{event['nick']}, {line['msg']}"
+                    )
                 elif line["type"] == "private":
                     await self.message(event["nick"], line["msg"])
 
@@ -802,7 +842,7 @@ def main():
         bot.config["server"],
         bot.config["port"],
         tls=bot.config.get("use_tls", False),
-        tls_verify=bot.config.get("tls_verify", True)
+        tls_verify=bot.config.get("tls_verify", True),
     )
 
 

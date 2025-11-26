@@ -249,11 +249,9 @@ def _get_infoitem(bot, event, item):
             if not items:
                 bot.reply(f"No info found for '{item}'.")
             else:
-                bot.reply(f"Info for '{item}' ({len(items)} entries):")
-                for item_id, value, username, timestamp in items:
-                    bot.reply(
-                        f"• [{item_id}] {value} (added by {username} on {timestamp.strftime('%Y-%m-%d')})"
-                    )
+                # Display all values on one line, separated by commas
+                values = [value for _, value, _, _ in items]
+                bot.reply(f"{item}: {', '.join(values)}")
         except Exception as e:
             bot.logger.error(f"Error retrieving info item: {e}")
             bot.reply(f"Error retrieving info item: {e}")
