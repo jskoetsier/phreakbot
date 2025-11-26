@@ -15,7 +15,7 @@ def config(bot):
     }
 
 
-def run(bot, event):
+async def run(bot, event):
     """Handle whois commands"""
     tnick = event["command_args"]
 
@@ -30,6 +30,7 @@ def run(bot, event):
     # Get the user's hostmask
     tuserhost = None
     found_channel = None
+    found_user = None
 
     # Debug: Log all channels and their users
     bot.logger.info(f"All channels: {list(bot.channels.keys())}")
@@ -61,10 +62,10 @@ def run(bot, event):
                         f"Comparing with user '{user}' (lowercase: '{user.lower()}')"
                     )
                     if user.lower() == tnick.lower():
-                        tuserhost = f"{user}!{user}@{bot.network}"
+                        found_user = user
                         found_channel = current_channel
                         bot.logger.info(
-                            f"MATCH FOUND: User '{user}' in current channel '{current_channel}' with generated hostmask '{tuserhost}'"
+                            f"MATCH FOUND: User '{user}' in current channel '{current_channel}'"
                         )
                         break
         except Exception as e:
@@ -74,7 +75,7 @@ def run(bot, event):
             bot.logger.error(f"Traceback: {traceback.format_exc()}")
 
     # If not found in current channel, check all other channels
-    if not tuserhost:
+    if not found_user:
         for channel_name in bot.channels:
             if channel_name == current_channel:
                 continue  # Skip current channel as we already checked it
@@ -94,14 +95,14 @@ def run(bot, event):
                             f"Comparing with user '{user}' (lowercase: '{user.lower()}')"
                         )
                         if user.lower() == tnick.lower():
-                            tuserhost = f"{user}!{user}@{bot.network}"
+                            found_user = user
                             found_channel = channel_name
                             bot.logger.info(
-                                f"MATCH FOUND: User '{user}' in channel '{channel_name}' with generated hostmask '{tuserhost}'"
+                                f"MATCH FOUND: User '{user}' in channel '{channel_name}'"
                             )
                             break
 
-                    if tuserhost:
+                    if found_user:
                         break
             except Exception as e:
                 bot.logger.error(f"Error checking channel {channel_name}: {e}")
@@ -109,13 +110,24 @@ def run(bot, event):
 
                 bot.logger.error(f"Traceback: {traceback.format_exc()}")
 
-    if not tuserhost:
+    if not found_user:
         bot.logger.warning(f"Could not find user '{tnick}' in any channel")
         bot.add_response(f"{tnick} is not in any channel I'm in.")
         return
-    else:
-        bot.logger.info(f"Successfully found user '{tnick}' in channel {found_channel}")
-        bot.add_response(f"{tnick} is on channel {found_channel} as {tuserhost}.")
+
+    # Get the actual hostmask using WHOIS
+    try:
+        user_info = await bot.whois(found_user)
+        tuserhost = f"{found_user}!{user_info.get('username', '')}@{user_info.get('hostname', '')}"
+        bot.logger.info(f"Retrieved hostmask for '{found_user}': {tuserhost}")
+        bot.add_response(f"{found_user} is on channel {found_channel} as {tuserhost}.")
+    except Exception as e:
+        bot.logger.error(f"Error getting user info via WHOIS: {e}")
+        bot.add_response(
+            f"{tnick} is on channel {found_channel} (hostmask lookup failed)."
+        )
+        # Still continue with the rest since we know the user exists
+        tuserhost = None
 
     # Check if the user exists in the database
     if not bot.db_connection:

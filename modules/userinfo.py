@@ -16,7 +16,7 @@ def config(bot):
     }
 
 
-def run(bot, event):
+async def run(bot, event):
     """Handle userinfo commands"""
     if event["trigger"] == "command" and event["command"] == "userinfo":
         tnick = event["command_args"].strip()
@@ -30,9 +30,8 @@ def run(bot, event):
             return
 
         # First check if the user is in any channel
-        found_user = False
+        found_user = None
         found_channel = None
-        user_hostmask = None
 
         # Debug: Log all channels and their users
         bot.logger.info(f"All channels: {list(bot.channels.keys())}")
@@ -55,9 +54,8 @@ def run(bot, event):
                 # Check if the user is in this channel (case insensitive)
                 for user in users:
                     if user.lower() == tnick.lower():
-                        user_hostmask = f"{user}!{user}@{bot.network}"
+                        found_user = user
                         found_channel = current_channel
-                        found_user = True
                         bot.logger.info(
                             f"Found user '{user}' in current channel '{current_channel}'"
                         )
@@ -86,9 +84,8 @@ def run(bot, event):
                     # Check if the user is in this channel (case insensitive)
                     for user in users:
                         if user.lower() == tnick.lower():
-                            user_hostmask = f"{user}!{user}@{bot.network}"
+                            found_user = user
                             found_channel = channel_name
-                            found_user = True
                             bot.logger.info(
                                 f"Found user '{user}' in channel '{channel_name}'"
                             )
@@ -106,8 +103,24 @@ def run(bot, event):
             bot.add_response(f"{tnick} is not in any channel I'm in.")
             return
 
+        # Get the actual hostmask using WHOIS
+        try:
+            user_info = await bot.whois(found_user)
+            user_hostmask = f"{found_user}!{user_info.get('username', '')}@{user_info.get('hostname', '')}"
+            bot.logger.info(f"Retrieved hostmask for '{found_user}': {user_hostmask}")
+        except Exception as e:
+            bot.logger.error(f"Error getting user info via WHOIS: {e}")
+            user_hostmask = None
+
         # User found, display information
-        bot.add_response(f"{tnick} is on channel {found_channel} as {user_hostmask}.")
+        if user_hostmask:
+            bot.add_response(
+                f"{tnick} is on channel {found_channel} as {user_hostmask}."
+            )
+        else:
+            bot.add_response(
+                f"{tnick} is on channel {found_channel} (hostmask lookup failed)."
+            )
 
         # Check if the user exists in the database
         if bot.db_connection:
@@ -183,8 +196,8 @@ def run(bot, event):
                         bot.add_response("This user is the bot owner.")
                     elif user_info[3]:  # is_admin
                         bot.add_response("This user is a bot admin.")
-                else:
-                    # Try by hostmask as a fallback
+                elif user_hostmask:
+                    # Try by hostmask as a fallback (only if we got a valid hostmask)
                     user_by_hostmask = bot.db_get_userinfo_by_userhost(user_hostmask)
 
                     if user_by_hostmask:
@@ -210,6 +223,8 @@ def run(bot, event):
                         bot.add_response(hostmasks_text)
                     else:
                         bot.add_response("Unrecognized user (not in database).")
+                else:
+                    bot.add_response("Unrecognized user (not in database).")
             except Exception as e:
                 bot.logger.error(f"Database error in userinfo module: {e}")
                 bot.add_response("Error retrieving user information from database.")

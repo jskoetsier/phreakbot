@@ -15,7 +15,7 @@ def config(bot):
     }
 
 
-def run(bot, event):
+async def run(bot, event):
     """Handle meet commands"""
     # Strip whitespace from the nickname
     tnick = event["command_args"].strip() if event["command_args"] else ""
@@ -38,6 +38,7 @@ def run(bot, event):
     try:
         # Get the user's hostmask
         tuserhost = None
+        found_user = None
 
         # Log all channels and users for debugging
         bot.logger.info(f"Looking for user '{tnick}' in channels:")
@@ -56,16 +57,13 @@ def run(bot, event):
                     for user in users:
                         bot.logger.info(f"Checking user: {user}")
                         if user.lower() == tnick.lower():
-                            # Since we can't get the hostmask directly, we'll create a generic one
-                            # Format: nickname!username@hostname
-                            # We'll use the nickname for both the nickname and username parts
-                            tuserhost = f"{user}!{user}@{bot.network}"
+                            found_user = user
                             bot.logger.info(
-                                f"Found user '{user}' with generated hostmask '{tuserhost}'"
+                                f"Found user '{user}' in channel {channel_name}"
                             )
                             break
 
-                if tuserhost:
+                if found_user:
                     break
             except Exception as e:
                 bot.logger.error(f"Error accessing channel users: {e}")
@@ -73,9 +71,21 @@ def run(bot, event):
 
                 bot.logger.error(f"Traceback: {traceback.format_exc()}")
 
-        if not tuserhost:
+        if not found_user:
             bot.add_response(f"Can't find user '{tnick}' on any channel.")
             bot.logger.info(f"User '{tnick}' not found in any channel")
+            return
+
+        # Get the actual hostmask using WHOIS
+        try:
+            user_info = await bot.whois(found_user)
+            tuserhost = f"{found_user}!{user_info.get('username', '')}@{user_info.get('hostname', '')}"
+            bot.logger.info(f"Retrieved hostmask for '{found_user}': {tuserhost}")
+        except Exception as e:
+            bot.logger.error(f"Error getting user info via WHOIS: {e}")
+            bot.add_response(
+                f"Failed to retrieve hostmask for '{tnick}'. Try again later."
+            )
             return
 
         # Check if the user already exists in the database
