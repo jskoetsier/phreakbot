@@ -16,7 +16,7 @@ def config(bot):
     }
 
 
-def run(bot, event):
+async def run(bot, event):
     """Handle massmeet command"""
     if event["command"] != "massmeet":
         return
@@ -35,63 +35,55 @@ def run(bot, event):
         "merged_hostmasks": 0,
         "already_registered": 0,
         "errors": 0,
-        "skipped": 0,  # For bot itself and users we can't process
+        "skipped": 0,
     }
 
     try:
         # Get all users from all channels
-        all_users = {}  # {nickname: hostmask}
-
-        # Since we're having trouble accessing the users through the channel object,
-        # let's use a simpler approach: manually add the users we know are in the channel
-        # This is a temporary solution until we figure out how to properly access the users
+        all_users = {}
 
         # Get the current channel from the event
         current_channel = event["channel"]
-        bot.logger.info(f"Current channel: {current_channel}")
+        bot.logger.info(f"Processing channel: {current_channel}")
 
-        # Get the users from the event source
-        # The user who triggered the command is definitely in the channel
-        triggering_user = event["nick"]
-        triggering_hostmask = event["hostmask"]
-        bot.logger.info(
-            f"Triggering user: {triggering_user} with hostmask: {triggering_hostmask}"
-        )
+        # Get users from the channel
+        if current_channel in bot.channels:
+            channel_users = bot.channels[current_channel].get("users", {})
+            bot.logger.info(f"Found {len(channel_users)} users in {current_channel}")
 
-        # Add the triggering user to our list
-        all_users[triggering_user] = triggering_hostmask
+            for nick in channel_users:
+                if nick.lower() == bot.nickname.lower():
+                    continue
 
-        # Add the bot itself (for debugging purposes)
-        bot_nick = bot.nickname
-        bot_hostmask = f"{bot_nick}!~phreakybo@vuurstorm.nl"  # Hardcoded for now
-        bot.logger.info(f"Bot: {bot_nick} with hostmask: {bot_hostmask}")
+                try:
+                    # Try to get hostmask from cache first
+                    if nick.lower() in bot.user_hostmasks:
+                        hostmask = bot.user_hostmasks[nick.lower()]
+                        bot.logger.info(f"Using cached hostmask for {nick}: {hostmask}")
+                    else:
+                        # Get hostmask via WHOIS
+                        user_info = await bot.whois(nick)
+                        if user_info and isinstance(user_info, dict):
+                            hostmask = f"{nick}!{user_info.get('username', 'unknown')}@{user_info.get('hostname', 'unknown')}"
+                            bot.user_hostmasks[nick.lower()] = hostmask
+                            bot.logger.info(f"Got hostmask via WHOIS for {nick}: {hostmask}")
+                        else:
+                            bot.logger.warning(f"Could not get hostmask for {nick}, skipping")
+                            stats["skipped"] += 1
+                            continue
 
-        # Add any other users we know are in the channel
-        # This is where you would normally get the list of users from the channel
-        # For now, we'll hardcode a few users for testing
-        test_users = {
-            "dubieus": "dubieus!a3728540@ircnet.chat",
-            "phreak": "phreak!^phreak@vuurstorm.nl",
-        }
-
-        try:
-            for nick, hostmask in test_users.items():
-                if (
-                    nick.lower() != bot_nick.lower()
-                    and nick.lower() != triggering_user.lower()
-                ):
-                    bot.logger.info(
-                        f"Adding test user: {nick} with hostmask: {hostmask}"
-                    )
                     all_users[nick] = hostmask
-        except Exception as e:
-            bot.logger.error(f"Error adding test users: {e}")
-            import traceback
-
-            bot.logger.error(f"Traceback: {traceback.format_exc()}")
+                except Exception as e:
+                    bot.logger.error(f"Error getting hostmask for {nick}: {e}")
+                    stats["errors"] += 1
+                    continue
+        else:
+            bot.logger.warning(f"Channel {current_channel} not in bot.channels")
+            bot.add_response(f"Could not access channel {current_channel}")
+            return
 
         stats["total_users"] = len(all_users)
-        bot.logger.info(f"Found {len(all_users)} users across all channels")
+        bot.logger.info(f"Found {len(all_users)} users to process")
 
         # Process each user
         cur = bot.db_connection.cursor()
