@@ -63,35 +63,23 @@ def run(bot, event):
 def lookup_asn_by_ip(bot, ip):
     """Look up ASN information for an IP address"""
     try:
-        # Use ip-api.com for IP to ASN lookup
+        # Use bgp.tools API for IP to ASN lookup
         response = requests.get(
-            f"http://ip-api.com/json/{ip}?fields=as,asname,country,regionName,city,org",
+            f"https://bgp.tools/prefix/{ip}",
+            headers={"Accept": "application/json"},
             timeout=10,
         )
         response.raise_for_status()
         data = response.json()
 
-        if data.get("status") == "fail":
-            bot.add_response(
-                f"Failed to look up ASN for IP {ip}: {data.get('message', 'Unknown error')}"
-            )
-            return
-
-        # Extract ASN number from the AS field (format: "AS15169 Google LLC")
-        as_info = data.get("as", "")
-        asn = "Unknown"
-        if as_info:
-            as_match = re.match(r"^AS(\d+)\s", as_info)
-            if as_match:
-                asn = as_match.group(1)
-
-        company = data.get("org", data.get("asname", "Unknown"))
-        location = format_location(
-            data.get("country"), data.get("regionName"), data.get("city")
-        )
+        # Extract ASN and network information
+        asn = data.get("asn", "Unknown")
+        name = data.get("name", "Unknown")
+        prefix = data.get("prefix", ip)
+        country = data.get("country_code", "Unknown")
 
         # Combine all information into a single line
-        result = f"ASN Lookup for {ip}: AS{asn} | Organization: {company} | Location: {location}"
+        result = f"ASN Lookup for {ip}: AS{asn} ({name}) | Prefix: {prefix} | Country: {country}"
         bot.add_response(result)
 
     except Exception as e:
@@ -102,48 +90,30 @@ def lookup_asn_by_ip(bot, ip):
 def lookup_asn_by_number(bot, asn):
     """Look up ASN information for an AS number"""
     try:
+        # Use bgp.tools API for ASN lookup
         response = requests.get(
-            f"https://stat.ripe.net/data/as-overview/data.json?resource=AS{asn}",
+            f"https://bgp.tools/as/{asn}",
+            headers={"Accept": "application/json"},
             timeout=10,
         )
         response.raise_for_status()
         data = response.json()
 
-        if data.get("status") != "ok":
-            bot.add_response(f"Failed to look up information for AS{asn}")
-            return
+        # Extract ASN information
+        name = data.get("name", "Unknown")
+        description = data.get("description", name)
+        country = data.get("country_code", "Unknown")
 
-        asn_data = data.get("data", {})
-        holder = asn_data.get("holder", "Unknown")
+        # Get prefix counts
+        prefix_v4 = data.get("ipv4_prefixes", 0)
+        prefix_v6 = data.get("ipv6_prefixes", 0)
+        total_prefixes = prefix_v4 + prefix_v6
 
-        country_code = ""
-        announced = asn_data.get("announced", False)
+        prefix_info = f" | Prefixes: {total_prefixes} total (IPv4: {prefix_v4}, IPv6: {prefix_v6})"
 
-        prefix_count = 0
-        if announced:
-            response2 = requests.get(
-                f"https://stat.ripe.net/data/announced-prefixes/data.json?resource=AS{asn}",
-                timeout=10,
-            )
-            if response2.status_code == 200:
-                prefix_data = response2.json()
-                if prefix_data.get("status") == "ok":
-                    prefixes = prefix_data.get("data", {}).get("prefixes", [])
-                    prefix_count = len(prefixes)
-
-                    if prefixes and len(prefixes) > 0:
-                        sample_prefixes = [p.get("prefix", "") for p in prefixes[:3]]
-                        prefix_info = f" | Prefixes: {prefix_count} total (e.g., {', '.join(sample_prefixes)})"
-                    else:
-                        prefix_info = f" | Prefixes: {prefix_count}"
-                else:
-                    prefix_info = ""
-            else:
-                prefix_info = ""
-        else:
-            prefix_info = " | Status: Not currently announced"
-
-        result = f"ASN Lookup for AS{asn}: {holder}{prefix_info}"
+        result = (
+            f"ASN Lookup for AS{asn}: {description} | Country: {country}{prefix_info}"
+        )
         bot.add_response(result)
 
     except Exception as e:
