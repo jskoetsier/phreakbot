@@ -16,7 +16,7 @@ def config(bot):
     }
 
 
-async def run(bot, event):
+def run(bot, event):
     """Handle massmeet command"""
     if event["command"] != "massmeet":
         return
@@ -61,16 +61,12 @@ async def run(bot, event):
                         hostmask = bot.user_hostmasks[nick.lower()]
                         bot.logger.info(f"Using cached hostmask for {nick}: {hostmask}")
                     else:
-                        # Get hostmask via WHOIS
-                        user_info = await bot.whois(nick)
-                        if user_info and isinstance(user_info, dict):
-                            hostmask = f"{nick}!{user_info.get('username', 'unknown')}@{user_info.get('hostname', 'unknown')}"
-                            bot.user_hostmasks[nick.lower()] = hostmask
-                            bot.logger.info(f"Got hostmask via WHOIS for {nick}: {hostmask}")
-                        else:
-                            bot.logger.warning(f"Could not get hostmask for {nick}, skipping")
-                            stats["skipped"] += 1
-                            continue
+                        # Skip users without cached hostmask for now
+                        bot.logger.warning(
+                            f"No cached hostmask for {nick}, skipping"
+                        )
+                        stats["skipped"] += 1
+                        continue
 
                     all_users[nick] = hostmask
                 except Exception as e:
