@@ -102,39 +102,48 @@ def lookup_asn_by_ip(bot, ip):
 def lookup_asn_by_number(bot, asn):
     """Look up ASN information for an AS number"""
     try:
-        headers = {
-            "User-Agent": "PhreakBot IRC Bot/1.0 (https://github.com/jskoetsier/phreakbot)",
-            "Accept": "application/json",
-        }
-
         response = requests.get(
-            f"https://api.bgpview.io/asn/{asn}", timeout=10, headers=headers
+            f"https://stat.ripe.net/data/as-overview/data.json?resource=AS{asn}",
+            timeout=10,
         )
         response.raise_for_status()
         data = response.json()
 
-        if not data.get("status") == "ok":
+        if data.get("status") != "ok":
             bot.add_response(f"Failed to look up information for AS{asn}")
             return
 
         asn_data = data.get("data", {})
-        name = asn_data.get("name", "Unknown")
-        description = asn_data.get(
-            "description_short", asn_data.get("description", "Unknown")
-        )
+        holder = asn_data.get("holder", "Unknown")
 
-        country_code = asn_data.get("country_code", "")
-        country = country_code if country_code else "Unknown"
+        country_code = ""
+        announced = asn_data.get("announced", False)
 
-        prefix_info = ""
-        prefixes = asn_data.get("prefixes", [])
-        if prefixes and len(prefixes) > 0:
-            prefix_count = len(prefixes)
-            sample_prefixes = [p.get("prefix", "") for p in prefixes[:3]]
-            if sample_prefixes:
-                prefix_info = f" | Sample Prefixes ({prefix_count} total): {', '.join(sample_prefixes)}"
+        prefix_count = 0
+        if announced:
+            response2 = requests.get(
+                f"https://stat.ripe.net/data/announced-prefixes/data.json?resource=AS{asn}",
+                timeout=10,
+            )
+            if response2.status_code == 200:
+                prefix_data = response2.json()
+                if prefix_data.get("status") == "ok":
+                    prefixes = prefix_data.get("data", {}).get("prefixes", [])
+                    prefix_count = len(prefixes)
 
-        result = f"ASN Lookup for AS{asn}: {name} | Description: {description} | Country: {country}{prefix_info}"
+                    if prefixes and len(prefixes) > 0:
+                        sample_prefixes = [p.get("prefix", "") for p in prefixes[:3]]
+                        prefix_info = f" | Prefixes: {prefix_count} total (e.g., {', '.join(sample_prefixes)})"
+                    else:
+                        prefix_info = f" | Prefixes: {prefix_count}"
+                else:
+                    prefix_info = ""
+            else:
+                prefix_info = ""
+        else:
+            prefix_info = " | Status: Not currently announced"
+
+        result = f"ASN Lookup for AS{asn}: {holder}{prefix_info}"
         bot.add_response(result)
 
     except Exception as e:
