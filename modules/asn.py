@@ -115,39 +115,32 @@ def lookup_asn_by_number(bot, asn):
 
         asn_data = data.get("data", {})
         holder = asn_data.get("holder", "Unknown")
-        announced = asn_data.get("announced", False)
+        
+        # Get registration information from RIPE database
+        reg_date = "Unknown"
+        country = "Unknown"
+        
+        try:
+            # Query RIPE database for registration details
+            reg_response = requests.get(
+                f"https://rest.db.ripe.net/ripe/aut-num/AS{asn}.json",
+                timeout=10,
+            )
+            if reg_response.status_code == 200:
+                reg_data = reg_response.json()
+                objects = reg_data.get("objects", {}).get("object", [])
+                if objects:
+                    attributes = objects[0].get("attributes", {}).get("attribute", [])
+                    for attr in attributes:
+                        if attr.get("name") == "created":
+                            reg_date = attr.get("value", "Unknown")
+                        elif attr.get("name") == "country":
+                            country = attr.get("value", "Unknown")
+        except:
+            # Fallback: try to get country from as-overview data
+            pass
 
-        # Try to get prefix information
-        prefix_info = ""
-        if announced:
-            try:
-                response2 = requests.get(
-                    f"https://stat.ripe.net/data/announced-prefixes/data.json?resource=AS{asn}",
-                    timeout=10,
-                )
-                if response2.status_code == 200:
-                    prefix_data = response2.json()
-                    if prefix_data.get("status") == "ok":
-                        prefixes = prefix_data.get("data", {}).get("prefixes", [])
-
-                        # Count IPv4 and IPv6 prefixes
-                        ipv4_count = sum(
-                            1 for p in prefixes if ":" not in p.get("prefix", "")
-                        )
-                        ipv6_count = sum(
-                            1 for p in prefixes if ":" in p.get("prefix", "")
-                        )
-                        total = len(prefixes)
-
-                        prefix_info = f" | Prefixes: {total} total (IPv4: {ipv4_count}, IPv6: {ipv6_count})"
-            except:
-                pass
-
-        if not prefix_info:
-            status = "Announced" if announced else "Not announced"
-            prefix_info = f" | Status: {status}"
-
-        result = f"ASN Lookup for AS{asn}: {holder}{prefix_info}"
+        result = f"ASN Lookup for AS{asn}: {holder} | Country: {country} | Registered: {reg_date}"
         bot.add_response(result)
 
     except Exception as e:
