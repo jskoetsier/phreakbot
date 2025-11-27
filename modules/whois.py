@@ -15,7 +15,7 @@ def config(bot):
     }
 
 
-async def run(bot, event):
+def run(bot, event):
     """Handle whois commands"""
     tnick = event["command_args"]
 
@@ -27,123 +27,31 @@ async def run(bot, event):
         bot.add_response(f"I am the channel bot, {bot.nickname}")
         return
 
-    # Get the user's hostmask
-    tuserhost = None
-    found_channel = None
-    found_user = None
+    # Get the user's hostmask from cache
+    tuserhost = bot.user_hostmasks.get(tnick.lower())
+    
+    if not tuserhost:
+        bot.add_response(f"Can't find hostmask for '{tnick}'. They need to join a channel or speak first.")
+        bot.logger.info(f"No cached hostmask found for '{tnick}'")
+        return
 
-    # Debug: Log all channels and their users
-    bot.logger.info(f"All channels: {list(bot.channels.keys())}")
+    bot.logger.info(f"Using cached hostmask for '{tnick}': {tuserhost}")
+    
+    # Find which channel the user is in
+    found_channel = None
     for channel_name in bot.channels:
         try:
-            # In pydle, channels data structure contains users as a set under 'users' key
             channel_data = bot.channels[channel_name]
             if "users" in channel_data:
                 users = list(channel_data["users"])
-                bot.logger.info(f"Channel {channel_name} users: {users}")
+                if any(user.lower() == tnick.lower() for user in users):
+                    found_channel = channel_name
+                    break
         except Exception as e:
-            bot.logger.error(f"Error listing users in {channel_name}: {e}")
-
-    # First check the current channel
-    current_channel = event["channel"]
-    if current_channel in bot.channels:
-        try:
-            channel_data = bot.channels[current_channel]
-            if "users" in channel_data:
-                users = list(channel_data["users"])
-                bot.logger.info(f"Current channel {current_channel} users: {users}")
-
-                # Check if the user is in this channel (case insensitive)
-                bot.logger.info(
-                    f"Looking for user '{tnick}' (lowercase: '{tnick.lower()}') in channel {current_channel}"
-                )
-                for user in users:
-                    bot.logger.info(
-                        f"Comparing with user '{user}' (lowercase: '{user.lower()}')"
-                    )
-                    if user.lower() == tnick.lower():
-                        found_user = user
-                        found_channel = current_channel
-                        bot.logger.info(
-                            f"MATCH FOUND: User '{user}' in current channel '{current_channel}'"
-                        )
-                        break
-        except Exception as e:
-            bot.logger.error(f"Error checking current channel {current_channel}: {e}")
-            import traceback
-
-            bot.logger.error(f"Traceback: {traceback.format_exc()}")
-
-    # If not found in current channel, check all other channels
-    if not found_user:
-        for channel_name in bot.channels:
-            if channel_name == current_channel:
-                continue  # Skip current channel as we already checked it
-
-            try:
-                # Get the users in the channel
-                channel_data = bot.channels[channel_name]
-                if "users" in channel_data:
-                    users = list(channel_data["users"])
-
-                    # Check if the user is in this channel (case insensitive)
-                    bot.logger.info(
-                        f"Looking for user '{tnick}' (lowercase: '{tnick.lower()}') in channel {channel_name}"
-                    )
-                    for user in users:
-                        bot.logger.info(
-                            f"Comparing with user '{user}' (lowercase: '{user.lower()}')"
-                        )
-                        if user.lower() == tnick.lower():
-                            found_user = user
-                            found_channel = channel_name
-                            bot.logger.info(
-                                f"MATCH FOUND: User '{user}' in channel '{channel_name}'"
-                            )
-                            break
-
-                    if found_user:
-                        break
-            except Exception as e:
-                bot.logger.error(f"Error checking channel {channel_name}: {e}")
-                import traceback
-
-                bot.logger.error(f"Traceback: {traceback.format_exc()}")
-
-    if not found_user:
-        bot.logger.warning(f"Could not find user '{tnick}' in any channel")
-        bot.add_response(f"{tnick} is not in any channel I'm in.")
-        return
-
-    # Use WHO command to get the user's real hostmask
-    bot.logger.info(f"Sending WHO command for user '{found_user}'")
-    await bot.rawmsg("WHO", found_user)
-
-    # Wait briefly for WHO response (pydle handles this async)
-    import asyncio
-
-    await asyncio.sleep(0.5)
-
-    # Try to get user info from pydle's user cache
-    tuserhost = None
-
-    # Check if pydle has user info stored
-    if hasattr(bot, "users") and found_user in bot.users:
-        user_data = bot.users[found_user]
-        username = user_data.get("username", found_user)
-        hostname = user_data.get("hostname", "unknown")
-        tuserhost = f"{found_user}!{username}@{hostname}"
-        bot.logger.info(f"Got hostmask from pydle users cache: {tuserhost}")
-        bot.add_response(f"{found_user} is on channel {found_channel} as {tuserhost}.")
-    else:
-        # Fallback: construct basic hostmask
-        bot.logger.warning(
-            f"Could not get real hostmask for '{found_user}', using placeholder"
-        )
-        tuserhost = f"{found_user}!{found_user}@user.unknown"
-        bot.add_response(
-            f"{tnick} is on channel {found_channel} (hostmask lookup failed)."
-        )
+            bot.logger.error(f"Error checking channel {channel_name}: {e}")
+    
+    if found_channel:
+        bot.add_response(f"{tnick} is on channel {found_channel} as {tuserhost}.")
 
     # Check if the user exists in the database
     if not bot.db_connection:
