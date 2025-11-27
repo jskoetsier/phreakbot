@@ -299,13 +299,13 @@ cur.execute("SELECT * FROM users WHERE username = '%s'" % username)
 
 All SQL queries in the following files have been audited and verified to use parameterized queries:
 
-- ✅ `/Users/johansebastiaan/git/phreakbot/phreakbot.py` - Core bot
-- ✅ `/Users/johansebastiaan/git/phreakbot/modules/karma.py`
-- ✅ `/Users/johansebastiaan/git/phreakbot/modules/quotes.py`
-- ✅ `/Users/johansebastiaan/git/phreakbot/modules/auto-op.py`
-- ✅ `/Users/johansebastiaan/git/phreakbot/modules/autovoice.py`
-- ✅ `/Users/johansebastiaan/git/phreakbot/modules/massmeet.py`
-- ✅ `/Users/johansebastiaan/git/phreakbot/modules/whois.py`
+- ✅ `phreakbot.py` - Core bot
+- ✅ `modules/karma.py`
+- ✅ `modules/quotes.py`
+- ✅ `modules/auto-op.py`
+- ✅ `modules/autovoice.py`
+- ✅ `modules/massmeet.py`
+- ✅ `modules/whois.py`
 
 ### Database Connection Security
 
@@ -409,7 +409,7 @@ if event["nick"] == self.nickname:
 
 ### Rate Limit Configuration
 
-To modify rate limits, edit `/Users/johansebastiaan/git/phreakbot/phreakbot.py`:
+To modify rate limits, edit `phreakbot.py`:
 
 ```python
 self.rate_limit = {
@@ -648,9 +648,9 @@ If you discover a security vulnerability in PhreakBot:
 PhreakBot v0.1.27 implements comprehensive security hardening with multiple layers of protection. By following the security principles of defense-in-depth, fail-secure design, and comprehensive logging, PhreakBot provides a secure IRC bot platform for both administrators and users.
 
 For additional security resources and updates, see:
-- `/Users/johansebastiaan/git/phreakbot/docs/CHANGELOG.md`
-- `/Users/johansebastiaan/git/phreakbot/docs/ROADMAP.md`
-- `/Users/johansebastiaan/git/phreakbot/docs/README.md`
+- `docs/CHANGELOG.md`
+- `docs/ROADMAP.md`
+- `docs/README.md`
 
 ---
 
