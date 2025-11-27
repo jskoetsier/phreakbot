@@ -12,6 +12,7 @@ import os
 import re
 import sys
 import time
+from collections import defaultdict
 from datetime import datetime
 
 # Database library
@@ -47,6 +48,17 @@ class PhreakBot(pydle.Client):
         self.re = re  # Expose re module for modules to use
         self.state = {}  # State dictionary for modules to use
         self.user_hostmasks = {}  # Cache of user hostmasks from JOIN/PRIVMSG events
+
+        # Security: Rate limiting tracking
+        self.rate_limit = {
+            "user_commands": defaultdict(list),  # Track command timestamps per user
+            "max_commands_per_minute": 10,  # Max commands per user per minute
+            "max_commands_per_10_seconds": 5,  # Max commands per user per 10 seconds
+            "global_commands": [],  # Track all command timestamps
+            "max_global_commands_per_second": 20,  # Max commands globally per second
+            "banned_users": {},  # Temporarily banned users {hostmask: unban_time}
+            "ban_duration": 300,  # Ban duration in seconds (5 minutes)
+        }
 
         # Performance optimization: Add caching
         self.cache = {
@@ -246,6 +258,159 @@ class PhreakBot(pydle.Client):
             if cache_key in self.cache["cache_timestamps"]:
                 del self.cache["cache_timestamps"][cache_key]
             self.logger.debug(f"Invalidated cache for {cache_key}")
+
+    def _sanitize_input(self, input_str, max_length=500, allow_special_chars=False):
+        """Sanitize user input to prevent injection attacks and abuse"""
+        if not isinstance(input_str, str):
+            return ""
+
+        # Truncate to max length
+        sanitized = input_str[:max_length]
+
+        # Remove null bytes and other dangerous characters
+        sanitized = sanitized.replace("\x00", "")
+
+        # Remove control characters except newlines and tabs (which we'll handle)
+        sanitized = "".join(
+            char for char in sanitized if char.isprintable() or char in "\n\t"
+        )
+
+        # If not allowing special chars, remove potentially dangerous patterns
+        if not allow_special_chars:
+            # Remove sequences that could be used for SQL injection or command injection
+            dangerous_patterns = [
+                r"--",  # SQL comment
+                r";\s*DROP",  # SQL drop statement
+                r";\s*DELETE",  # SQL delete statement
+                r";\s*UPDATE",  # SQL update statement
+                r"\$\(",  # Shell command substitution
+                r"`",  # Shell command substitution
+            ]
+            for pattern in dangerous_patterns:
+                sanitized = re.sub(pattern, "", sanitized, flags=re.IGNORECASE)
+
+        return sanitized.strip()
+
+    def _sanitize_channel_name(self, channel):
+        """Sanitize channel name to prevent injection"""
+        if not isinstance(channel, str):
+            return "#unknown"
+
+        # Channel names should start with # or & and contain only safe characters
+        if not channel or channel[0] not in "#&":
+            return "#unknown"
+
+        # Only allow alphanumeric, hyphen, underscore, and the channel prefix
+        sanitized = channel[0] + "".join(
+            char for char in channel[1:] if char.isalnum() or char in "-_"
+        )
+
+        return sanitized[:50]  # Max length 50
+
+    def _sanitize_nickname(self, nickname):
+        """Sanitize nickname to prevent injection"""
+        if not isinstance(nickname, str):
+            return "unknown"
+
+        # Nicknames should only contain safe characters
+        # IRC allows: a-z A-Z 0-9 - [ ] \ ` ^ { } | _
+        # We'll be more restrictive
+        sanitized = "".join(
+            char for char in nickname if char.isalnum() or char in "-_[]\\`^{}|"
+        )
+
+        return sanitized[:30]  # Max length 30
+
+    def _check_rate_limit(self, hostmask):
+        """Check if user is within rate limits"""
+        current_time = time.time()
+
+        # Check if user is temporarily banned
+        if hostmask in self.rate_limit["banned_users"]:
+            unban_time = self.rate_limit["banned_users"][hostmask]
+            if current_time < unban_time:
+                remaining = int(unban_time - current_time)
+                self.logger.warning(
+                    f"Rate limit: User {hostmask} is banned for {remaining} more seconds"
+                )
+                return False
+            else:
+                # Unban the user
+                del self.rate_limit["banned_users"][hostmask]
+                self.logger.info(f"Rate limit: User {hostmask} has been unbanned")
+
+        # Clean up old timestamps (older than 1 minute)
+        cutoff_time = current_time - 60
+        self.rate_limit["user_commands"][hostmask] = [
+            ts for ts in self.rate_limit["user_commands"][hostmask] if ts > cutoff_time
+        ]
+
+        # Check rate limits
+        user_commands = self.rate_limit["user_commands"][hostmask]
+
+        # Check commands per minute
+        if len(user_commands) >= self.rate_limit["max_commands_per_minute"]:
+            self.logger.warning(
+                f"Rate limit exceeded: {hostmask} has sent {len(user_commands)} commands in the last minute"
+            )
+            # Ban the user temporarily
+            self.rate_limit["banned_users"][hostmask] = (
+                current_time + self.rate_limit["ban_duration"]
+            )
+            return False
+
+        # Check commands per 10 seconds
+        recent_cutoff = current_time - 10
+        recent_commands = [ts for ts in user_commands if ts > recent_cutoff]
+        if len(recent_commands) >= self.rate_limit["max_commands_per_10_seconds"]:
+            self.logger.warning(
+                f"Rate limit exceeded: {hostmask} has sent {len(recent_commands)} commands in the last 10 seconds"
+            )
+            return False
+
+        # Check global rate limit
+        global_cutoff = current_time - 1
+        self.rate_limit["global_commands"] = [
+            ts for ts in self.rate_limit["global_commands"] if ts > global_cutoff
+        ]
+        if (
+            len(self.rate_limit["global_commands"])
+            >= self.rate_limit["max_global_commands_per_second"]
+        ):
+            self.logger.warning(
+                f"Global rate limit exceeded: {len(self.rate_limit['global_commands'])} commands in the last second"
+            )
+            return False
+
+        # Record this command
+        self.rate_limit["user_commands"][hostmask].append(current_time)
+        self.rate_limit["global_commands"].append(current_time)
+
+        return True
+
+    def _validate_sql_safety(self, query, params):
+        """Validate that SQL query uses parameterized queries properly"""
+        # Check if query contains string formatting or concatenation
+        if "%s" not in query and len(params) > 0:
+            self.logger.error(
+                f"SQL Safety: Query has parameters but no placeholders: {query}"
+            )
+            return False
+
+        # Check for common SQL injection patterns in the query itself
+        dangerous_in_query = [
+            r"'\s*OR\s*'1'\s*=\s*'1",
+            r"'\s*;\s*DROP",
+            r"--\s*$",
+        ]
+        for pattern in dangerous_in_query:
+            if re.search(pattern, query, re.IGNORECASE):
+                self.logger.error(
+                    f"SQL Safety: Dangerous pattern found in query: {pattern}"
+                )
+                return False
+
+        return True
 
     def db_get_userinfo_by_userhost(self, hostmask):
         """Get user information from the database by hostmask with caching"""
@@ -525,6 +690,13 @@ class PhreakBot(pydle.Client):
 
     async def _handle_message(self, source, channel, message, is_private):
         """Process incoming messages and route to appropriate modules"""
+        # Security: Sanitize inputs
+        source = self._sanitize_nickname(source)
+        channel = self._sanitize_channel_name(channel) if not is_private else source
+        message = self._sanitize_input(
+            message, max_length=500, allow_special_chars=True
+        )
+
         # Check if we have cached hostmask first (performance optimization)
         user_host = self.user_hostmasks.get(source.lower())
 
@@ -612,6 +784,19 @@ class PhreakBot(pydle.Client):
         if trigger_re.match(message):
             self.logger.info(f"RAW MESSAGE: '{message}'")
 
+            # Security: Check rate limit before processing commands
+            if not self._check_rate_limit(user_host):
+                self.logger.warning(
+                    f"Rate limit exceeded for {user_host}, ignoring command"
+                )
+                # Optionally notify the user (but don't spam them)
+                if user_host not in self.rate_limit["banned_users"]:
+                    await self.message(
+                        channel,
+                        f"{source}: Rate limit exceeded. Please slow down.",
+                    )
+                return
+
             # Regular command handling
             command_re = re.compile(
                 f'^{re.escape(self.config["trigger"])}([a-zA-Z0-9_][-a-zA-Z0-9_]*)(?:\\s(.*))?$'
@@ -621,7 +806,10 @@ class PhreakBot(pydle.Client):
 
             if match:
                 event_obj["command"] = match.group(1).lower()
-                event_obj["command_args"] = match.group(2) or ""
+                # Security: Sanitize command arguments
+                event_obj["command_args"] = self._sanitize_input(
+                    match.group(2) or "", max_length=500, allow_special_chars=True
+                )
                 event_obj["trigger"] = "command"
                 self.logger.info(
                     f"Parsed command: '{event_obj['command']}' with args: '{event_obj['command_args']}'"
@@ -914,11 +1102,27 @@ class PhreakBot(pydle.Client):
             return False
 
     def _check_permissions(self, event, required_permissions):
-        """Check if the user has the required permissions"""
+        """Check if the user has the required permissions with enhanced security"""
         # Log the permission check
         self.logger.info(
             f"Checking permissions: {required_permissions} for user {event['nick']}"
         )
+
+        # Security: Validate event object has required fields
+        required_fields = ["nick", "hostmask", "channel", "trigger"]
+        for field in required_fields:
+            if field not in event:
+                self.logger.error(
+                    f"Security: Invalid event object missing field '{field}'"
+                )
+                return False
+
+        # Security: Check if user is temporarily banned
+        if event["hostmask"] in self.rate_limit["banned_users"]:
+            self.logger.warning(
+                f"Security: Banned user {event['hostmask']} attempted to execute command"
+            )
+            return False
 
         # Skip permission checks for the bot itself
         if event["nick"] == self.nickname:
@@ -940,15 +1144,29 @@ class PhreakBot(pydle.Client):
 
         # Check database permissions if available
         if event["user_info"] and "permissions" in event["user_info"]:
+            # Security: Validate permissions structure
+            if not isinstance(event["user_info"]["permissions"], dict):
+                self.logger.error(
+                    "Security: Invalid permissions structure in user_info"
+                )
+                return False
+
             # Check global permissions
-            for perm in required_permissions:
-                if perm in event["user_info"]["permissions"]["global"]:
-                    return True
+            if "global" in event["user_info"]["permissions"]:
+                for perm in required_permissions:
+                    if perm in event["user_info"]["permissions"]["global"]:
+                        self.logger.info(
+                            f"Permission granted via global permission: {perm}"
+                        )
+                        return True
 
             # Check channel-specific permissions
             if event["channel"] in event["user_info"]["permissions"]:
                 for perm in required_permissions:
                     if perm in event["user_info"]["permissions"][event["channel"]]:
+                        self.logger.info(
+                            f"Permission granted via channel permission: {perm} in {event['channel']}"
+                        )
                         return True
 
         # For now, simple permission system - 'user' permission is granted to everyone

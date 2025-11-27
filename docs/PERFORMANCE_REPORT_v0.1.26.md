@@ -1,8 +1,8 @@
 # PhreakBot v0.1.26 Performance Monitoring Report
 
-**Date:** 2025-11-27  
-**Deployment Time:** 02:21 UTC  
-**Monitoring Duration:** 5 minutes post-deployment  
+**Date:** 2025-11-27
+**Deployment Time:** 02:21 UTC
+**Monitoring Duration:** 5 minutes post-deployment
 **Server:** network.koetsier.org
 
 ---
@@ -54,7 +54,7 @@ PhreakBot v0.1.26 has been successfully deployed with comprehensive performance 
 ✓ idx_autovoice_channel           - Autovoice settings
 ```
 
-**Expected Impact:** 
+**Expected Impact:**
 - Database queries 5-10x faster on indexed columns
 - Reduced disk I/O
 - Better scalability for larger user bases
@@ -160,9 +160,9 @@ PhreakBot v0.1.26 has been successfully deployed with comprehensive performance 
 
 **Root Cause:** Python bytecode caching issue. The source code is correct but cached bytecode has outdated line numbers.
 
-**Impact:** 
+**Impact:**
 - Does NOT crash the bot
-- Does NOT affect functionality  
+- Does NOT affect functionality
 - Errors are caught and logged
 - Auto-op, autovoice, and birthday modules continue to work
 
@@ -197,8 +197,8 @@ PIDs: 2
 
 ### PostgreSQL Container
 
-**Status:** Up 14 hours (healthy)  
-**Port:** 5432/tcp  
+**Status:** Up 14 hours (healthy)
+**Port:** 5432/tcp
 **Health Check:** ✅ Passing
 
 ### Connection Status
@@ -310,9 +310,9 @@ PIDs: 2
 
 PhreakBot v0.1.26 deployment is **successful** with all performance optimizations operational:
 
-✅ **Database Indexing** - 19 indexes deployed and active  
-✅ **Connection Pooling** - ThreadedConnectionPool (5-20 connections) operational  
-✅ **Intelligent Caching** - Active and logging cache hits  
+✅ **Database Indexing** - 19 indexes deployed and active
+✅ **Connection Pooling** - ThreadedConnectionPool (5-20 connections) operational
+✅ **Intelligent Caching** - Active and logging cache hits
 ✅ **Optimized WHOIS** - Hostmask caching working as designed
 
 The bot is **stable**, **efficient**, and ready for production use. Initial metrics show excellent resource utilization with minimal CPU and memory overhead.
@@ -321,6 +321,6 @@ The bot is **stable**, **efficient**, and ready for production use. Initial metr
 
 ---
 
-**Report Generated:** 2025-11-27 03:00 UTC  
-**Monitoring Tool:** `scripts/monitor-performance.sh`  
+**Report Generated:** 2025-11-27 03:00 UTC
+**Monitoring Tool:** `scripts/monitor-performance.sh`
 **Version:** PhreakBot v0.1.26

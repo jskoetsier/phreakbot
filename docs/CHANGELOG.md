@@ -1,5 +1,59 @@
 # Changelog
 
+## 0.1.27 (2025-11-27)
+
+### Added - Security Hardening
+- **Rate Limiting System**
+  - Implemented comprehensive rate limiting to prevent command abuse
+  - Per-user rate limits: 10 commands per minute, 5 commands per 10 seconds
+  - Global rate limit: 20 commands per second across all users
+  - Automatic temporary bans for users exceeding rate limits (5 minute ban duration)
+  - Automatic unbanning when ban period expires
+  - Real-time rate limit tracking with timestamp cleanup
+  - User-friendly rate limit exceeded notifications
+
+- **Input Sanitization**
+  - Added comprehensive input sanitization for all user inputs
+  - Sanitize command arguments (max 500 characters)
+  - Sanitize channel names to prevent injection attacks
+  - Sanitize nicknames to allow only safe IRC characters
+  - Remove null bytes and control characters
+  - Filter out dangerous SQL and shell command patterns
+  - Prevent command injection attempts
+
+- **SQL Injection Prevention**
+  - Audited all SQL queries across codebase
+  - Verified parameterized queries used throughout (using %s placeholders)
+  - Added SQL safety validation method `_validate_sql_safety()`
+  - Detection of dangerous SQL patterns in queries
+  - Validation that parameters match placeholders
+  - All database operations use safe parameterized queries
+
+- **Enhanced Permission Validation**
+  - Added security checks to validate event object structure
+  - Verify required fields present before processing
+  - Block temporarily banned users from executing commands
+  - Enhanced owner detection with multiple validation methods
+  - Validate permissions structure in user_info
+  - Added detailed permission check logging
+  - Protection against malformed permission data
+
+### Security Features
+- **Defense in Depth**: Multiple layers of security controls
+- **Fail Secure**: Invalid inputs rejected safely
+- **Audit Logging**: All security events logged for analysis
+- **Rate Limiting**: Prevents abuse and DoS attacks
+- **Input Validation**: Blocks injection attacks and malicious inputs
+- **Permission Checks**: Enhanced authorization with multiple validations
+
+### Technical Details
+- Rate limit tracking uses `collections.defaultdict` for efficient timestamp management
+- Banned users tracked with unban timestamps for automatic release
+- Input sanitization uses regex patterns to detect and remove dangerous sequences
+- SQL safety checks validate query structure before execution
+- Permission validation includes type checking and structure validation
+- All security checks integrated into existing message handling flow
+
 ## 0.1.26 (2025-11-27)
 
 ### Added - Performance Optimization

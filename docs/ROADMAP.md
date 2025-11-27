@@ -23,7 +23,7 @@ This document outlines the planned features, improvements, and goals for PhreakB
   - Cache frequently accessed data (user permissions, channel lists)
   - Reduce unnecessary WHO/WHOIS lookups
 
-- [ ] **Security Hardening**
+- [x] **Security Hardening** ✅ Completed in v0.1.27
   - Rate limiting for commands to prevent abuse
   - Input sanitization for all user inputs
   - SQL injection prevention audit
