@@ -62,9 +62,7 @@ def run(bot, event):
                         bot.logger.info(f"Using cached hostmask for {nick}: {hostmask}")
                     else:
                         # Skip users without cached hostmask for now
-                        bot.logger.warning(
-                            f"No cached hostmask for {nick}, skipping"
-                        )
+                        bot.logger.warning(f"No cached hostmask for {nick}, skipping")
                         stats["skipped"] += 1
                         continue
 

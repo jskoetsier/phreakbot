@@ -115,11 +115,11 @@ def lookup_asn_by_number(bot, asn):
 
         asn_data = data.get("data", {})
         holder = asn_data.get("holder", "Unknown")
-        
+
         # Get registration information from RIPE database
         reg_date = "Unknown"
         country = "Unknown"
-        
+
         try:
             # Query RIPE database for registration details
             reg_response = requests.get(

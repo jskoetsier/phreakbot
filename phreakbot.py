@@ -17,6 +17,7 @@ from datetime import datetime
 # Database library
 import psycopg2
 import psycopg2.extras
+import psycopg2.pool
 
 # Pydle IRC library
 import pydle
@@ -42,9 +43,18 @@ class PhreakBot(pydle.Client):
         self.modules = {}
         self.output = []
         self.db_connection = None
+        self.db_pool = None  # Connection pool
         self.re = re  # Expose re module for modules to use
         self.state = {}  # State dictionary for modules to use
         self.user_hostmasks = {}  # Cache of user hostmasks from JOIN/PRIVMSG events
+
+        # Performance optimization: Add caching
+        self.cache = {
+            "user_permissions": {},  # Cache user permissions by hostmask
+            "user_info": {},  # Cache full user info by hostmask
+            "cache_ttl": 300,  # Cache time-to-live in seconds (5 minutes)
+            "cache_timestamps": {},  # Track when items were cached
+        }
 
         # Set up trigger regex for modules to use
         self.trigger_re = re.compile(f'^{re.escape(self.config["trigger"])}')
@@ -129,13 +139,16 @@ class PhreakBot(pydle.Client):
             self.logger.error(f"Failed to save config: {e}")
 
     def db_connect(self, max_retries=3, retry_delay=5):
-        """Connect to the PostgreSQL database with retry logic"""
+        """Connect to the PostgreSQL database with connection pooling"""
         for attempt in range(max_retries):
             try:
                 self.logger.info(
-                    f"Connecting to database at {self.config['db_host']}:{self.config['db_port']} (attempt {attempt + 1}/{max_retries})"
+                    f"Creating database connection pool at {self.config['db_host']}:{self.config['db_port']} (attempt {attempt + 1}/{max_retries})"
                 )
-                self.db_connection = psycopg2.connect(
+                # Create connection pool with 5 min connections and 20 max connections
+                self.db_pool = psycopg2.pool.ThreadedConnectionPool(
+                    5,  # minconn
+                    20,  # maxconn
                     host=self.config["db_host"],
                     port=self.config["db_port"],
                     user=self.config["db_user"],
@@ -143,7 +156,9 @@ class PhreakBot(pydle.Client):
                     dbname=self.config["db_name"],
                     connect_timeout=10,
                 )
-                self.logger.info("Database connection established successfully")
+                # Get a connection from the pool for backwards compatibility
+                self.db_connection = self.db_pool.getconn()
+                self.logger.info("Database connection pool created successfully")
                 return True
             except Exception as e:
                 self.logger.error(
@@ -157,6 +172,7 @@ class PhreakBot(pydle.Client):
                         "All database connection attempts failed. Bot will run with limited functionality."
                     )
                     self.db_connection = None
+                    self.db_pool = None
                     return False
 
     def ensure_db_connection(self):
@@ -179,30 +195,91 @@ class PhreakBot(pydle.Client):
             self.db_connection = None
             return self.db_connect(max_retries=2, retry_delay=3)
 
+    def _is_cache_valid(self, cache_key):
+        """Check if a cached item is still valid based on TTL"""
+        if cache_key not in self.cache["cache_timestamps"]:
+            return False
+
+        age = time.time() - self.cache["cache_timestamps"][cache_key]
+        return age < self.cache["cache_ttl"]
+
+    def _cache_set(self, cache_type, key, value):
+        """Set a value in the cache with timestamp"""
+        cache_key = f"{cache_type}:{key}"
+        self.cache[cache_type][key] = value
+        self.cache["cache_timestamps"][cache_key] = time.time()
+        self.logger.debug(f"Cached {cache_key}")
+
+    def _cache_get(self, cache_type, key):
+        """Get a value from cache if it exists and is valid"""
+        cache_key = f"{cache_type}:{key}"
+
+        if not self._is_cache_valid(cache_key):
+            # Cache expired or doesn't exist
+            if key in self.cache[cache_type]:
+                del self.cache[cache_type][key]
+            if cache_key in self.cache["cache_timestamps"]:
+                del self.cache["cache_timestamps"][cache_key]
+            return None
+
+        return self.cache[cache_type].get(key)
+
+    def _cache_invalidate(self, cache_type, key=None):
+        """Invalidate cache entries. If key is None, invalidate all entries of that type"""
+        if key is None:
+            # Clear all entries of this type
+            self.cache[cache_type] = {}
+            # Remove timestamps for this cache type
+            keys_to_remove = [
+                k
+                for k in self.cache["cache_timestamps"].keys()
+                if k.startswith(f"{cache_type}:")
+            ]
+            for k in keys_to_remove:
+                del self.cache["cache_timestamps"][k]
+            self.logger.debug(f"Invalidated all {cache_type} cache")
+        else:
+            # Clear specific entry
+            cache_key = f"{cache_type}:{key}"
+            if key in self.cache[cache_type]:
+                del self.cache[cache_type][key]
+            if cache_key in self.cache["cache_timestamps"]:
+                del self.cache["cache_timestamps"][cache_key]
+            self.logger.debug(f"Invalidated cache for {cache_key}")
+
     def db_get_userinfo_by_userhost(self, hostmask):
-        """Get user information from the database by hostmask"""
+        """Get user information from the database by hostmask with caching"""
+        hostmask = hostmask.lower()
+
+        # Check cache first
+        cached_info = self._cache_get("user_info", hostmask)
+        if cached_info is not None:
+            self.logger.debug(f"Cache hit for user info: {hostmask}")
+            return cached_info
+
         if not self.ensure_db_connection():
             self.logger.debug("Database unavailable, returning None for user info")
             return None
 
         ret = {}
-        hostmask = hostmask.lower()
 
         try:
             cur = self.db_connection.cursor(cursor_factory=psycopg2.extras.DictCursor)
 
-            # Get user info
+            # Optimized query using index on hostmask
             sql = "SELECT h.hostmask AS current_hostmask, u.* FROM phreakbot_hostmasks h, phreakbot_users u WHERE h.users_id = u.id AND h.hostmask = %s"
             cur.execute(sql, (hostmask,))
             db_res = cur.fetchall()
             if not db_res:
+                # Cache negative result too (short TTL)
+                self._cache_set("user_info", hostmask, None)
                 return None
 
             db_res = db_res[0]
             for key in db_res.keys():
                 ret[key] = db_res[key]
 
-            # Get permissions
+            # Get permissions (using optimized index)
             ret["permissions"] = {"global": []}
 
             sql = "SELECT permission, channel FROM phreakbot_perms WHERE users_id = %s"
@@ -216,7 +293,7 @@ class PhreakBot(pydle.Client):
                 else:
                     ret["permissions"]["global"].append(row["permission"])
 
-            # Get hostmasks
+            # Get hostmasks (using optimized index)
             ret["hostmasks"] = []
             sql = "SELECT hostmask FROM phreakbot_hostmasks WHERE users_id = %s"
             cur.execute(sql, (ret["id"],))
@@ -226,6 +303,11 @@ class PhreakBot(pydle.Client):
                     ret["hostmasks"].append(row[k])
 
             cur.close()
+
+            # Cache the result
+            self._cache_set("user_info", hostmask, ret)
+            self.logger.debug(f"Cached user info for {hostmask}")
+
             return ret
         except psycopg2.OperationalError as e:
             self.logger.error(
@@ -443,25 +525,30 @@ class PhreakBot(pydle.Client):
 
     async def _handle_message(self, source, channel, message, is_private):
         """Process incoming messages and route to appropriate modules"""
-        # Get the user's hostmask
-        try:
-            user_info = await self.whois(source)
-            if user_info is None or not isinstance(user_info, dict):
-                self.logger.warning(
-                    f"WHOIS returned None or invalid data for {source}, using fallback"
-                )
+        # Check if we have cached hostmask first (performance optimization)
+        user_host = self.user_hostmasks.get(source.lower())
+
+        if not user_host:
+            # Only do WHOIS if we don't have a cached hostmask
+            try:
+                user_info = await self.whois(source)
+                if user_info is None or not isinstance(user_info, dict):
+                    self.logger.warning(
+                        f"WHOIS returned None or invalid data for {source}, using fallback"
+                    )
+                    user_host = f"{source}!unknown@unknown"
+                else:
+                    user_host = f"{source}!{user_info.get('username', 'unknown')}@{user_info.get('hostname', 'unknown')}"
+                    # Cache the hostmask for future use
+                    self.user_hostmasks[source.lower()] = user_host
+            except Exception as e:
+                self.logger.error(f"Error getting user info: {e}")
                 user_host = f"{source}!unknown@unknown"
-            else:
-                user_host = f"{source}!{user_info.get('username', 'unknown')}@{user_info.get('hostname', 'unknown')}"
-        except Exception as e:
-            self.logger.error(f"Error getting user info: {e}")
-            user_host = f"{source}!unknown@unknown"
+        else:
+            self.logger.debug(f"Using cached hostmask for {source}: {user_host}")
 
         self.logger.info(f"Formatted hostmask: {user_host}")
         self.logger.info(f"Processing message from {source} in {channel}: '{message}'")
-
-        # Cache the hostmask for later use
-        self.user_hostmasks[source.lower()] = user_host
 
         # Create event object similar to the original bot
         event_obj = {

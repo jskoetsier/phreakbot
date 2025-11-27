@@ -153,5 +153,45 @@ CREATE TABLE IF NOT EXISTS phreakbot_autovoice (
     UNIQUE (channel)
 );
 
+-- Performance Optimization: Add indexes for frequently queried columns
+
+-- Index for hostmask lookups (used in authentication)
+CREATE INDEX IF NOT EXISTS idx_hostmasks_hostmask ON phreakbot_hostmasks(hostmask);
+CREATE INDEX IF NOT EXISTS idx_hostmasks_users_id ON phreakbot_hostmasks(users_id);
+
+-- Index for username lookups
+CREATE INDEX IF NOT EXISTS idx_users_username ON phreakbot_users(username);
+
+-- Index for permission lookups by user and channel
+CREATE INDEX IF NOT EXISTS idx_perms_users_id ON phreakbot_perms(users_id);
+CREATE INDEX IF NOT EXISTS idx_perms_channel ON phreakbot_perms(channel);
+CREATE INDEX IF NOT EXISTS idx_perms_users_channel ON phreakbot_perms(users_id, channel);
+
+-- Index for infoitem lookups
+CREATE INDEX IF NOT EXISTS idx_infoitems_item_channel ON phreakbot_infoitems(item, channel);
+CREATE INDEX IF NOT EXISTS idx_infoitems_channel ON phreakbot_infoitems(channel);
+
+-- Index for karma lookups
+CREATE INDEX IF NOT EXISTS idx_karma_item_channel ON phreakbot_karma(item, channel);
+CREATE INDEX IF NOT EXISTS idx_karma_channel ON phreakbot_karma(channel);
+
+-- Index for karma_who lookups
+CREATE INDEX IF NOT EXISTS idx_karma_who_karma_id ON phreakbot_karma_who(karma_id);
+CREATE INDEX IF NOT EXISTS idx_karma_who_users_id ON phreakbot_karma_who(users_id);
+
+-- Index for karma_why lookups
+CREATE INDEX IF NOT EXISTS idx_karma_why_karma_id ON phreakbot_karma_why(karma_id);
+
+-- Index for quotes by channel
+CREATE INDEX IF NOT EXISTS idx_quotes_channel ON phreakbot_quotes(channel);
+CREATE INDEX IF NOT EXISTS idx_quotes_users_id ON phreakbot_quotes(users_id);
+
+-- Index for autoop lookups
+CREATE INDEX IF NOT EXISTS idx_autoop_users_channel ON phreakbot_autoop(users_id, channel);
+CREATE INDEX IF NOT EXISTS idx_autoop_channel ON phreakbot_autoop(channel);
+
+-- Index for autovoice lookups
+CREATE INDEX IF NOT EXISTS idx_autovoice_channel ON phreakbot_autovoice(channel);
+
 INSERT INTO phreakbot_users (username) VALUES ('phreakbot_import_user');
 INSERT INTO phreakbot_hostmasks (users_id, hostmask) VALUES (1, 'phreakbot_import_user');
