@@ -19,19 +19,19 @@ def config(bot):
     }
 
 
-async def run(bot, event):
+def run(bot, event):
     """Handle channel operator commands"""
     if event["command"] == "op":
-        await _op_user(bot, event)
+        _op_user(bot, event)
     elif event["command"] == "deop":
-        await _deop_user(bot, event)
+        _deop_user(bot, event)
     elif event["command"] == "voice":
-        await _voice_user(bot, event)
+        _voice_user(bot, event)
     elif event["command"] == "devoice":
-        await _devoice_user(bot, event)
+        _devoice_user(bot, event)
 
 
-async def _op_user(bot, event):
+def _op_user(bot, event):
     """Give operator status to a user"""
     # Check if the user has permission
     if not _has_permission(bot, event):
@@ -66,8 +66,13 @@ async def _op_user(bot, event):
             return
 
     try:
-        # Give operator status
-        await bot.set_mode(channel, "+o", nick)
+        # Give operator status using asyncio.create_task
+        import asyncio
+
+        async def set_op():
+            await bot.set_mode(channel, "+o", nick)
+
+        asyncio.create_task(set_op())
         bot.add_response(f"Gave operator status to {nick} in {channel}")
         bot.logger.info(f"Gave +o to {nick} in {channel} by {event['nick']}")
     except Exception as e:
@@ -75,7 +80,7 @@ async def _op_user(bot, event):
         bot.add_response(f"Error giving operator status to {nick}: {str(e)}")
 
 
-async def _deop_user(bot, event):
+def _deop_user(bot, event):
     """Remove operator status from a user"""
     # Check if the user has permission
     if not _has_permission(bot, event):
@@ -110,8 +115,13 @@ async def _deop_user(bot, event):
             return
 
     try:
-        # Remove operator status
-        await bot.set_mode(channel, "-o", nick)
+        # Remove operator status using asyncio.create_task
+        import asyncio
+
+        async def set_deop():
+            await bot.set_mode(channel, "-o", nick)
+
+        asyncio.create_task(set_deop())
         bot.add_response(f"Removed operator status from {nick} in {channel}")
         bot.logger.info(f"Removed -o from {nick} in {channel} by {event['nick']}")
     except Exception as e:
@@ -119,7 +129,7 @@ async def _deop_user(bot, event):
         bot.add_response(f"Error removing operator status from {nick}: {str(e)}")
 
 
-async def _voice_user(bot, event):
+def _voice_user(bot, event):
     """Give voice to a user"""
     # Check if the user has permission
     if not _has_permission(bot, event):
@@ -149,8 +159,13 @@ async def _voice_user(bot, event):
             return
 
     try:
-        # Give voice
-        await bot.set_mode(channel, "+v", nick)
+        # Give voice using asyncio.create_task
+        import asyncio
+
+        async def set_voice():
+            await bot.set_mode(channel, "+v", nick)
+
+        asyncio.create_task(set_voice())
         bot.add_response(f"Gave voice to {nick} in {channel}")
         bot.logger.info(f"Gave +v to {nick} in {channel} by {event['nick']}")
     except Exception as e:
@@ -158,7 +173,7 @@ async def _voice_user(bot, event):
         bot.add_response(f"Error giving voice to {nick}: {str(e)}")
 
 
-async def _devoice_user(bot, event):
+def _devoice_user(bot, event):
     """Remove voice from a user"""
     # Check if the user has permission
     if not _has_permission(bot, event):
@@ -188,8 +203,13 @@ async def _devoice_user(bot, event):
             return
 
     try:
-        # Remove voice
-        await bot.set_mode(channel, "-v", nick)
+        # Remove voice using asyncio.create_task
+        import asyncio
+
+        async def set_devoice():
+            await bot.set_mode(channel, "-v", nick)
+
+        asyncio.create_task(set_devoice())
         bot.add_response(f"Removed voice from {nick} in {channel}")
         bot.logger.info(f"Removed -v from {nick} in {channel} by {event['nick']}")
     except Exception as e:
