@@ -1,5 +1,119 @@
 # Changelog
 
+## 0.1.28 (2025-11-27)
+
+### Added - Comprehensive Test Suite
+- **Testing Infrastructure**
+  - Implemented comprehensive test suite using pytest
+  - Added pytest, pytest-cov, pytest-asyncio, pytest-mock, and coverage dependencies
+  - Created test directory structure with unit, integration, and fixtures directories
+  - Configured pytest with custom markers for test categorization
+  - Set up code coverage reporting with HTML, XML, and terminal output
+  - Target code coverage: >80%
+
+- **Unit Tests**
+  - Core PhreakBot functionality tests (50+ test cases)
+  - Input sanitization test suite
+    - SQL injection pattern detection
+    - Shell injection prevention
+    - Null byte and control character removal
+    - Channel name and nickname validation
+    - Max length enforcement
+  - Rate limiting test suite
+    - Per-user rate limit enforcement
+    - Global rate limit validation
+    - Ban creation and automatic expiry
+    - Timestamp cleanup verification
+  - SQL safety validation tests
+    - Parameterized query validation
+    - Dangerous pattern detection
+    - Query structure verification
+  - Permission validation tests
+    - Event structure validation
+    - Banned user blocking
+    - Permission structure type checking
+    - Owner privilege testing
+  - Caching system tests
+    - Cache set/get operations
+    - TTL expiry validation
+    - Cache invalidation (specific and wildcard)
+
+- **Module System Tests**
+  - Module loading tests
+    - Valid module loading
+    - Invalid configuration handling
+    - Syntax error detection
+    - Missing config function handling
+  - Module unloading tests
+    - Successful unload verification
+    - Nonexistent module handling
+  - Module execution tests
+    - Command execution
+    - Event handling
+    - Permission verification
+  - Multiple module management tests
+    - Concurrent module loading
+    - Selective module unloading
+
+- **Integration Tests**
+  - Database connection tests
+    - Connection pool creation
+    - Connection retry logic
+    - Connection validation
+  - User information query tests
+    - Cache hit/miss scenarios
+    - Database query validation
+  - SQL query safety tests
+    - Parameterized query enforcement
+
+- **Test Fixtures and Helpers**
+  - Mock configuration fixture
+  - Bot instance fixture with mocked database
+  - Mock IRC event fixture
+  - Mock database cursor fixture
+  - Test module fixture
+  - Shared pytest configuration with custom markers
+
+- **Documentation**
+  - Comprehensive test README with usage examples
+  - Test writing guidelines and best practices
+  - Coverage reporting instructions
+  - Troubleshooting guide
+  - Continuous integration setup examples
+
+### Testing Features
+- **Test Markers**: unit, integration, irc, module, slow, requires_db, requires_irc
+- **Coverage Reports**: Terminal, HTML, and XML formats
+- **Mocking**: Database, IRC, and external dependencies mocked for unit tests
+- **Fixtures**: Reusable test fixtures for common test scenarios
+- **Configuration**: Pytest.ini and .coveragerc for comprehensive test control
+
+### Test Execution
+```bash
+# Run all tests
+pytest
+
+# Run specific test categories
+pytest -m unit
+pytest -m integration
+pytest -m module
+
+# Run with coverage
+pytest --cov=. --cov-report=html
+
+# Skip slow/external tests
+pytest -m "not slow and not requires_db"
+```
+
+### Technical Details
+- Test framework: pytest 7.4.3+
+- Coverage tool: coverage 7.3.3+
+- Async testing: pytest-asyncio 0.23.2+
+- Mock framework: pytest-mock 3.12.0+, unittest.mock
+- Test isolation: Each test uses fresh fixtures
+- Database mocking: psycopg2 connection pool mocked
+- IRC mocking: Event objects mocked for testing
+
 ## 0.1.27 (2025-11-27)
 
 ### Added - Security Hardening
