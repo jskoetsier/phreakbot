@@ -300,7 +300,7 @@ class TestSQLSafety:
     @pytest.mark.unit
     def test_validate_sql_safety_dangerous_pattern_or(self, bot):
         """Test detection of SQL injection OR pattern."""
-        query = "SELECT * FROM users WHERE username = %s OR '1' = '1"
+        query = "SELECT * FROM users WHERE username = %s OR '1'='1"
         params = ("testuser",)
 
         assert bot._validate_sql_safety(query, params) is False
