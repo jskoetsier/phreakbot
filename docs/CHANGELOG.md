@@ -1,5 +1,64 @@
 # Changelog
 
+## 0.1.25 (2025-11-27)
+
+### Added
+- **Enhanced Error Recovery and Resilience**
+  - Added database connection retry logic with configurable attempts (default: 3 retries with 5-second delays)
+  - Implemented automatic database reconnection with `ensure_db_connection()` method
+  - Added connection health checks before all database operations
+  - Added 10-second connection timeout to prevent hanging
+  - Database operations now gracefully degrade when DB is unavailable
+  - Bot continues running with limited functionality when database is down
+
+- **Improved Network Error Handling**
+  - Added `on_disconnect()` handler to log disconnections and track expected vs unexpected disconnects
+  - Enhanced `on_connect()` with per-channel error handling for join operations
+  - Added comprehensive error wrapping in `on_message()` to prevent crashes
+  - Better user-facing error messages with exception type information
+
+- **ASN Module Improvements**
+  - Switched to reliable ipinfo.io API for IP address lookups
+  - Switched to RIPE NCC API for ASN number lookups
+  - Added registration date display for ASN lookups
+  - Added country of origin for ASN lookups
+  - Removed prefix counts, now shows: ASN name, country, and registration date
+  - Example output: `ASN Lookup for AS8315: Ziggo B.V. | Country: NL | Registered: 2001-02-14T10:47:32Z`
+
+### Fixed
+- **Fixed async/await issues in module execution**
+  - Removed incorrect `await` keywords from synchronous module `run()` function calls
+  - Modules now execute synchronously as designed (non-async by default)
+  - Fixed TypeError: "object NoneType can't be used in 'await' expression"
+  - Fixed TypeError: "object bool can't be used in 'await' expression"
+
+- **Fixed massmeet module**
+  - Converted from async to synchronous execution
+  - Now uses cached hostmasks from `bot.user_hostmasks` instead of WHOIS calls
+  - Removed hardcoded test users
+  - Added proper channel user enumeration using `bot.channels[channel]["users"]`
+  - Better error handling and skipped user tracking
+  - Users without cached hostmasks are logged and counted in statistics
+
+- **Fixed channel operations**
+  - Added `#frys-ix` channel to remote server configuration
+  - Improved channel joining with individual error handling per channel
+
+### Improved
+- Enhanced logging throughout error recovery and database operations
+- Better error context in log messages (attempt numbers, retry delays, etc.)
+- Improved user feedback for command errors
+- Database unavailability now logs at appropriate levels (warning vs error)
+- Module execution errors now provide exception type to users
+
+### Technical Details
+- Database connection pooling happens at bot initialization with retry logic
+- `ensure_db_connection()` validates connection before each operation
+- Distinguishes between `psycopg2.OperationalError` (connection) and other DB errors
+- Module `run()` functions are synchronous by default, not async coroutines
+- Massmeet relies on hostmask caching from recent user activity (joins/messages)
+- ASN lookups now query multiple APIs for comprehensive information
+
 ## 0.1.24 (2025-11-26)
 
 ### Added
