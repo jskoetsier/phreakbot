@@ -15,7 +15,7 @@ def config(bot):
     }
 
 
-async def run(bot, event):
+def run(bot, event):
     """Handle meet commands"""
     # Strip whitespace from the nickname
     tnick = event["command_args"].strip() if event["command_args"] else ""
@@ -36,72 +36,17 @@ async def run(bot, event):
         return
 
     try:
-        # Get the user's hostmask
-        tuserhost = None
-        found_user = None
+        # Get the user's hostmask from cache
+        tuserhost = bot.user_hostmasks.get(tnick.lower())
 
-        # Log all channels and users for debugging
-        bot.logger.info(f"Looking for user '{tnick}' in channels:")
-        for channel_name in bot.channels:
-            # Get the users in the channel
-            try:
-                # In pydle, bot.channels[channel_name] is a dict with a 'users' key
-                channel_data = bot.channels[channel_name]
-
-                # The 'users' key contains a set of users
-                if "users" in channel_data:
-                    users = list(channel_data["users"])
-                    bot.logger.info(f"Channel {channel_name} users: {users}")
-
-                    # Check if the user is in this channel (case insensitive)
-                    for user in users:
-                        bot.logger.info(f"Checking user: {user}")
-                        if user.lower() == tnick.lower():
-                            found_user = user
-                            bot.logger.info(
-                                f"Found user '{user}' in channel {channel_name}"
-                            )
-                            break
-
-                if found_user:
-                    break
-            except Exception as e:
-                bot.logger.error(f"Error accessing channel users: {e}")
-                import traceback
-
-                bot.logger.error(f"Traceback: {traceback.format_exc()}")
-
-        if not found_user:
-            bot.add_response(f"Can't find user '{tnick}' on any channel.")
-            bot.logger.info(f"User '{tnick}' not found in any channel")
+        if not tuserhost:
+            bot.add_response(
+                f"Can't find hostmask for '{tnick}'. They need to join a channel or speak first."
+            )
+            bot.logger.info(f"No cached hostmask found for '{tnick}'")
             return
 
-        # Use WHO command to get the user's real hostmask
-        bot.logger.info(f"Sending WHO command for user '{found_user}'")
-        await bot.rawmsg("WHO", found_user)
-
-        # Wait briefly for WHO response (pydle handles this async)
-        import asyncio
-
-        await asyncio.sleep(0.5)
-
-        # Try to get user info from pydle's user cache
-        # The WHO response should have populated pydle's internal user tracking
-        tuserhost = None
-
-        # Check if pydle has user info stored
-        if hasattr(bot, "users") and found_user in bot.users:
-            user_data = bot.users[found_user]
-            username = user_data.get("username", found_user)
-            hostname = user_data.get("hostname", "unknown")
-            tuserhost = f"{found_user}!{username}@{hostname}"
-            bot.logger.info(f"Got hostmask from pydle users cache: {tuserhost}")
-        else:
-            # Fallback: construct basic hostmask
-            bot.logger.warning(
-                f"Could not get real hostmask for '{found_user}', using placeholder"
-            )
-            tuserhost = f"{found_user}!{found_user}@user.unknown"
+        bot.logger.info(f"Using cached hostmask for '{tnick}': {tuserhost}")
 
         # Check if the user already exists in the database
         cur = bot.db_connection.cursor()
@@ -156,6 +101,12 @@ async def run(bot, event):
             f"Added user '{tnick}' to the database with hostmask '{tuserhost}'."
         )
 
+        # Invalidate user cache
+        bot._cache_invalidate("user_info", tuserhost.lower())
+
     except Exception as e:
         bot.logger.error(f"Database error in meet module: {e}")
+        import traceback
+
+        bot.logger.error(f"Traceback: {traceback.format_exc()}")
         bot.add_response("Error adding user to the database.")

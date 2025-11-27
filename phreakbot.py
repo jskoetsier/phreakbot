@@ -971,7 +971,7 @@ class PhreakBot(pydle.Client):
                             self.logger.info(
                                 f"Calling module {module_name}.run() with command {event['command']}"
                             )
-                            await module["object"].run(self, event)
+                            module["object"].run(self, event)
                             handled = True
                             self.logger.info(
                                 f"Module {module_name} handled command {event['command']}"
