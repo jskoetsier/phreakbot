@@ -1,5 +1,105 @@
 # Changelog
 
+## 0.1.29 (2025-11-27)
+
+### Added - Comprehensive Documentation Suite
+- **User Documentation**
+  - Complete command reference (`/docs/COMMAND_REFERENCE.md`)
+    - 150+ commands documented with syntax, permissions, and examples
+    - Organized by category (User Management, Channel Management, Information, Moderation, etc.)
+    - Quick reference guide for common commands
+    - Permission hierarchy explanation
+    - Tips, best practices, and troubleshooting guide
+    - Examples for every command
+
+  - Administrator handbook (`/docs/ADMIN_HANDBOOK.md`)
+    - Complete installation guide (Docker/Podman and manual)
+    - Configuration management and security recommendations
+    - Database management and maintenance
+    - User and permission management
+    - Module management and development
+    - Channel management and security
+    - Monitoring, maintenance, and health checks
+    - Troubleshooting common issues
+    - Backup and recovery procedures
+    - Performance optimization guide
+    - Deployment options (Docker, Podman, cloud, bare metal)
+    - Production deployment checklist
+    - Security best practices
+    - Appendices with sample configs and cron jobs
+
+  - Migration guide (`/docs/MIGRATION_GUIDE.md`)
+    - General migration process
+    - Version-specific migration instructions (v0.1.24-v0.1.29)
+    - Database migration scripts and procedures
+    - Configuration change tracking
+    - Rollback procedures
+    - Troubleshooting migration issues
+    - Migration checklist template
+    - Best practices for administrators and developers
+
+- **Documentation Structure**
+  - All documentation now in `/docs/` directory
+  - Cross-referenced between documents
+  - Consistent formatting and style
+  - Code examples in all guides
+  - Version-specific information
+
+### Updated
+- **ROADMAP.md**
+  - Marked "User Documentation" as completed ✅ (v0.1.29)
+  - Removed video tutorials section (not planned)
+  - Updated last modified date
+
+- **VERSION**
+  - Updated from 0.1.28 to 0.1.29
+
+### Documentation Coverage
+- **Command Reference**: 100% command coverage (41 modules, 150+ commands)
+- **Admin Handbook**: 14 comprehensive sections covering all aspects of administration
+- **Migration Guide**: 6 version migration paths documented
+
+### Benefits
+- **For Users**
+  - Clear command reference with examples
+  - Easy to find help for any command
+  - Understand permission requirements
+  - Quick troubleshooting
+
+- **For Administrators**
+  - Complete installation and setup guide
+  - Security best practices
+  - Performance optimization strategies
+  - Disaster recovery procedures
+  - Production deployment checklist
+
+- **For Developers**
+  - Clear migration paths between versions
+  - Database schema documentation
+  - Module development references
+  - Contributing guidelines
+
+### Technical Details
+- Documentation format: Markdown
+- Total pages: 3 major documentation files
+- Lines of documentation: 2,000+
+- Code examples: 100+
+- SQL examples: 50+
+- Shell script examples: 75+
+
+### No Code Changes
+- This release contains only documentation improvements
+- No database migrations required
+- No configuration changes needed
+- No functional changes to bot behavior
+- Fully backward compatible with v0.1.28
+
+### Next Steps
+See `/docs/ROADMAP.md` for upcoming features:
+- Configuration Management (v0.2.0)
+- Monitoring & Metrics (v0.2.0)
+- Developer Documentation (future release)
+
 ## 0.1.28 (2025-11-27)
 
 ### Added - Comprehensive Test Suite

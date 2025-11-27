@@ -170,9 +170,8 @@ This document outlines the planned features, improvements, and goals for PhreakB
 ## Community & Documentation
 
 ### Documentation Improvements
-- [ ] **User Documentation**
+- [x] **User Documentation** ✅ Completed in v0.1.29
   - Complete command reference
-  - Video tutorials
   - Admin handbook
   - Migration guides
 
