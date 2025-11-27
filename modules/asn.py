@@ -3,14 +3,15 @@
 #
 # ASN lookup module for PhreakBot
 
-import re
-import requests
-import json
 import ipaddress
+import json
+import re
 import sys
 
+import requests
+
 # Check if this module is being reloaded
-if 'asn' in sys.modules:
+if "asn" in sys.modules:
     # This is a reload, not a fresh import
     print("ASN module is being reloaded, not restarting the bot")
 
@@ -35,11 +36,13 @@ def run(bot, event):
     query = event["command_args"].strip()
 
     if not query:
-        bot.add_response("Please provide an IP address or AS number (e.g., !asn 8.8.8.8 or !asn AS15169)")
+        bot.add_response(
+            "Please provide an IP address or AS number (e.g., !asn 8.8.8.8 or !asn AS15169)"
+        )
         return
 
     # Check if the query is an AS number
-    as_match = re.match(r'^(?:AS)?(\d+)$', query, re.IGNORECASE)
+    as_match = re.match(r"^(?:AS)?(\d+)$", query, re.IGNORECASE)
     if as_match:
         asn = as_match.group(1)
         lookup_asn_by_number(bot, asn)
@@ -51,7 +54,9 @@ def run(bot, event):
         lookup_asn_by_ip(bot, query)
         return
     except ValueError:
-        bot.add_response(f"Invalid input: {query}. Please provide a valid IP address or AS number.")
+        bot.add_response(
+            f"Invalid input: {query}. Please provide a valid IP address or AS number."
+        )
         return
 
 
@@ -59,24 +64,31 @@ def lookup_asn_by_ip(bot, ip):
     """Look up ASN information for an IP address"""
     try:
         # Use ip-api.com for IP to ASN lookup
-        response = requests.get(f"http://ip-api.com/json/{ip}?fields=as,asname,country,regionName,city,org", timeout=10)
+        response = requests.get(
+            f"http://ip-api.com/json/{ip}?fields=as,asname,country,regionName,city,org",
+            timeout=10,
+        )
         response.raise_for_status()
         data = response.json()
 
         if data.get("status") == "fail":
-            bot.add_response(f"Failed to look up ASN for IP {ip}: {data.get('message', 'Unknown error')}")
+            bot.add_response(
+                f"Failed to look up ASN for IP {ip}: {data.get('message', 'Unknown error')}"
+            )
             return
 
         # Extract ASN number from the AS field (format: "AS15169 Google LLC")
         as_info = data.get("as", "")
         asn = "Unknown"
         if as_info:
-            as_match = re.match(r'^AS(\d+)\s', as_info)
+            as_match = re.match(r"^AS(\d+)\s", as_info)
             if as_match:
                 asn = as_match.group(1)
 
         company = data.get("org", data.get("asname", "Unknown"))
-        location = format_location(data.get("country"), data.get("regionName"), data.get("city"))
+        location = format_location(
+            data.get("country"), data.get("regionName"), data.get("city")
+        )
 
         # Combine all information into a single line
         result = f"ASN Lookup for {ip}: AS{asn} | Organization: {company} | Location: {location}"
@@ -90,9 +102,14 @@ def lookup_asn_by_ip(bot, ip):
 def lookup_asn_by_number(bot, asn):
     """Look up ASN information for an AS number"""
     try:
-        # Use ASN.cymru.com for ASN lookup
-        # This is a whois-based lookup that returns ASN information
-        response = requests.get(f"https://api.bgpview.io/asn/{asn}", timeout=10)
+        headers = {
+            "User-Agent": "PhreakBot IRC Bot/1.0 (https://github.com/jskoetsier/phreakbot)",
+            "Accept": "application/json",
+        }
+
+        response = requests.get(
+            f"https://api.bgpview.io/asn/{asn}", timeout=10, headers=headers
+        )
         response.raise_for_status()
         data = response.json()
 
@@ -102,15 +119,13 @@ def lookup_asn_by_number(bot, asn):
 
         asn_data = data.get("data", {})
         name = asn_data.get("name", "Unknown")
-        description = asn_data.get("description_short", asn_data.get("description", "Unknown"))
+        description = asn_data.get(
+            "description_short", asn_data.get("description", "Unknown")
+        )
 
-        # Get country information
         country_code = asn_data.get("country_code", "")
-
-        # Just use the country code directly
         country = country_code if country_code else "Unknown"
 
-        # Get some prefixes if available
         prefix_info = ""
         prefixes = asn_data.get("prefixes", [])
         if prefixes and len(prefixes) > 0:
@@ -119,7 +134,6 @@ def lookup_asn_by_number(bot, asn):
             if sample_prefixes:
                 prefix_info = f" | Sample Prefixes ({prefix_count} total): {', '.join(sample_prefixes)}"
 
-        # Combine all information into a single line
         result = f"ASN Lookup for AS{asn}: {name} | Description: {description} | Country: {country}{prefix_info}"
         bot.add_response(result)
 
