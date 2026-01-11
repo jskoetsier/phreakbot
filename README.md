@@ -47,7 +47,7 @@ For detailed Podman instructions and features, see [docs/PODMAN.md](docs/PODMAN.
 5. Configure the bot by editing `config.json`
 6. Run the bot: `python phreakbot.py`
 
-PhreakBot uses the [pydle](https://github.com/shizmob/pydle) IRC library, which offers:
+PhreakBot uses the [pydle](https://codeberg.org/shiz/pydle) IRC library, which offers:
 - Better handling of IRC events
 - Improved connection stability
 - Enhanced support for custom commands like `!item = value` and `!item?`
