@@ -1,4 +1,4 @@
-# PhreakBot (v0.1.23)
+# PhreakBot (v0.1.32)
 
 PhreakBot is a modular IRC bot written in Python.
 
@@ -24,17 +24,24 @@ PhreakBot is a modular IRC bot written in Python.
 
 ### Docker / Podman (Recommended)
 
-PhreakBot supports both Docker and Podman:
+PhreakBot supports both Docker and Podman.
 
-**Using Docker:**
-```bash
-docker-compose up -d
-```
+1. Copy `.env.example` to `.env` and update the values:
+   ```bash
+   cp .env.example .env
+   ```
 
-**Using Podman:**
-```bash
-podman-compose up -d
-```
+2. Start the bot:
+
+   **Using Docker:**
+   ```bash
+   docker-compose up -d
+   ```
+
+   **Using Podman:**
+   ```bash
+   podman-compose up -d
+   ```
 
 For detailed Podman instructions and features, see [docs/PODMAN.md](docs/PODMAN.md).
 
@@ -44,7 +51,7 @@ For detailed Podman instructions and features, see [docs/PODMAN.md](docs/PODMAN.
 2. Install the required dependencies: `pip install -r requirements.txt`
 3. Set up a PostgreSQL database
 4. Run the SQL in `dbschema.psql` to create the necessary tables
-5. Configure the bot by editing `config.json`
+5. Configure the bot by editing `config/config.json`
 6. Run the bot: `python phreakbot.py`
 
 PhreakBot uses the [pydle](https://codeberg.org/shiz/pydle) IRC library, which offers:
@@ -60,7 +67,26 @@ All utility scripts are located in the `scripts/` directory. See [scripts/README
 
 ## Configuration
 
-Edit `config.json` to configure the bot:
+### Docker / Podman
+
+Configure via environment variables in `.env` (see `.env.example` for defaults):
+
+```bash
+# PostgreSQL credentials
+POSTGRES_USER=phreakbot
+POSTGRES_PASSWORD=phreakbot
+POSTGRES_DB=phreakbot
+
+# IRC configuration
+IRC_SERVER=irc.libera.chat
+IRC_PORT=6667
+IRC_NICKNAME=PhreakBot
+IRC_CHANNEL=#phreakbot
+```
+
+### Manual Installation
+
+Edit `config/config.json` to configure the bot:
 
 ```json
 {

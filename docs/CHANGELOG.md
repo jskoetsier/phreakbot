@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.1.32 (2026-04-14)
+
+### Documentation
+- Updated `README.md` — version to v0.1.31, added `.env` configuration instructions, updated Docker setup
+- Updated `docs/SECURITY.md` — version to 0.1.31, removed references to removed features (`_validate_sql_safety`, `allow_special_chars`, `dangerous_patterns`), added SSRF protection section, updated defense-in-depth diagram
+- Updated `docs/COMMAND_REFERENCE.md` — version to 0.1.31, removed `!exec` command section and references
+- Updated `docs/ADMIN_HANDBOOK.md` — version to 0.1.31, replaced `!exec` section with removal note
+- Updated `docs/MIGRATION_GUIDE.md` — version to 0.1.31, added migration instructions for v0.1.31
+- Updated `tests/README.md` — version to 0.1.31, removed `allow_special_chars` test example
+
 ## 0.1.31 (2026-04-14)
 
 ### Fixed - Medium Priority Issues
@@ -30,6 +40,15 @@
 
 ### Known Limitations
 - Module `run()` functions are still synchronous and block the event loop during DB/HTTP operations. Converting to async or using thread executors requires refactoring the shared `self.output` buffer — deferred to a future release.
+
+### Documentation
+- Updated all documentation to reflect v0.1.31
+- Updated `SECURITY.md` — removed references to `_validate_sql_safety`, `allow_special_chars`, `dangerous_patterns`; added SSRF protection section
+- Updated `COMMAND_REFERENCE.md` — removed `!exec` command documentation
+- Updated `ADMIN_HANDBOOK.md` — replaced `!exec` section with removal note
+- Updated `MIGRATION_GUIDE.md` — added migration instructions for v0.1.31
+- Updated `tests/README.md` — removed `allow_special_chars` example
+- Updated `README.md` — version, `.env` configuration, Docker setup instructions
 
 ## 0.1.30 (2026-04-14)
 

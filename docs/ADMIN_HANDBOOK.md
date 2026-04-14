@@ -1,7 +1,7 @@
 # PhreakBot Administrator Handbook
 
-**Version**: 0.1.29
-**Last Updated**: 2025-11-27
+**Version**: 0.1.31
+**Last Updated**: 2026-04-14
 
 This handbook provides comprehensive guidance for PhreakBot administrators, covering installation, configuration, module management, user management, and security best practices.
 
@@ -799,14 +799,7 @@ All user inputs are sanitized for:
 
 ### 7. Dangerous Commands
 
-**`!exec` permission**:
-- ⚠️ **EXTREMELY DANGEROUS**
-- Only grant to fully trusted users
-- All executions are logged
-- Has 10-second timeout
-- Output limited to 5 lines
-
-**Recommendation**: Don't grant `exec` permission except in emergency.
+> **Note**: The `!exec` command was removed in v0.1.30 due to its RCE vulnerability. Shell access should not be exposed through an IRC bot. Use SSH or other proper remote access tools for system administration.
 
 ---
 
@@ -1531,9 +1524,9 @@ gunzip < backup.sql.gz | psql -U phreakbot -d phreakbot
 
 ---
 
-**Document Version**: 1.0
-**PhreakBot Version**: 0.1.29
-**Last Updated**: 2025-11-27
+**Document Version**: 1.1
+**PhreakBot Version**: 0.1.31
+**Last Updated**: 2026-04-14
 **Maintainer**: PhreakBot Administration Team
 
 **For emergencies, consult `/docs/TROUBLESHOOTING.md` or join #phreaky on IRCnet.**

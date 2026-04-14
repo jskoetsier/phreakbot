@@ -1,8 +1,8 @@
 # PhreakBot Security Documentation
 
-## Version 0.1.27 - Security Hardening
+## Version 0.1.31 - Security Hardening
 
-This document describes the comprehensive security measures implemented in PhreakBot v0.1.27 to protect against abuse, injection attacks, and unauthorized access.
+This document describes the comprehensive security measures implemented in PhreakBot v0.1.31 to protect against abuse, injection attacks, SSRF, and unauthorized access.
 
 ---
 
@@ -39,9 +39,9 @@ PhreakBot implements a **defense-in-depth** security strategy with multiple laye
                   ▼
 ┌─────────────────────────────────────────────────────────┐
 │  Layer 2: Input Sanitization                             │
-│  - Remove dangerous characters                           │
+│  - Remove null bytes and non-printable characters       │
 │  - Truncate to max length                                │
-│  - Filter SQL/shell injection patterns                   │
+│  - Strip whitespace                                      │
 └─────────────────┬───────────────────────────────────────┘
                   │
                   ▼
@@ -56,8 +56,7 @@ PhreakBot implements a **defense-in-depth** security strategy with multiple laye
 ┌─────────────────────────────────────────────────────────┐
 │  Layer 4: SQL Safety                                     │
 │  - Parameterized queries only                            │
-│  - Query pattern validation                              │
-│  - Parameter/placeholder matching                        │
+│  - Proper rollback on errors                             │
 └─────────────────┬───────────────────────────────────────┘
                   │
                   ▼
@@ -175,7 +174,7 @@ Input sanitization removes or neutralizes potentially dangerous characters and p
 #### 1. General Input Sanitization
 
 ```python
-def _sanitize_input(self, input_str, max_length=500, allow_special_chars=False):
+def _sanitize_input(self, input_str, max_length=500):
     """Sanitize user input to prevent injection attacks and abuse"""
 ```
 
@@ -183,13 +182,9 @@ def _sanitize_input(self, input_str, max_length=500, allow_special_chars=False):
 - Truncates to maximum length (default: 500 chars)
 - Removes null bytes (`\x00`)
 - Removes non-printable control characters
-- Optionally removes dangerous SQL/shell patterns
+- Strips leading/trailing whitespace
 
-**Dangerous Patterns Filtered** (when `allow_special_chars=False`):
-- `--` - SQL comments
-- `; DROP`, `; DELETE`, `; UPDATE` - SQL injection
-- `$(` - Shell command substitution
-- `` ` `` - Shell command substitution
+> **Note**: As of v0.1.30, the `allow_special_chars` parameter and `dangerous_patterns` filtering have been removed. SQL injection is prevented by parameterized queries (not input filtering), and shell injection is not a vector since the bot does not pass user input to shell commands.
 
 #### 2. Channel Name Sanitization
 
@@ -224,11 +219,11 @@ async def _handle_message(self, source, channel, message, is_private):
     # Sanitize all inputs at entry point
     source = self._sanitize_nickname(source)
     channel = self._sanitize_channel_name(channel) if not is_private else source
-    message = self._sanitize_input(message, max_length=500, allow_special_chars=True)
+    message = self._sanitize_input(message, max_length=500)
 
     # Later: Sanitize command arguments
     event_obj["command_args"] = self._sanitize_input(
-        match.group(2) or "", max_length=500, allow_special_chars=True
+        match.group(2) or "", max_length=500
     )
 ```
 
@@ -236,11 +231,11 @@ async def _handle_message(self, source, channel, message, is_private):
 
 | Input Type | Before | After |
 |------------|--------|-------|
-| SQL Injection | `'; DROP TABLE users--` | `' TABLE users` |
-| Shell Injection | `$(rm -rf /)` | `rm -rf /` |
-| Channel Name | `#test';DROP--` | `#testDROP` |
-| Nickname | `user$(whoami)` | `userwhoami` |
 | Null Bytes | `test\x00admin` | `testadmin` |
+| Control Chars | `hello\r\nworld` | `helloworld` |
+| Long Input | 600-char string | Truncated to 500 chars |
+| Channel Name | `#test$(rm)` | `#testrm` |
+| Nickname | `user@host` | `userhost` |
 
 ---
 
@@ -249,23 +244,6 @@ async def _handle_message(self, source, channel, message, is_private):
 ### Overview
 
 PhreakBot uses **parameterized queries exclusively** to prevent SQL injection attacks. All database operations use placeholders (`%s`) instead of string concatenation.
-
-### SQL Safety Validation
-
-```python
-def _validate_sql_safety(self, query, params):
-    """Validate that SQL query uses parameterized queries properly"""
-```
-
-**Checks**:
-1. Ensures parameters match placeholders
-2. Detects dangerous patterns in the query itself
-3. Validates query structure
-
-**Dangerous Patterns Detected**:
-- `' OR '1'='1` - Classic SQL injection
-- `'; DROP` - Drop table attacks
-- `--` at end of query - SQL comments
 
 ### Parameterized Query Examples
 
@@ -313,6 +291,56 @@ All SQL queries in the following files have been audited and verified to use par
 - Connection timeout: 10 seconds
 - Automatic reconnection on connection loss
 - Thread-safe connection pool (5-20 connections)
+- All modules properly rollback on transaction errors
+
+---
+
+## SSRF Protection
+
+### Overview
+
+PhreakBot includes Server-Side Request Forgery (SSRF) protection for URL-fetching modules. This prevents the bot from being used to scan internal networks or access cloud metadata services.
+
+### How It Works
+
+The `is_url_safe()` function in `phreakbot_core/url_safety.py` checks URLs before fetching:
+
+1. **Parses the URL** and extracts the hostname
+2. **Resolves DNS** using `socket.getaddrinfo` to get actual IP addresses
+3. **Checks each IP** against a blocklist of private/blocked ranges
+4. **Rejects** any URL that resolves to a blocked IP
+
+### Blocked IP Ranges
+
+| Range | Description |
+|-------|-------------|
+| `127.0.0.0/8` | Loopback (localhost) |
+| `10.0.0.0/8` | RFC 1918 (private network) |
+| `172.16.0.0/12` | RFC 1918 (private network) |
+| `192.168.0.0/16` | RFC 1918 (private network) |
+| `169.254.0.0/16` | Link-local |
+| `169.254.169.254/32` | Cloud metadata (AWS/GCP/Azure) |
+| `100.64.0.0/10` | Carrier-grade NAT |
+| `::1/128` | IPv6 loopback |
+| `fe80::/10` | IPv6 link-local |
+| `fc00::/7` | IPv6 ULA (unique local) |
+
+### Protected Modules
+
+- `modules/snarf.py` — URL title/description fetching
+- `modules/urls.py` — URL information fetching
+
+### Usage in Custom Modules
+
+```python
+from phreakbot_core.url_safety import is_url_safe
+
+# Before fetching a URL
+is_safe, reason = is_url_safe(url)
+if not is_safe:
+    bot.add_response(f"Blocked: {reason}")
+    return
+```
 
 ---
 
@@ -422,20 +450,15 @@ self.rate_limit = {
 
 ### Input Sanitization Configuration
 
-To modify sanitization rules, edit the `_sanitize_input()` method:
+To modify sanitization rules, edit the `_sanitize_input()` method in `phreakbot.py`.
 
-```python
-# Add more dangerous patterns
-dangerous_patterns = [
-    r"--",              # SQL comment
-    r";\s*DROP",        # SQL drop
-    r";\s*DELETE",      # SQL delete
-    r";\s*UPDATE",      # SQL update
-    r"\$\(",            # Shell substitution
-    r"`",               # Shell substitution
-    r"<script>",        # XSS (if applicable)
-]
-```
+**Current sanitization behavior**:
+- Truncates input to configurable max length (default: 500 chars)
+- Removes null bytes (`\x00`)
+- Strips non-printable control characters
+- Strips leading/trailing whitespace
+
+> **Note**: As of v0.1.30, pattern-based filtering of SQL keywords and shell substitution characters has been removed. SQL injection is prevented by parameterized queries, and the bot does not pass user input to shell commands.
 
 ### Logging Configuration
 
@@ -461,8 +484,14 @@ Security events are logged at appropriate levels:
 
 #### Input Sanitization
 ```
-[2025-11-27 03:05:15] DEBUG - Sanitized input: 'test'; DROP TABLE users--' → 'test TABLE users'
+[2025-11-27 03:05:15] DEBUG - Sanitized input: removed null bytes and control characters
 [2025-11-27 03:05:16] DEBUG - Sanitized channel: '#test$(rm)' → '#testrm'
+```
+
+#### SSRF Protection
+```
+[2026-04-14 10:15:22] WARNING - Blocked URL fetch (SSRF): URL resolves to private IP 10.0.0.1
+[2026-04-14 10:15:23] WARNING - Blocked URL fetch (SSRF): cloud metadata endpoint 169.254.169.254
 ```
 
 #### Permission Validation
@@ -470,12 +499,6 @@ Security events are logged at appropriate levels:
 [2025-11-27 03:05:20] WARNING - Security: Banned user user@host attempted to execute command
 [2025-11-27 03:05:21] ERROR - Security: Invalid event object missing field 'hostmask'
 [2025-11-27 03:05:22] ERROR - Security: Invalid permissions structure in user_info
-```
-
-#### SQL Safety
-```
-[2025-11-27 03:05:25] ERROR - SQL Safety: Query has parameters but no placeholders: SELECT * FROM users
-[2025-11-27 03:05:26] ERROR - SQL Safety: Dangerous pattern found in query: '; DROP
 ```
 
 ### Monitoring Commands
@@ -492,8 +515,8 @@ podman logs phreakbot | grep -E "WARNING|ERROR" | tail -50
 # Monitor rate limiting
 podman logs phreakbot | grep "Rate limit" | tail -20
 
-# Monitor SQL safety
-podman logs phreakbot | grep "SQL Safety" | tail -20
+# Monitor SSRF blocks
+podman logs phreakbot | grep "SSRF" | tail -20
 ```
 
 ---
@@ -537,6 +560,8 @@ podman logs phreakbot | grep "SQL Safety" | tail -20
    ```python
    # Use bot's sanitization methods
    item = self._sanitize_input(user_input, max_length=100)
+   # Note: Special characters are preserved; SQL injection is prevented
+   # by parameterized queries, not input filtering.
    ```
 
 3. **Check Permissions**
@@ -584,13 +609,13 @@ podman logs phreakbot | grep "SQL Safety" | tail -20
    - Permanent: Add to channel ban list
    - Moderate: Adjust rate limits if legitimate use case
 
-### If SQL Injection Attempted
+### If SSRF Attack Attempted
 
-1. **Immediate**: Check logs for SQL safety warnings
-2. **Investigate**: Identify the source of the attack
-3. **Mitigate**: Ensure all queries are parameterized
-4. **Report**: Document the attempt
-5. **Ban**: Consider permanent ban for malicious actors
+1. **Immediate**: Check logs for SSRF block messages
+2. **Investigate**: Identify which user triggered the blocked URL
+3. **Verify**: Ensure SSRF protection is working correctly
+4. **Monitor**: Watch for repeated attempts to probe internal services
+5. **Ban**: Consider permanent ban for persistent abusers
 
 ### If Permission Bypass Attempted
 
@@ -607,6 +632,7 @@ Use this checklist when auditing PhreakBot security:
 
 - [ ] All SQL queries use parameterized queries
 - [ ] Input sanitization applied to all user inputs
+- [ ] SSRF protection enabled on URL-fetching modules
 - [ ] Rate limiting configured appropriately
 - [ ] Permission validation includes all layers
 - [ ] Logs monitored for security events
@@ -620,12 +646,13 @@ Use this checklist when auditing PhreakBot security:
 
 ## Compliance and Standards
 
-PhreakBot v0.1.27 security features comply with:
+PhreakBot v0.1.31 security features comply with:
 
-- **OWASP Top 10**: Protection against injection, broken authentication, and security misconfiguration
+- **OWASP Top 10**: Protection against injection, SSRF, broken authentication, and security misconfiguration
 - **CWE-89**: SQL Injection Prevention
 - **CWE-79**: Input Validation and Sanitization
 - **CWE-307**: Rate Limiting and Brute Force Protection
+- **CWE-918**: SSRF Protection
 
 ---
 
@@ -645,7 +672,7 @@ If you discover a security vulnerability in PhreakBot:
 
 ## Conclusion
 
-PhreakBot v0.1.27 implements comprehensive security hardening with multiple layers of protection. By following the security principles of defense-in-depth, fail-secure design, and comprehensive logging, PhreakBot provides a secure IRC bot platform for both administrators and users.
+PhreakBot v0.1.31 implements comprehensive security hardening with multiple layers of protection. By following the security principles of defense-in-depth, fail-secure design, and comprehensive logging, PhreakBot provides a secure IRC bot platform for both administrators and users.
 
 For additional security resources and updates, see:
 - `docs/CHANGELOG.md`
@@ -655,5 +682,5 @@ For additional security resources and updates, see:
 ---
 
 **Document Version**: 1.0
-**Last Updated**: 2025-11-27
-**PhreakBot Version**: 0.1.27
+**Last Updated**: 2026-04-14
+**PhreakBot Version**: 0.1.31

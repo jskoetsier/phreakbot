@@ -1,7 +1,7 @@
 # PhreakBot Command Reference
 
-**Version**: 0.1.29
-**Last Updated**: 2025-11-27
+**Version**: 0.1.31
+**Last Updated**: 2026-04-14
 
 This comprehensive reference documents all PhreakBot commands, their syntax, required permissions, and usage examples.
 
@@ -898,32 +898,6 @@ Change the bot's IRC nickname.
 
 ---
 
-### Shell Command Execution
-
-Execute shell commands on the system running the bot.
-
-- **Command**: `!exec`
-- **Syntax**: `!exec <command>`
-- **Permission**: owner/admin/exec
-- **Examples**:
-  ```irc
-  !exec uptime
-  !exec df -h
-  !exec ps aux | grep python
-  ```
-- **Features**:
-  - 10-second timeout per command
-  - Output limited to first 5 lines
-  - All executions logged
-- **Security**:
-  - ⚠️ **EXTREMELY DANGEROUS** - Only grant to fully trusted users
-  - Can execute ANY system command
-  - Has full permissions of the bot process user
-  - Sanitization is applied but should still be used with extreme caution
-- **Description**: System administration tool. Use for diagnostics, updates, or emergency operations.
-
----
-
 ### Help & Documentation
 
 View module help and command documentation.
@@ -957,7 +931,7 @@ Display bot version and system information.
   ```
 - **Response Example**:
   ```
-  PhreakBot v0.1.29 - Running on Python 3.11.5
+  PhreakBot v0.1.31 - Running on Python 3.11.5
   ```
 - **Description**: Also responds to CTCP VERSION requests.
 
@@ -1016,7 +990,7 @@ List all users with a specific permission.
 `!quote`, `!addquote`, `!searchquote`, `!karma`, `!topkarma`, `!infoitem`, `!choice`, `!url`, `!bd`, `!age`
 
 ### Bot Administration
-`!perm`, `!owner`, `!admin`, `!avail`, `!load`, `!reload`, `!unload`, `!botnick`, `!exec`, `!debug`, `!help`, `!whocan`
+`!perm`, `!owner`, `!admin`, `!avail`, `!load`, `!reload`, `!unload`, `!botnick`, `!debug`, `!help`, `!whocan`
 
 ---
 
@@ -1045,7 +1019,6 @@ List all users with a specific permission.
 3. **Regular Audits**: Use `!whocan` to audit who has specific permissions.
 4. **Backup Configuration**: Regularly backup the database.
 5. **Monitor Logs**: Check logs for unusual activity.
-6. **Be Cautious with !exec**: Only grant exec permission to absolutely trusted users.
 
 ### For Developers
 
@@ -1105,7 +1078,7 @@ For questions, bug reports, or feature requests:
 
 ---
 
-**Document Version**: 1.0
-**PhreakBot Version**: 0.1.29
-**Last Updated**: 2025-11-27
+**Document Version**: 1.1
+**PhreakBot Version**: 0.1.31
+**Last Updated**: 2026-04-14
 **Maintainer**: PhreakBot Development Team

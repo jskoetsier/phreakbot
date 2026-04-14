@@ -1,7 +1,7 @@
 # PhreakBot Migration Guide
 
-**Version**: 0.1.29
-**Last Updated**: 2025-11-27
+**Version**: 0.1.31
+**Last Updated**: 2026-04-14
 
 This guide provides instructions for upgrading PhreakBot between versions, including database schema changes, configuration updates, and breaking changes.
 
@@ -11,6 +11,7 @@ This guide provides instructions for upgrading PhreakBot between versions, inclu
 
 1. [General Migration Process](#general-migration-process)
 2. [Version-Specific Migrations](#version-specific-migrations)
+   - [Migrating to v0.1.31](#migrating-to-v0131)
    - [Migrating to v0.1.29](#migrating-to-v0129)
    - [Migrating to v0.1.28](#migrating-to-v0128)
    - [Migrating to v0.1.27](#migrating-to-v0127)
@@ -81,7 +82,55 @@ docker-compose logs -f
 
 ## Version-Specific Migrations
 
-### Migrating to v0.1.29
+### Migrating to v0.1.31
+
+**Release Date**: 2026-04-14
+**Type**: Security & Bug Fix Release
+**Breaking Changes**: Yes — `!exec` module removed, `_sanitize_input` API changed
+
+#### What's New
+
+**v0.1.30 — Critical Security Fixes**:
+- Removed `!exec` module (RCE vulnerability) — shell access should not be exposed through IRC
+- Added SSRF protection (`phreakbot_core/url_safety.py`) to URL-fetching modules
+- Simplified `_sanitize_input()` — removed `allow_special_chars` parameter and `dangerous_patterns` filtering
+
+**v0.1.31 — Medium Priority Fixes**:
+- Moved `import traceback` to module level (was inside `except` blocks)
+- Replaced bare `except:` with `except Exception:` (catches `SystemExit`/`KeyboardInterrupt` properly)
+- Downgraded ~30 per-message `logger.info()` to `logger.debug()` (prevents log flooding)
+- Fixed `sys.modules` pollution in module loader (prefixed with `phreakbot.modules.`)
+- Added `db_connection.rollback()` to 10 modules missing it
+- Removed debug output in production snarf module
+
+#### Breaking Changes
+
+1. **`!exec` module removed**: The `modules/exec.py` file has been deleted. If you relied on `!exec` for system administration, use SSH or other proper remote access tools instead.
+2. **`_sanitize_input()` API change**: The `allow_special_chars` parameter has been removed. Special characters are now preserved; SQL injection is prevented by parameterized queries.
+3. **`_validate_sql_safety()` removed**: This method was redundant with parameterized queries and has been removed.
+
+#### Migration Steps
+
+```bash
+# Pull latest code
+git pull origin main
+
+# Database migration: add partial unique index for owner constraint
+psql -U phreakbot -d phreakbot < dbschema.psql
+
+# Install new dependency (SSRF protection uses netaddr)
+pip install netaddr
+
+# Restart bot
+docker-compose restart phreakbot
+# or: systemctl restart phreakbot
+```
+
+#### Post-Migration
+- Review `/docs/SECURITY.md` for updated security documentation
+- Remove any references to `!exec` from your admin documentation
+- Remove any `allow_special_chars` calls from custom modules
+- Verify that custom modules handle DB errors with `rollback()` calls
 
 **Release Date**: 2025-11-27
 **Type**: Documentation Release
@@ -516,7 +565,7 @@ psql -U phreakbot -d phreakbot -c "\di"  # List indexes
 
 ### Configuration File Evolution
 
-#### v0.1.24 - v0.1.29 (Current)
+#### v0.1.24 - v0.1.31 (Current)
 
 No configuration changes between these versions. Configuration schema remains:
 
@@ -583,6 +632,7 @@ tail -f phreakbot.log
 ### Rollback Considerations
 
 **Safe to rollback**:
+- v0.1.31 → v0.1.30 (no database changes, but `!exec` module will need manual restoration if desired)
 - v0.1.29 → v0.1.28 (documentation only)
 - v0.1.28 → v0.1.27 (no database changes)
 - v0.1.27 → v0.1.26 (no database changes)
@@ -775,9 +825,9 @@ Rollback Plan (if needed):
 
 ---
 
-**Document Version**: 1.0
-**PhreakBot Version**: 0.1.29
-**Last Updated**: 2025-11-27
+**Document Version**: 1.1
+**PhreakBot Version**: 0.1.31
+**Last Updated**: 2026-04-14
 **Maintainer**: PhreakBot Development Team
 
 **For migration assistance, join #phreaky on IRCnet or create a GitHub issue.**

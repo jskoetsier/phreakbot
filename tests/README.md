@@ -257,12 +257,14 @@ async def test_async_function():
 
 ```python
 @pytest.mark.unit
-def test_sanitize_input_removes_sql_injection(bot):
-    """Test that SQL injection patterns are removed."""
-    dangerous = "'; DROP TABLE users--"
-    result = bot._sanitize_input(dangerous, allow_special_chars=False)
+def test_sanitize_input_preserves_special_chars(bot):
+    """Test that special characters are preserved (SQL injection prevented by parameterized queries)."""
+    text = "hello; DROP TABLE users--"
+    result = bot._sanitize_input(text, max_length=500)
 
-    assert "DROP" not in result or "--" not in result
+    # Special chars preserved - SQL injection prevented by parameterized queries
+    assert "DROP" in result
+    assert "--" in result
 ```
 
 ### Example: Integration Test
@@ -421,6 +423,6 @@ cat htmlcov/index.html
 
 ---
 
-**Last Updated**: 2025-11-27
-**PhreakBot Version**: 0.1.28
+**Last Updated**: 2026-04-14
+**PhreakBot Version**: 0.1.31
 **Test Framework**: pytest 7.4.3+
