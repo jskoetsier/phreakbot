@@ -259,35 +259,27 @@ class PhreakBot(pydle.Client):
                 del self.cache["cache_timestamps"][cache_key]
             self.logger.debug(f"Invalidated cache for {cache_key}")
 
-    def _sanitize_input(self, input_str, max_length=500, allow_special_chars=False):
-        """Sanitize user input to prevent injection attacks and abuse"""
+    def _sanitize_input(self, input_str, max_length=500):
+        """Sanitize user input: truncate, remove null bytes and control chars.
+
+        SQL injection is prevented by using parameterized queries throughout
+        the codebase, so we do not filter SQL-specific patterns here.
+        Shell injection is prevented by not executing user input as shell
+        commands (the !exec module has been removed).
+        """
         if not isinstance(input_str, str):
             return ""
 
         # Truncate to max length
         sanitized = input_str[:max_length]
 
-        # Remove null bytes and other dangerous characters
+        # Remove null bytes
         sanitized = sanitized.replace("\x00", "")
 
-        # Remove control characters except newlines and tabs (which we'll handle)
+        # Remove control characters except newlines and tabs
         sanitized = "".join(
             char for char in sanitized if char.isprintable() or char in "\n\t"
         )
-
-        # If not allowing special chars, remove potentially dangerous patterns
-        if not allow_special_chars:
-            # Remove sequences that could be used for SQL injection or command injection
-            dangerous_patterns = [
-                r"--",  # SQL comment
-                r";\s*DROP",  # SQL drop statement
-                r";\s*DELETE",  # SQL delete statement
-                r";\s*UPDATE",  # SQL update statement
-                r"\$\(",  # Shell command substitution
-                r"`",  # Shell command substitution
-            ]
-            for pattern in dangerous_patterns:
-                sanitized = re.sub(pattern, "", sanitized, flags=re.IGNORECASE)
 
         return sanitized.strip()
 
@@ -385,30 +377,6 @@ class PhreakBot(pydle.Client):
         # Record this command
         self.rate_limit["user_commands"][hostmask].append(current_time)
         self.rate_limit["global_commands"].append(current_time)
-
-        return True
-
-    def _validate_sql_safety(self, query, params):
-        """Validate that SQL query uses parameterized queries properly"""
-        # Check if query contains string formatting or concatenation
-        if "%s" not in query and len(params) > 0:
-            self.logger.error(
-                f"SQL Safety: Query has parameters but no placeholders: {query}"
-            )
-            return False
-
-        # Check for common SQL injection patterns in the query itself
-        dangerous_in_query = [
-            r"'\s*OR\s*'1'\s*=\s*'1",
-            r"'\s*;\s*DROP",
-            r"--\s*$",
-        ]
-        for pattern in dangerous_in_query:
-            if re.search(pattern, query, re.IGNORECASE):
-                self.logger.error(
-                    f"SQL Safety: Dangerous pattern found in query: {pattern}"
-                )
-                return False
 
         return True
 
@@ -693,9 +661,7 @@ class PhreakBot(pydle.Client):
         # Security: Sanitize inputs
         source = self._sanitize_nickname(source)
         channel = self._sanitize_channel_name(channel) if not is_private else source
-        message = self._sanitize_input(
-            message, max_length=500, allow_special_chars=True
-        )
+        message = self._sanitize_input(message, max_length=500)
 
         # Check if we have cached hostmask first (performance optimization)
         user_host = self.user_hostmasks.get(source.lower())
@@ -808,7 +774,7 @@ class PhreakBot(pydle.Client):
                 event_obj["command"] = match.group(1).lower()
                 # Security: Sanitize command arguments
                 event_obj["command_args"] = self._sanitize_input(
-                    match.group(2) or "", max_length=500, allow_special_chars=True
+                    match.group(2) or "", max_length=500
                 )
                 event_obj["trigger"] = "command"
                 self.logger.info(

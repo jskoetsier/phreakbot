@@ -7,8 +7,11 @@
 # of a URL of a website.
 
 import re
+
 import requests
 from bs4 import BeautifulSoup
+
+from phreakbot_core.url_safety import is_url_safe
 
 
 def config(bot):
@@ -76,6 +79,13 @@ def process_url(bot, event, url):
         # Add http:// prefix if missing
         if not url.startswith(("http://", "https://")):
             url = "http://" + url
+
+        # SSRF protection: check that the URL doesn't point to a private/blocked IP
+        is_safe, reason = is_url_safe(url)
+        if not is_safe:
+            bot.logger.warning(f"Blocked URL fetch (SSRF): {reason}")
+            bot.add_response("That URL points to a private or blocked address.")
+            return
 
         bot.logger.info(f"Processing URL: {url}")
 

@@ -16,6 +16,10 @@ CREATE TABLE phreakbot_users (
     is_owner BOOLEAN NOT NULL DEFAULT FALSE
 );
 
+-- Enforce at most one owner to prevent race conditions during !owner claim
+CREATE UNIQUE INDEX IF NOT EXISTS idx_users_single_owner
+    ON phreakbot_users (is_owner) WHERE is_owner = TRUE;
+
 CREATE TABLE phreakbot_hostmasks (
     id SERIAL,
 

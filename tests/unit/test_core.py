@@ -82,36 +82,27 @@ class TestInputSanitization:
         assert "\x00" not in result
 
     @pytest.mark.unit
-    def test_sanitize_input_sql_injection(self, bot):
-        """Test SQL injection pattern filtering."""
-        dangerous_inputs = [
-            "'; DROP TABLE users--",
-            "test; DELETE FROM data",
-            "value; UPDATE settings",
-        ]
+    def test_sanitize_input_preserves_special_chars(self, bot):
+        """Test that special characters are preserved (SQL injection is prevented by parameterized queries)."""
+        # These characters should pass through — SQL injection is handled by
+        # parameterized queries, not by input stripping.
+        result = bot._sanitize_input("'; DROP TABLE users--")
+        assert ";" in result
+        assert "--" in result
 
-        for dangerous in dangerous_inputs:
-            result = bot._sanitize_input(dangerous, allow_special_chars=False)
-            assert "DROP" not in result or "--" not in result
-            assert "DELETE" not in result or ";" not in result
-            assert "UPDATE" not in result or ";" not in result
+        result = bot._sanitize_input("test; DELETE FROM data")
+        assert ";" in result
+        assert "DELETE" in result
 
     @pytest.mark.unit
-    def test_sanitize_input_shell_injection(self, bot):
-        """Test shell injection pattern filtering."""
-        result = bot._sanitize_input("test$(rm -rf /)", allow_special_chars=False)
-        assert "$(" not in result
+    def test_sanitize_input_shell_chars_preserved(self, bot):
+        """Test that shell characters pass through — shell execution is not used."""
+        # The !exec module has been removed, so shell chars are not a threat.
+        result = bot._sanitize_input("test$(rm -rf /)")
+        assert "$(" in result
 
-        result = bot._sanitize_input("test`whoami`", allow_special_chars=False)
-        assert "`" not in result
-
-    @pytest.mark.unit
-    def test_sanitize_input_allow_special_chars(self, bot):
-        """Test that special chars are preserved when allowed."""
-        result = bot._sanitize_input(
-            "test; SELECT * FROM users", allow_special_chars=True
-        )
-        assert ";" in result  # Should be preserved when allowed
+        result = bot._sanitize_input("test`whoami`")
+        assert "`" in result
 
     @pytest.mark.unit
     def test_sanitize_channel_name_valid(self, bot):
@@ -264,60 +255,6 @@ class TestRateLimiting:
 
 class TestSQLSafety:
     """Test SQL safety validation."""
-
-    @pytest.mark.unit
-    def test_validate_sql_safety_valid_query(self, bot):
-        """Test validation of safe parameterized query."""
-        query = "SELECT * FROM users WHERE username = %s"
-        params = ("testuser",)
-
-        assert bot._validate_sql_safety(query, params) is True
-
-    @pytest.mark.unit
-    def test_validate_sql_safety_multiple_params(self, bot):
-        """Test validation with multiple parameters."""
-        query = "INSERT INTO items (name, value, channel) VALUES (%s, %s, %s)"
-        params = ("test", "value", "#channel")
-
-        assert bot._validate_sql_safety(query, params) is True
-
-    @pytest.mark.unit
-    def test_validate_sql_safety_no_params_no_placeholders(self, bot):
-        """Test query with no parameters and no placeholders."""
-        query = "SELECT * FROM users"
-        params = ()
-
-        assert bot._validate_sql_safety(query, params) is True
-
-    @pytest.mark.unit
-    def test_validate_sql_safety_params_without_placeholders(self, bot):
-        """Test detection of parameters without placeholders."""
-        query = "SELECT * FROM users WHERE username = 'test'"
-        params = ("testuser",)
-
-        assert bot._validate_sql_safety(query, params) is False
-
-    @pytest.mark.unit
-    def test_validate_sql_safety_dangerous_pattern_or(self, bot):
-        """Test detection of SQL injection OR pattern with no spaces."""
-        # The actual regex is: r"'\s*OR\s*'1'\s*=\s*'1"
-        # It requires quotes around OR and around 1='1
-        query = "SELECT * FROM users WHERE id = 1 OR '1' = '1"
-        params = ()
-
-        # This specific pattern doesn't match our regex, so skip this test
-        # Our security implementation focuses on other dangerous patterns
-        pytest.skip(
-            "SQL OR pattern without quotes doesn't match current regex implementation"
-        )
-
-    @pytest.mark.unit
-    def test_validate_sql_safety_dangerous_pattern_drop(self, bot):
-        """Test detection of DROP statement in query."""
-        query = "SELECT * FROM users; ' ; DROP TABLE users"
-        params = ()
-
-        assert bot._validate_sql_safety(query, params) is False
 
 
 class TestPermissionValidation:

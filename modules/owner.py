@@ -5,6 +5,8 @@
 
 import random
 
+import psycopg2
+
 
 def config(bot):
     """Return module configuration"""
@@ -99,9 +101,16 @@ def _claim_ownership(bot, event):
         )
 
         cur = bot.db_connection.cursor()
-        cur.execute("SELECT COUNT(*) FROM phreakbot_users WHERE is_owner = TRUE")
-        owner_count = cur.fetchone()[0]
-        bot.logger.info(f"Current owner count in database: {owner_count}")
+
+        # Use SELECT FOR UPDATE to lock the row and prevent race conditions.
+        # The partial unique index idx_users_single_owner enforces at most one
+        # owner at the database level as a second layer of protection.
+        cur.execute(
+            "SELECT id FROM phreakbot_users WHERE is_owner = TRUE FOR UPDATE"
+        )
+        existing_owner = cur.fetchone()
+
+        bot.logger.info(f"Existing owner check result: {existing_owner}")
 
         # Check if the user is already the owner
         if bot._is_owner(event["hostmask"]):
@@ -110,7 +119,7 @@ def _claim_ownership(bot, event):
             return
 
         # If there's already an owner and the current user is not the owner, reject the claim
-        if owner_count > 0:
+        if existing_owner:
             bot.add_response("This bot already has an owner.")
             cur.close()
             return
@@ -123,12 +132,21 @@ def _claim_ownership(bot, event):
             bot.logger.info(
                 f"Creating new user for {event['nick']} with hostmask {event['hostmask']}"
             )
-            # Create new user
-            cur.execute(
-                "INSERT INTO phreakbot_users (username, is_owner) VALUES (%s, TRUE) RETURNING id",
-                (event["nick"].lower(),),
-            )
-            user_id = cur.fetchone()[0]
+            # Create new user — the unique partial index on is_owner=TRUE
+            # will raise UniqueViolation if another claim sneaks in concurrently
+            try:
+                cur.execute(
+                    "INSERT INTO phreakbot_users (username, is_owner) VALUES (%s, TRUE) RETURNING id",
+                    (event["nick"].lower(),),
+                )
+                user_id = cur.fetchone()[0]
+            except psycopg2.errors.UniqueViolation:
+                bot.db_connection.rollback()
+                bot.add_response(
+                    "This bot already has an owner. Ownership was claimed by someone else just now."
+                )
+                cur.close()
+                return
             bot.logger.info(f"Created new user with ID: {user_id}")
 
             # Add hostmask
@@ -159,11 +177,19 @@ def _claim_ownership(bot, event):
                     (user_id, permission),
                 )
         else:
-            # Update existing user
-            cur.execute(
-                "UPDATE phreakbot_users SET is_owner = TRUE WHERE id = %s",
-                (user_info["id"],),
-            )
+            # Update existing user — the unique partial index guards concurrency here too
+            try:
+                cur.execute(
+                    "UPDATE phreakbot_users SET is_owner = TRUE WHERE id = %s",
+                    (user_info["id"],),
+                )
+            except psycopg2.errors.UniqueViolation:
+                bot.db_connection.rollback()
+                bot.add_response(
+                    "This bot already has an owner. Ownership was claimed by someone else just now."
+                )
+                cur.close()
+                return
 
             # Check if user has owner permission
             has_owner_perm = False
@@ -188,8 +214,20 @@ def _claim_ownership(bot, event):
         cur.close()
         bot.add_response(f"Congratulations! You are now my owner, {event['nick']}!")
 
+    except psycopg2.errors.UniqueViolation:
+        # Concurrent claim won the race
+        bot.logger.warning("Concurrent owner claim detected, rolling back")
+        try:
+            bot.db_connection.rollback()
+        except Exception:
+            pass
+        bot.add_response("This bot already has an owner. Ownership was claimed by someone else just now.")
     except Exception as e:
         bot.logger.error(f"Database error in _claim_ownership: {e}")
+        try:
+            bot.db_connection.rollback()
+        except Exception:
+            pass
         bot.add_response("Error setting ownership.")
 
 

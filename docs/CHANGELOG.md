@@ -1,5 +1,43 @@
 # Changelog
 
+## 0.1.30 (2026-04-14)
+
+### Security - Critical Fixes
+
+- **Removed `!exec` module (RCE vulnerability)**
+  - Deleted `modules/exec.py` entirely — the module allowed arbitrary shell command execution by owner/admin users, providing a direct remote code execution vector if those accounts were compromised
+  - No replacement; shell access should not be exposed through an IRC bot
+
+- **Added SSRF protection to URL-fetching modules**
+  - Created `phreakbot_core/url_safety.py` with `is_url_safe()` that blocks requests to private/blocked IP ranges
+  - Blocked ranges: RFC 1918 (10/8, 172.16/12, 192.168/16), loopback (127/8), link-local (169.254/16), cloud metadata (169.254.169.254), carrier-grade NAT (100.64/10), IPv6 loopback (::1), IPv6 link-local (fe80::/10), IPv6 ULA (fc00::/7)
+  - Applied to `modules/snarf.py` and `modules/urls.py` — attempts to fetch URLs resolving to blocked IPs are rejected with a clear message
+  - Uses `netaddr` (already a dependency) for IP range checking and `socket.getaddrinfo` for DNS resolution
+
+- **Simplified `_sanitize_input()` — removed ineffective SQL/shell pattern filtering**
+  - Removed `allow_special_chars` parameter and the `dangerous_patterns` regex loop that stripped SQL keywords (`--`, `;DROP`, `;DELETE`, `;UPDATE`) and shell substitution patterns (`$()`, backticks)
+  - SQL injection was already prevented by parameterized queries throughout the codebase; the pattern filtering was security theater that could break legitimate input (URLs with `--`, text with semicolons)
+  - Shell injection is no longer a concern since the `!exec` module has been removed
+  - The sanitizer now only: truncates to max length, removes null bytes, removes non-printable control characters, and strips whitespace
+  - Removed `_validate_sql_safety()` method — also redundant with parameterized queries
+
+- **Fixed owner claim race condition**
+  - Added partial unique index `idx_users_single_owner` to `dbschema.psql` — database now enforces at most one `is_owner = TRUE` row, preventing concurrent `!owner claim` commands from both succeeding
+  - Rewrote `_claim_ownership()` in `modules/owner.py` to use `SELECT ... FOR UPDATE` for row-level locking during the check-then-insert sequence
+  - Added `psycopg2.errors.UniqueViolation` handling as a second layer of protection
+  - Added `rollback()` calls in all error paths to prevent corrupted transaction state
+
+- **Removed hardcoded credentials from docker-compose.yml**
+  - Replaced hardcoded `POSTGRES_USER: phreakbot`, `POSTGRES_PASSWORD: phreakbot` etc. with `${POSTGRES_USER:-phreakbot}` variable references
+  - Created `.env.example` with documented defaults and instructions to copy to `.env`
+  - Created `.gitignore` to exclude `.env` from version control
+
+### Changed
+- `_sanitize_input()` no longer accepts `allow_special_chars` parameter
+- `_validate_sql_safety()` method removed from PhreakBot class
+- Tests updated to reflect simplified sanitizer (special chars now preserved)
+- `_validate_sql_safety` tests removed from test suite
+
 ## 0.1.29 (2025-11-27)
 
 ### Added - Comprehensive Documentation Suite

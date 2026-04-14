@@ -8,6 +8,8 @@ import re
 import requests
 from bs4 import BeautifulSoup
 
+from phreakbot_core.url_safety import is_url_safe
+
 
 def config(bot):
     """Return module configuration"""
@@ -33,6 +35,12 @@ def run(bot, event):
 
     # Process only the first URL to avoid spam
     url = urls[0]
+
+    # SSRF protection: check that the URL doesn't point to a private/blocked IP
+    is_safe, reason = is_url_safe(url)
+    if not is_safe:
+        bot.logger.warning(f"Blocked URL fetch (SSRF): {reason}")
+        return
 
     try:
         title = get_url_title(url)
