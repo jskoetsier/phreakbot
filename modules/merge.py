@@ -83,5 +83,6 @@ def run(bot, event):
         )
 
     except Exception as e:
+        bot.db_connection.rollback()
         bot.logger.error(f"Database error in merge module: {e}")
         bot.add_response("Error merging hostmask.")

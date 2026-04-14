@@ -7,6 +7,7 @@ Provides information about members on the Frys-IX peering LAN
 
 import json
 import time
+import traceback
 from datetime import datetime
 
 try:
@@ -381,7 +382,6 @@ class FrysIX:
                     f"Response content (first 200 chars): {response.text[:200]}"
                 )
         except Exception as e:
-            import traceback
 
             self.bot.logger.error(f"Error fetching Frys-IX members: {e}")
             self.bot.logger.error(f"Traceback: {traceback.format_exc()}")

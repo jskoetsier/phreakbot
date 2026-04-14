@@ -86,6 +86,7 @@ def _set_birthday(bot, event):
                     f"Your birthday has been set to {dob.strftime('%d-%m-%Y')}."
                 )
             except Exception as e:
+                bot.db_connection.rollback()
                 bot.logger.error(f"Database error in birthday module: {e}")
                 bot.add_response("Error updating your birthday in the database.")
         else:

@@ -7,6 +7,7 @@
 # of a URL of a website.
 
 import re
+import traceback
 
 import requests
 from bs4 import BeautifulSoup
@@ -38,10 +39,8 @@ def run(bot, event):
                 # Extract URL (everything after !@)
                 url = message[2:].strip()
                 if url:
-                    bot.logger.info(f"Processing URL from !@ command: {url}")
+                    bot.logger.debug(f"Processing URL from !@ command: {url}")
                     process_url(bot, event, url)
-                    # Add a debug response to confirm the command was processed
-                    bot.add_response("DEBUG: !@ command processed")
                 else:
                     bot.add_response("Please provide a URL after !@")
                 return
@@ -65,11 +64,10 @@ def run(bot, event):
     except Exception as e:
         # Catch-all exception handler to prevent the bot from crashing
         bot.logger.error(f"Critical error in snarf module: {e}")
-        import traceback
         bot.logger.error(f"Critical traceback: {traceback.format_exc()}")
         try:
             bot.add_response("An error occurred while processing the URL.")
-        except:
+        except Exception:
             pass
 
 
@@ -111,7 +109,6 @@ def process_url(bot, event, url):
     except Exception as e:
         bot.logger.error(f"Error fetching URL info: {e}")
         bot.add_response(f"Error fetching information from URL: {str(e)}")
-        import traceback
         bot.logger.error(f"Traceback: {traceback.format_exc()}")
 
 

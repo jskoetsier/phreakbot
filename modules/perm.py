@@ -91,5 +91,6 @@ def run(bot, event):
         cur.close()
 
     except Exception as e:
+        bot.db_connection.rollback()
         bot.logger.error(f"Database error in perm module: {e}")
         bot.add_response("Error managing permissions.")

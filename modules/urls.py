@@ -80,7 +80,7 @@ def get_url_title(url):
             if len(title) > 200:
                 title = title[:197] + "..."
             return title
-    except:
+    except Exception:
         # Silently fail on any error
         pass
 

@@ -3,6 +3,8 @@
 #
 # Meet module for PhreakBot
 
+import traceback
+
 
 def config(bot):
     """Return module configuration"""
@@ -105,8 +107,8 @@ def run(bot, event):
         bot._cache_invalidate("user_info", tuserhost.lower())
 
     except Exception as e:
+        bot.db_connection.rollback()
         bot.logger.error(f"Database error in meet module: {e}")
-        import traceback
 
         bot.logger.error(f"Traceback: {traceback.format_exc()}")
         bot.add_response("Error adding user to the database.")

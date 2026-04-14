@@ -187,5 +187,6 @@ def _manage_autovoice(bot, event):
         cur.close()
 
     except Exception as e:
+        bot.db_connection.rollback()
         bot.logger.error(f"Error managing autovoice: {e}")
         bot.add_response("Error updating autovoice settings.")

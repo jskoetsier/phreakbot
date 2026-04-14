@@ -6,6 +6,7 @@
 #
 
 import time
+import traceback
 
 def config(pb):
     """Return module configuration"""
@@ -83,11 +84,9 @@ def run(pb, event):
                             pb.logger.info(f"User {nick} is registered, not kicking")
                     except Exception as e:
                         pb.logger.error(f"Error checking user {nick}: {str(e)}")
-                        import traceback
                         pb.logger.error(f"Traceback: {traceback.format_exc()}")
             except Exception as e:
                 pb.logger.error(f"Error processing users in {channel}: {str(e)}")
-                import traceback
                 pb.logger.error(f"Traceback: {traceback.format_exc()}")
         else:
             pb.logger.warning(f"Channel {channel} not found in bot's channels dictionary")

@@ -121,7 +121,7 @@ def _find_prefix_for_ip(bot, ip_address):
             default_prefix = f"{ip_address}/24" if ip_obj.version == 4 else f"{ip_address}/48"
             bot.logger.warning(f"Using default prefix {default_prefix} for {ip_address} due to error")
             return default_prefix
-        except:
+        except Exception:
             return None
 
 

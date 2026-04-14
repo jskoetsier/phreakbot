@@ -63,5 +63,6 @@ def run(bot, event):
         bot.add_response(f"Obliterated user '{tnick}' from existence.")
 
     except Exception as e:
+        bot.db_connection.rollback()
         bot.logger.error(f"Database error in deluser module: {e}")
         bot.add_response("Error deleting user.")

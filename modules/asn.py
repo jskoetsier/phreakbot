@@ -136,7 +136,7 @@ def lookup_asn_by_number(bot, asn):
                             reg_date = attr.get("value", "Unknown")
                         elif attr.get("name") == "country":
                             country = attr.get("value", "Unknown")
-        except:
+        except Exception:
             # Fallback: try to get country from as-overview data
             pass
 

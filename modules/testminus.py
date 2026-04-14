@@ -3,6 +3,8 @@
 #
 # TestMinus module for PhreakBot - Handles !test-- command specifically
 
+import traceback
+
 
 def config(bot):
     """Return module configuration"""
@@ -99,8 +101,7 @@ def run(bot, event):
                     bot.db_connection.commit()
                     bot.add_response(f"{item} now has -1 karma")
             except Exception as e:
-                import traceback
-
+                bot.db_connection.rollback()
                 bot.logger.error(f"Error in TestMinus module: {e}")
                 bot.logger.error(f"Traceback: {traceback.format_exc()}")
                 bot.add_response(f"Error updating karma: {e}")

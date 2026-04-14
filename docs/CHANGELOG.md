@@ -1,5 +1,36 @@
 # Changelog
 
+## 0.1.31 (2026-04-14)
+
+### Fixed - Medium Priority Issues
+
+- **Moved `import traceback` to module level in all files**
+  - `phreakbot.py`, `lockdown.py`, `meet.py`, `testminus.py`, `frysix.py`, `snarf.py`, `massmeet.py`, `help.py`
+  - Previously, `import traceback` was inside `except` blocks (14 occurrences), causing unnecessary re-imports on every error
+
+- **Replaced bare `except:` with `except Exception:`**
+  - `phreakbot.py` (DB reconnect), `roa.py`, `asn.py`, `snarf.py`, `urls.py`, `modules.py`
+  - Bare `except:` catches `SystemExit` and `KeyboardInterrupt`, preventing clean shutdown
+
+- **Downgraded verbose per-message logging from INFO to DEBUG**
+  - ~30+ `logger.info()` calls in `phreakbot.py` that fire on every message/event downgraded to `logger.debug()`
+  - Kept INFO for startup, connection, module lifecycle, and significant state changes
+  - Prevents log flooding and hostmask/IP information leakage in normal operation
+
+- **Fixed `sys.modules` pollution in module loader**
+  - Changed `sys.modules[module_name]` to `sys.modules[f"phreakbot.modules.{module_name}"]`
+  - Prevents a module named `os`, `sys`, or `requests` from shadowing Python builtins
+
+- **Added `db_connection.rollback()` to all modules missing it**
+  - 10 modules had `commit()` without `rollback()` in error handlers: `testminus.py`, `auto-op.py`, `birthday.py`, `merge.py`, `autovoice.py`, `perm.py`, `deluser.py`, `massmeet.py`, `meet.py`, `quotes.py`
+  - Without rollback, a failed DB operation leaves the connection in an error state, causing subsequent queries to fail
+
+- **Removed debug output in production snarf module**
+  - Removed `bot.add_response("DEBUG: !@ command processed")` that was visible to IRC users
+
+### Known Limitations
+- Module `run()` functions are still synchronous and block the event loop during DB/HTTP operations. Converting to async or using thread executors requires refactoring the shared `self.output` buffer — deferred to a future release.
+
 ## 0.1.30 (2026-04-14)
 
 ### Security - Critical Fixes

@@ -142,30 +142,35 @@ def _add_quote(bot, event):
         bot.add_response("You need to be a registered user to add quotes.")
         return
 
-    cur = bot.db_connection.cursor()
+    try:
+        cur = bot.db_connection.cursor()
 
-    # Check if the quote already exists
-    cur.execute(
-        "SELECT id FROM phreakbot_quotes WHERE quote = %s AND channel = %s",
-        (quote_text, event["channel"]),
-    )
+        # Check if the quote already exists
+        cur.execute(
+            "SELECT id FROM phreakbot_quotes WHERE quote = %s AND channel = %s",
+            (quote_text, event["channel"]),
+        )
 
-    if cur.fetchone():
-        bot.add_response("This quote already exists in the database.")
+        if cur.fetchone():
+            bot.add_response("This quote already exists in the database.")
+            cur.close()
+            return
+
+        # Add the new quote
+        cur.execute(
+            "INSERT INTO phreakbot_quotes (users_id, quote, channel) VALUES (%s, %s, %s) RETURNING id",
+            (user_info["id"], quote_text, event["channel"]),
+        )
+
+        quote_id = cur.fetchone()[0]
+        bot.db_connection.commit()
         cur.close()
-        return
 
-    # Add the new quote
-    cur.execute(
-        "INSERT INTO phreakbot_quotes (users_id, quote, channel) VALUES (%s, %s, %s) RETURNING id",
-        (user_info["id"], quote_text, event["channel"]),
-    )
-
-    quote_id = cur.fetchone()[0]
-    bot.db_connection.commit()
-    cur.close()
-
-    bot.add_response(f"Quote #{quote_id} added successfully.")
+        bot.add_response(f"Quote #{quote_id} added successfully.")
+    except Exception as e:
+        bot.db_connection.rollback()
+        bot.logger.error(f"Database error adding quote: {e}")
+        bot.add_response("Error adding quote.")
 
 
 def _delete_quote(bot, event):
@@ -183,19 +188,24 @@ def _delete_quote(bot, event):
         bot.add_response("Please provide a valid quote ID to delete.")
         return
 
-    cur = bot.db_connection.cursor()
+    try:
+        cur = bot.db_connection.cursor()
 
-    # Check if the quote exists
-    cur.execute("SELECT id FROM phreakbot_quotes WHERE id = %s", (int(quote_id),))
+        # Check if the quote exists
+        cur.execute("SELECT id FROM phreakbot_quotes WHERE id = %s", (int(quote_id),))
 
-    if not cur.fetchone():
-        bot.add_response(f"Quote #{quote_id} not found.")
+        if not cur.fetchone():
+            bot.add_response(f"Quote #{quote_id} not found.")
+            cur.close()
+            return
+
+        # Delete the quote
+        cur.execute("DELETE FROM phreakbot_quotes WHERE id = %s", (int(quote_id),))
+        bot.db_connection.commit()
         cur.close()
-        return
 
-    # Delete the quote
-    cur.execute("DELETE FROM phreakbot_quotes WHERE id = %s", (int(quote_id),))
-    bot.db_connection.commit()
-    cur.close()
-
-    bot.add_response(f"Quote #{quote_id} deleted successfully.")
+        bot.add_response(f"Quote #{quote_id} deleted successfully.")
+    except Exception as e:
+        bot.db_connection.rollback()
+        bot.logger.error(f"Database error deleting quote: {e}")
+        bot.add_response("Error deleting quote.")

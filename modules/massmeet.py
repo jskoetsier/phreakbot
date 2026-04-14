@@ -4,6 +4,8 @@
 # Mass Meet module for PhreakBot
 # Registers all users in channels and merges hostmasks
 
+import traceback
+
 
 def config(bot):
     """Return module configuration"""
@@ -192,8 +194,8 @@ def run(bot, event):
         bot.add_response(summary)
 
     except Exception as e:
+        bot.db_connection.rollback()
         bot.logger.error(f"Error in massmeet module: {e}")
-        import traceback
 
         bot.logger.error(f"Traceback: {traceback.format_exc()}")
         bot.add_response("Error during mass meet process.")

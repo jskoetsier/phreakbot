@@ -12,6 +12,7 @@ import os
 import re
 import sys
 import time
+import traceback
 from collections import defaultdict
 from datetime import datetime
 
@@ -202,7 +203,7 @@ class PhreakBot(pydle.Client):
             self.logger.warning(f"Database connection lost: {e}. Reconnecting...")
             try:
                 self.db_connection.close()
-            except:
+            except Exception:
                 pass
             self.db_connection = None
             return self.db_connect(max_retries=2, retry_delay=3)
@@ -484,7 +485,7 @@ class PhreakBot(pydle.Client):
                 return False
 
             module_object = importlib.util.module_from_spec(spec)
-            sys.modules[module_name] = module_object
+            sys.modules[f"phreakbot.modules.{module_name}"] = module_object
             if spec.loader is None:
                 self.logger.error(
                     f"Failed to load module {module_name}: Spec loader is None"
@@ -685,8 +686,8 @@ class PhreakBot(pydle.Client):
         else:
             self.logger.debug(f"Using cached hostmask for {source}: {user_host}")
 
-        self.logger.info(f"Formatted hostmask: {user_host}")
-        self.logger.info(f"Processing message from {source} in {channel}: '{message}'")
+        self.logger.debug(f"Formatted hostmask: {user_host}")
+        self.logger.debug(f"Processing message from {source} in {channel}: '{message}'")
 
         # Create event object similar to the original bot
         event_obj = {
@@ -717,7 +718,7 @@ class PhreakBot(pydle.Client):
         karma_match = karma_pattern.match(message)
 
         if karma_match:
-            self.logger.info(f"Detected karma pattern: '{message}'")
+            self.logger.debug(f"Detected karma pattern: '{message}'")
             item = karma_match.group(1).lower()
             direction = "up" if karma_match.group(2) == "++" else "down"
             reason = karma_match.group(3)
@@ -734,13 +735,12 @@ class PhreakBot(pydle.Client):
             # Route directly to karma module if available
             if "karma" in self.modules:
                 try:
-                    self.logger.info(f"Routing to karma module for {direction} karma")
+                    self.logger.debug(f"Routing to karma module for {direction} karma")
                     result = self.modules["karma"]["object"].run(self, karma_event)
                     if result:
                         await self._process_output(karma_event)
                         return
                 except Exception as e:
-                    import traceback
 
                     self.logger.error(f"Error in karma module: {e}")
                     self.logger.error(f"Traceback: {traceback.format_exc()}")
@@ -748,7 +748,7 @@ class PhreakBot(pydle.Client):
 
         # Continue with normal message processing
         if trigger_re.match(message):
-            self.logger.info(f"RAW MESSAGE: '{message}'")
+            self.logger.debug(f"RAW MESSAGE: '{message}'")
 
             # Security: Check rate limit before processing commands
             if not self._check_rate_limit(user_host):
@@ -768,7 +768,7 @@ class PhreakBot(pydle.Client):
                 f'^{re.escape(self.config["trigger"])}([a-zA-Z0-9_][-a-zA-Z0-9_]*)(?:\\s(.*))?$'
             )
             match = command_re.match(message)
-            self.logger.info(f"Command match: {bool(match)}")
+            self.logger.debug(f"Command match: {bool(match)}")
 
             if match:
                 event_obj["command"] = match.group(1).lower()
@@ -777,7 +777,7 @@ class PhreakBot(pydle.Client):
                     match.group(2) or "", max_length=500
                 )
                 event_obj["trigger"] = "command"
-                self.logger.info(
+                self.logger.debug(
                     f"Parsed command: '{event_obj['command']}' with args: '{event_obj['command_args']}'"
                 )
 
@@ -785,7 +785,7 @@ class PhreakBot(pydle.Client):
                 await self._route_to_modules(event_obj)
             else:
                 # This is a message that starts with the trigger but doesn't match the command pattern
-                self.logger.info(
+                self.logger.debug(
                     f"Message starts with trigger but doesn't match command pattern: '{message}'"
                 )
                 event_obj["trigger"] = "event"
@@ -809,11 +809,11 @@ class PhreakBot(pydle.Client):
 
         # Log join and part events
         if event_type == "join":
-            self.logger.info(f"JOIN: {user} ({user_host}) joined {channel}")
+            self.logger.debug(f"JOIN: {user} ({user_host}) joined {channel}")
         elif event_type == "part":
-            self.logger.info(f"PART: {user} ({user_host}) left {channel}")
+            self.logger.debug(f"PART: {user} ({user_host}) left {channel}")
         elif event_type == "quit":
-            self.logger.info(f"QUIT: {user} ({user_host}) quit")
+            self.logger.debug(f"QUIT: {user} ({user_host}) quit")
             # Remove from cache on quit
             if user.lower() in self.user_hostmasks:
                 del self.user_hostmasks[user.lower()]
@@ -848,7 +848,7 @@ class PhreakBot(pydle.Client):
         handled = False
 
         # Debug the event
-        self.logger.info(
+        self.logger.debug(
             f"Routing event: trigger={event['trigger']}, signal={event.get('signal', 'N/A')}, text={event.get('text', 'N/A')}"
         )
 
@@ -859,30 +859,29 @@ class PhreakBot(pydle.Client):
             match = karma_pattern.match(event["text"])
 
             if match:
-                self.logger.info(
+                self.logger.debug(
                     f"EVENT ROUTING: Detected karma pattern in message: {event['text']}"
                 )
-                self.logger.info(f"Matched groups: {match.groups()}")
+                self.logger.debug(f"Matched groups: {match.groups()}")
                 item = match.group(1).lower()
                 direction = "up" if match.group(2) == "++" else "down"
 
                 # Try to route directly to karma module
                 if "karma" in self.modules:
                     try:
-                        self.logger.info(
+                        self.logger.debug(
                             f"Routing directly to karma module for {direction} karma"
                         )
                         result = self.modules["karma"]["object"].run(self, event)
                         if result:
                             handled = True
-                            self.logger.info("Karma module handled the message")
+                            self.logger.debug("Karma module handled the message")
 
                             # Process output and return early
                             await self._process_output(event)
                             return
                     except Exception as e:
-                        import traceback
-
+    
                         self.logger.error(f"Error in karma module: {e}")
                         self.logger.error(f"Traceback: {traceback.format_exc()}")
 
@@ -890,30 +889,28 @@ class PhreakBot(pydle.Client):
         if not handled and "infoitems" in self.modules:
             try:
                 # Try to handle as a custom infoitem command regardless of trigger type
-                self.logger.info("Checking if infoitems module can handle this message")
+                self.logger.debug("Checking if infoitems module can handle this message")
                 if hasattr(
                     self.modules["infoitems"]["object"], "handle_custom_command"
                 ):
                     handled = self.modules["infoitems"]["object"].handle_custom_command(
                         self, event
                     )
-                    self.logger.info(f"Infoitems module handled message: {handled}")
+                    self.logger.debug(f"Infoitems module handled message: {handled}")
             except Exception as e:
-                import traceback
-
                 self.logger.error(f"Error in infoitems custom command handler: {e}")
                 self.logger.error(f"Traceback: {traceback.format_exc()}")
 
         # First try modules that handle commands
         if not handled and event["trigger"] == "command":
-            self.logger.info(
+            self.logger.debug(
                 f"Routing command: {event['command']} with args: {event['command_args']}"
             )
 
             # Log all available modules and their commands
-            self.logger.info("Available modules and their commands:")
+            self.logger.debug("Available modules and their commands:")
             for module_name, module in self.modules.items():
-                self.logger.info(
+                self.logger.debug(
                     f"Module: {module_name}, Commands: {module['commands']}"
                 )
 
@@ -922,7 +919,7 @@ class PhreakBot(pydle.Client):
 
             for module_name, module in modules_copy.items():
                 if event["command"] in module["commands"]:
-                    self.logger.info(
+                    self.logger.debug(
                         f"Found module {module_name} to handle command {event['command']}"
                     )
 
@@ -930,21 +927,20 @@ class PhreakBot(pydle.Client):
                     has_permission = self._check_permissions(
                         event, module["permissions"]
                     )
-                    self.logger.info(f"User has permission: {has_permission}")
+                    self.logger.debug(f"User has permission: {has_permission}")
 
                     if has_permission:
                         try:
-                            self.logger.info(
+                            self.logger.debug(
                                 f"Calling module {module_name}.run() with command {event['command']}"
                             )
                             module["object"].run(self, event)
                             handled = True
-                            self.logger.info(
+                            self.logger.debug(
                                 f"Module {module_name} handled command {event['command']}"
                             )
                         except Exception as e:
-                            import traceback
-
+        
                             self.logger.error(f"Error in module {module_name}: {e}")
                             self.logger.error(f"Traceback: {traceback.format_exc()}")
 
@@ -953,7 +949,7 @@ class PhreakBot(pydle.Client):
                 if event["command_args"] and (
                     "=" in event["command_args"] or event["command_args"].strip() == "?"
                 ):
-                    self.logger.info(
+                    self.logger.debug(
                         f"Trying infoitems module for unhandled command pattern"
                     )
                     has_permission = self._check_permissions(
@@ -966,24 +962,23 @@ class PhreakBot(pydle.Client):
                             )
                             if result:
                                 handled = True
-                                self.logger.info("Infoitems module handled the command")
+                                self.logger.debug("Infoitems module handled the command")
                         except Exception as e:
-                            import traceback
-
+        
                             self.logger.error(f"Error in infoitems module: {e}")
                             self.logger.error(f"Traceback: {traceback.format_exc()}")
 
         # Then try modules that handle events
         if not handled and event["trigger"] == "event":
-            self.logger.info("Routing event to modules that handle events")
+            self.logger.debug("Routing event to modules that handle events")
             for module_name, module in self.modules.items():
-                self.logger.info(
+                self.logger.debug(
                     f"Checking if module {module_name} handles event signal {event['signal']}"
                 )
-                self.logger.info(f"Module {module_name} events: {module['events']}")
+                self.logger.debug(f"Module {module_name} events: {module['events']}")
 
                 if event["signal"] in module["events"]:
-                    self.logger.info(
+                    self.logger.debug(
                         f"Module {module_name} handles event signal {event['signal']}"
                     )
 
@@ -991,15 +986,14 @@ class PhreakBot(pydle.Client):
                     # These events should be processed by all modules that listen for them
                     # The module itself will handle any permission or validation logic
                     try:
-                        self.logger.info(
+                        self.logger.debug(
                             f"Calling module {module_name}.run() with event"
                         )
                         module["object"].run(self, event)
-                        self.logger.info(f"Module {module_name} processed event")
+                        self.logger.debug(f"Module {module_name} processed event")
                         handled = True
                     except Exception as e:
-                        import traceback
-
+    
                         self.logger.error(f"Error in module {module_name}: {e}")
                         self.logger.error(f"Traceback: {traceback.format_exc()}")
 
@@ -1013,16 +1007,16 @@ class PhreakBot(pydle.Client):
 
         try:
             # Log the hostmask for debugging
-            self.logger.info(f"Checking owner status for hostmask: {hostmask}")
+            self.logger.debug(f"Checking owner status for hostmask: {hostmask}")
 
             # Extract the nick from the hostmask
             nick = hostmask.split("!")[0] if "!" in hostmask else hostmask
-            self.logger.info(f"Extracted nick: {nick}")
+            self.logger.debug(f"Extracted nick: {nick}")
 
             # First try the exact hostmask
             user_info = self.db_get_userinfo_by_userhost(hostmask)
             if user_info and user_info.get("is_owner"):
-                self.logger.info(
+                self.logger.debug(
                     f"User with hostmask {hostmask} is an owner in the database"
                 )
                 return True
@@ -1033,12 +1027,12 @@ class PhreakBot(pydle.Client):
                 parts = hostmask.split("!")
                 if len(parts) == 2 and parts[1].startswith("^"):
                     normalized_hostmask = f"{parts[0]}!{parts[1][1:]}"
-                    self.logger.info(f"Normalized hostmask: {normalized_hostmask}")
+                    self.logger.debug(f"Normalized hostmask: {normalized_hostmask}")
 
                     # Try with normalized hostmask
                     user_info = self.db_get_userinfo_by_userhost(normalized_hostmask)
                     if user_info and user_info.get("is_owner"):
-                        self.logger.info(
+                        self.logger.debug(
                             f"User with normalized hostmask {normalized_hostmask} is an owner in the database"
                         )
                         return True
@@ -1054,14 +1048,14 @@ class PhreakBot(pydle.Client):
                 cur.close()
 
                 if result and result[0]:
-                    self.logger.info(
+                    self.logger.debug(
                         f"User with nick {nick} is an owner in the database"
                     )
                     return True
             except Exception as e:
                 self.logger.error(f"Error checking owner status by username: {e}")
 
-            self.logger.info(f"User with hostmask {hostmask} is not an owner")
+            self.logger.debug(f"User with hostmask {hostmask} is not an owner")
             return False
         except Exception as e:
             self.logger.error(f"Error checking owner status: {e}")
@@ -1070,7 +1064,7 @@ class PhreakBot(pydle.Client):
     def _check_permissions(self, event, required_permissions):
         """Check if the user has the required permissions with enhanced security"""
         # Log the permission check
-        self.logger.info(
+        self.logger.debug(
             f"Checking permissions: {required_permissions} for user {event['nick']}"
         )
 
@@ -1092,7 +1086,7 @@ class PhreakBot(pydle.Client):
 
         # Skip permission checks for the bot itself
         if event["nick"] == self.nickname:
-            self.logger.info("Skipping permission check for the bot itself")
+            self.logger.debug("Skipping permission check for the bot itself")
             return True
 
         # Special case: Always allow the owner claim command
@@ -1101,7 +1095,7 @@ class PhreakBot(pydle.Client):
             and event["command"] == "owner"
             and event["command_args"] == "claim"
         ):
-            self.logger.info("Allowing owner claim command without permissions")
+            self.logger.debug("Allowing owner claim command without permissions")
             return True
 
         # Owner always has all permissions
@@ -1121,7 +1115,7 @@ class PhreakBot(pydle.Client):
             if "global" in event["user_info"]["permissions"]:
                 for perm in required_permissions:
                     if perm in event["user_info"]["permissions"]["global"]:
-                        self.logger.info(
+                        self.logger.debug(
                             f"Permission granted via global permission: {perm}"
                         )
                         return True
@@ -1130,17 +1124,17 @@ class PhreakBot(pydle.Client):
             if event["channel"] in event["user_info"]["permissions"]:
                 for perm in required_permissions:
                     if perm in event["user_info"]["permissions"][event["channel"]]:
-                        self.logger.info(
+                        self.logger.debug(
                             f"Permission granted via channel permission: {perm} in {event['channel']}"
                         )
                         return True
 
         # For now, simple permission system - 'user' permission is granted to everyone
         if "user" in required_permissions:
-            self.logger.info("Granting 'user' permission to everyone")
+            self.logger.debug("Granting 'user' permission to everyone")
             return True
 
-        self.logger.info(f"Permission denied for {event['nick']}")
+        self.logger.debug(f"Permission denied for {event['nick']}")
         return False
 
     async def _process_output(self, event):
@@ -1150,7 +1144,7 @@ class PhreakBot(pydle.Client):
 
         # Limit number of output lines
         if len(self.output) > self.config["max_output_lines"]:
-            self.logger.info(
+            self.logger.debug(
                 f"Output has {len(self.output)} lines, combining into single line"
             )
             # Join all messages into a single line separated by " | "

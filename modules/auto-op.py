@@ -151,6 +151,7 @@ def _add_auto_op(bot, event):
         bot.add_response(f"Added '{nick}' to the auto-op list for {channel}.")
 
     except Exception as e:
+        bot.db_connection.rollback()
         bot.logger.error(f"Error adding auto-op: {e}")
         bot.add_response("Error updating auto-op settings.")
 
@@ -213,6 +214,7 @@ def _remove_auto_op(bot, event):
         cur.close()
 
     except Exception as e:
+        bot.db_connection.rollback()
         bot.logger.error(f"Error removing auto-op: {e}")
         bot.add_response("Error updating auto-op settings.")
 

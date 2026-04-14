@@ -3,6 +3,8 @@
 #
 # Help module for PhreakBot
 
+import traceback
+
 
 def config(bot):
     """Return module configuration"""
@@ -65,7 +67,6 @@ def run(bot, event):
             bot.add_response(f"Needs permissions: {helpperm}")
     except Exception as e:
         bot.logger.error(f"Error displaying help for module {module}: {e}")
-        import traceback
         bot.logger.error(f"Traceback: {traceback.format_exc()}")
         bot.add_response(
             f"Error displaying help for module {module}. Please check the logs."

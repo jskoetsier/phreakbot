@@ -106,7 +106,7 @@ def run(bot, event):
             # Try to send a message even if there's an error
             try:
                 bot.add_response(f"Error reloading {module_name}: {str(e)[:100]}")
-            except:
+            except Exception:
                 pass
 
         return
