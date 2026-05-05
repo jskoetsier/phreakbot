@@ -3,6 +3,8 @@
 #
 # Channel management module for PhreakBot
 
+import asyncio
+
 
 def config(bot):
     """Return module configuration"""
@@ -23,7 +25,6 @@ def run(bot, event):
         if bot._is_owner(event["hostmask"]) or (
             event["user_info"] and event["user_info"].get("is_admin")
         ):
-            import asyncio
 
             try:
 
@@ -52,7 +53,6 @@ def run(bot, event):
             return
 
         bot.logger.info(f"Joining channel '{chan}' on command from '{event['nick']}'")
-        import asyncio
 
         try:
 
@@ -83,7 +83,6 @@ def run(bot, event):
             chan = event["channel"]
 
         bot.logger.info(f"Leaving channel '{chan}' on command from '{event['nick']}'")
-        import asyncio
 
         try:
 

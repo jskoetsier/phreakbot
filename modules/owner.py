@@ -62,15 +62,17 @@ def run(bot, event):
 
 def _show_owner(bot, event):
     """Show the current bot owner"""
-    if not bot.db_connection:
+    conn = bot.db_get()
+    if not conn:
         bot.add_response("Database connection is not available.")
         return
 
     try:
-        cur = bot.db_connection.cursor()
+        cur = conn.cursor()
         cur.execute("SELECT username FROM phreakbot_users WHERE is_owner = TRUE")
         owner = cur.fetchone()
         cur.close()
+        bot.db_return(conn)
 
         if owner:
             bot.add_response(f"I am owned by {owner[0]}")
@@ -83,6 +85,7 @@ def _show_owner(bot, event):
                     "This bot has no owner. Use !owner claim to claim ownership."
                 )
     except Exception as e:
+        bot.db_return(conn)
         bot.logger.error(f"Database error in _show_owner: {e}")
         bot.add_response("Error retrieving owner information.")
 
@@ -90,7 +93,8 @@ def _show_owner(bot, event):
 def _claim_ownership(bot, event):
     """Claim ownership of the bot"""
     # Check if there's already an owner in the database
-    if not bot.db_connection:
+    conn = bot.db_get()
+    if not conn:
         bot.add_response("Database connection is not available.")
         return
 
@@ -100,7 +104,7 @@ def _claim_ownership(bot, event):
             f"Claim ownership attempt from: {event['nick']} with hostmask: {event['hostmask']}"
         )
 
-        cur = bot.db_connection.cursor()
+        cur = conn.cursor()
 
         # Use SELECT FOR UPDATE to lock the row and prevent race conditions.
         # The partial unique index idx_users_single_owner enforces at most one
@@ -116,12 +120,14 @@ def _claim_ownership(bot, event):
         if bot._is_owner(event["hostmask"]):
             bot.add_response(f"You are already the owner, {event['nick']}!")
             cur.close()
+            bot.db_return(conn)
             return
 
         # If there's already an owner and the current user is not the owner, reject the claim
         if existing_owner:
             bot.add_response("This bot already has an owner.")
             cur.close()
+            bot.db_return(conn)
             return
 
         # Get user info or create new user
@@ -141,11 +147,12 @@ def _claim_ownership(bot, event):
                 )
                 user_id = cur.fetchone()[0]
             except psycopg2.errors.UniqueViolation:
-                bot.db_connection.rollback()
+                conn.rollback()
                 bot.add_response(
                     "This bot already has an owner. Ownership was claimed by someone else just now."
                 )
                 cur.close()
+                bot.db_return(conn)
                 return
             bot.logger.info(f"Created new user with ID: {user_id}")
 
@@ -184,11 +191,12 @@ def _claim_ownership(bot, event):
                     (user_info["id"],),
                 )
             except psycopg2.errors.UniqueViolation:
-                bot.db_connection.rollback()
+                conn.rollback()
                 bot.add_response(
                     "This bot already has an owner. Ownership was claimed by someone else just now."
                 )
                 cur.close()
+                bot.db_return(conn)
                 return
 
             # Check if user has owner permission
@@ -210,38 +218,43 @@ def _claim_ownership(bot, event):
             del bot.config["owner"]
             bot.save_config()
 
-        bot.db_connection.commit()
+        conn.commit()
         cur.close()
+        bot.db_return(conn)
         bot.add_response(f"Congratulations! You are now my owner, {event['nick']}!")
 
     except psycopg2.errors.UniqueViolation:
         # Concurrent claim won the race
         bot.logger.warning("Concurrent owner claim detected, rolling back")
         try:
-            bot.db_connection.rollback()
+            conn.rollback()
         except Exception:
             pass
+        bot.db_return(conn)
         bot.add_response("This bot already has an owner. Ownership was claimed by someone else just now.")
     except Exception as e:
         bot.logger.error(f"Database error in _claim_ownership: {e}")
         try:
-            bot.db_connection.rollback()
+            conn.rollback()
         except Exception:
             pass
+        bot.db_return(conn)
         bot.add_response("Error setting ownership.")
 
 
 def _list_admins(bot, event):
     """List all admins"""
-    if not bot.db_connection:
+    conn = bot.db_get()
+    if not conn:
         bot.add_response("Database connection is not available.")
         return
 
     try:
-        cur = bot.db_connection.cursor()
+        cur = conn.cursor()
         cur.execute("SELECT username FROM phreakbot_users WHERE is_admin = TRUE")
         admins = cur.fetchall()
         cur.close()
+        bot.db_return(conn)
 
         if admins:
             admin_list = ", ".join([admin[0] for admin in admins])
@@ -249,6 +262,7 @@ def _list_admins(bot, event):
         else:
             bot.add_response("There are no admins configured.")
     except Exception as e:
+        bot.db_return(conn)
         bot.logger.error(f"Database error in _list_admins: {e}")
         bot.add_response("Error retrieving admin information.")
 
@@ -260,12 +274,13 @@ def _add_admin(bot, event, username):
         bot.add_response("Only the bot owner can add admins.")
         return
 
-    if not bot.db_connection:
+    conn = bot.db_get()
+    if not conn:
         bot.add_response("Database connection is not available.")
         return
 
     try:
-        cur = bot.db_connection.cursor()
+        cur = conn.cursor()
 
         # Check if user exists
         cur.execute(
@@ -276,6 +291,7 @@ def _add_admin(bot, event, username):
         if not user:
             bot.add_response(f"User {username} not found.")
             cur.close()
+            bot.db_return(conn)
             return
 
         # Set admin flag
@@ -289,10 +305,13 @@ def _add_admin(bot, event, username):
             (user[0], "admin"),
         )
 
-        bot.db_connection.commit()
+        conn.commit()
         cur.close()
+        bot.db_return(conn)
         bot.add_response(f"{username} is now an admin.")
     except Exception as e:
+        conn.rollback()
+        bot.db_return(conn)
         bot.logger.error(f"Database error in _add_admin: {e}")
         bot.add_response("Error adding admin.")
 
@@ -304,12 +323,13 @@ def _remove_admin(bot, event, username):
         bot.add_response("Only the bot owner can remove admins.")
         return
 
-    if not bot.db_connection:
+    conn = bot.db_get()
+    if not conn:
         bot.add_response("Database connection is not available.")
         return
 
     try:
-        cur = bot.db_connection.cursor()
+        cur = conn.cursor()
 
         # Check if user exists
         cur.execute(
@@ -320,6 +340,7 @@ def _remove_admin(bot, event, username):
         if not user:
             bot.add_response(f"User {username} not found.")
             cur.close()
+            bot.db_return(conn)
             return
 
         # Remove admin flag
@@ -333,9 +354,12 @@ def _remove_admin(bot, event, username):
             (user[0], "admin"),
         )
 
-        bot.db_connection.commit()
+        conn.commit()
         cur.close()
+        bot.db_return(conn)
         bot.add_response(f"{username} is no longer an admin.")
     except Exception as e:
+        conn.rollback()
+        bot.db_return(conn)
         bot.logger.error(f"Database error in _remove_admin: {e}")
         bot.add_response("Error removing admin.")

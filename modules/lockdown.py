@@ -63,15 +63,18 @@ def run(pb, event):
                         # Also try by username directly as a fallback
                         if not user_info:
                             # Try to get user info from the database by username
-                            cur = pb.db_connection.cursor()
-                            cur.execute(
-                                "SELECT * FROM phreakbot_users WHERE username ILIKE %s", (nick.lower(),)
-                            )
-                            user_by_username = cur.fetchone()
-                            cur.close()
+                            conn = pb.db_get()
+                            if conn:
+                                cur = conn.cursor()
+                                cur.execute(
+                                    "SELECT * FROM phreakbot_users WHERE username ILIKE %s", (nick.lower(),)
+                                )
+                                user_by_username = cur.fetchone()
+                                cur.close()
+                                pb.db_return(conn)
 
-                            if user_by_username:
-                                user_info = True  # Just need to know they exist
+                                if user_by_username:
+                                    user_info = True  # Just need to know they exist
 
                         pb.logger.info(f"User info for {nick} ({user_hostmask}): {user_info is not None}")
 

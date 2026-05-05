@@ -38,12 +38,13 @@ def run(bot, event):
     # args_arr should now only hold permissions to set
 
     # Check if the user exists in the database
-    if not bot.db_connection:
+    conn = bot.db_get()
+    if not conn:
         bot.add_response("Database connection is not available.")
         return
 
     try:
-        cur = bot.db_connection.cursor()
+        cur = conn.cursor()
 
         # Find the user ID by nickname
         cur.execute(
@@ -56,6 +57,7 @@ def run(bot, event):
                 f"Could not match nick '{nick}' to a known user. Try using !meet first?"
             )
             cur.close()
+            bot.db_return(conn)
             return
 
         user_id = user[0]
@@ -70,7 +72,7 @@ def run(bot, event):
                 )
                 counter += 1
 
-            bot.db_connection.commit()
+            conn.commit()
             bot.add_response(f"Added {counter} permissions to '{nick}'")
 
         elif bot.re.match(r"(?:rem(?:ove)?|del(?:ete)?)", mode):
@@ -82,15 +84,17 @@ def run(bot, event):
                 )
                 counter += 1
 
-            bot.db_connection.commit()
+            conn.commit()
             bot.add_response(f"Removed {counter} permissions from '{nick}'")
 
         else:
             bot.add_response(f"Unknown mode: {mode}. Use 'add' or 'remove'.")
 
         cur.close()
+        bot.db_return(conn)
 
     except Exception as e:
-        bot.db_connection.rollback()
+        conn.rollback()
+        bot.db_return(conn)
         bot.logger.error(f"Database error in perm module: {e}")
         bot.add_response("Error managing permissions.")

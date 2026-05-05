@@ -27,13 +27,13 @@ def run(bot, event):
         return
 
     # Check if the database connection is available
-    if not bot.db_connection:
+    conn = bot.db_get()
+    if not conn:
         bot.add_response("Database connection is not available.")
         return
 
     try:
-        # Find the user in the database
-        cur = bot.db_connection.cursor()
+        cur = conn.cursor()
 
         # Check by username
         cur.execute(
@@ -44,6 +44,7 @@ def run(bot, event):
         if not user:
             bot.add_response(f"No user named '{tnick}' was found.")
             cur.close()
+            bot.db_return(conn)
             return
 
         user_id = user[0]
@@ -57,12 +58,14 @@ def run(bot, event):
         # Delete the user
         cur.execute("DELETE FROM phreakbot_users WHERE id = %s", (user_id,))
 
-        bot.db_connection.commit()
+        conn.commit()
         cur.close()
+        bot.db_return(conn)
 
         bot.add_response(f"Obliterated user '{tnick}' from existence.")
 
     except Exception as e:
-        bot.db_connection.rollback()
+        conn.rollback()
+        bot.db_return(conn)
         bot.logger.error(f"Database error in deluser module: {e}")
         bot.add_response("Error deleting user.")

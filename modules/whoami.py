@@ -41,16 +41,19 @@ def run(bot, event):
         else:
             rtxt += ", unrecognized user"
 
-            if bot.db_connection:
+            conn = bot.db_get()
+            if conn:
                 try:
-                    cur = bot.db_connection.cursor()
+                    cur = conn.cursor()
                     sql = "SELECT * FROM phreakbot_users WHERE username ILIKE %s"
                     cur.execute(sql, (event["nick"].lower(),))
                     res = cur.fetchone()
                     if res:
                         rtxt += ", but a user was found in the DB, perhaps you need a merge?"
                     cur.close()
+                    bot.db_return(conn)
                 except Exception as e:
                     bot.logger.error(f"Database error in whoami module: {e}")
+                    bot.db_return(conn)
 
     bot.add_response(rtxt)

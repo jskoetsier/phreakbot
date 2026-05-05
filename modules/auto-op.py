@@ -3,6 +3,8 @@
 #
 # Auto-op module for PhreakBot
 
+import asyncio
+
 
 def config(bot):
     """Return module configuration"""
@@ -40,7 +42,8 @@ def _check_auto_op(bot, event):
         return
 
     # Check if the database connection is available
-    if not bot.db_connection:
+    conn = bot.db_get()
+    if not conn:
         return
 
     try:
@@ -48,7 +51,7 @@ def _check_auto_op(bot, event):
         nick = event["nick"]
         hostmask = event["hostmask"]
 
-        cur = bot.db_connection.cursor()
+        cur = conn.cursor()
 
         # Check if the user is in the auto-op list for this channel
         cur.execute(
@@ -63,7 +66,6 @@ def _check_auto_op(bot, event):
             # Give the user operator status
             bot.logger.info(f"Auto-opping {nick} in {channel}")
             # Schedule mode change asynchronously
-            import asyncio
 
             try:
                 # Create a coroutine to set the mode
@@ -76,8 +78,10 @@ def _check_auto_op(bot, event):
                 bot.logger.error(f"Error setting mode: {e}")
 
         cur.close()
+        bot.db_return(conn)
 
     except Exception as e:
+        bot.db_return(conn)
         bot.logger.error(f"Error in auto-op check: {e}")
 
 
@@ -104,12 +108,13 @@ def _add_auto_op(bot, event):
     channel = args[1] if len(args) > 1 else event["channel"]
 
     # Check if the database connection is available
-    if not bot.db_connection:
+    conn = bot.db_get()
+    if not conn:
         bot.add_response("Database connection is not available.")
         return
 
     try:
-        cur = bot.db_connection.cursor()
+        cur = conn.cursor()
 
         # Find the user in the database
         cur.execute(
@@ -122,6 +127,7 @@ def _add_auto_op(bot, event):
                 f"User '{nick}' not found. They need to be registered first."
             )
             cur.close()
+            bot.db_return(conn)
             return
 
         user_id = user[0]
@@ -137,6 +143,7 @@ def _add_auto_op(bot, event):
                 f"User '{nick}' is already in the auto-op list for {channel}."
             )
             cur.close()
+            bot.db_return(conn)
             return
 
         # Add the user to the auto-op list
@@ -145,13 +152,15 @@ def _add_auto_op(bot, event):
             (user_id, channel.lower()),
         )
 
-        bot.db_connection.commit()
+        conn.commit()
         cur.close()
+        bot.db_return(conn)
 
         bot.add_response(f"Added '{nick}' to the auto-op list for {channel}.")
 
     except Exception as e:
-        bot.db_connection.rollback()
+        conn.rollback()
+        bot.db_return(conn)
         bot.logger.error(f"Error adding auto-op: {e}")
         bot.add_response("Error updating auto-op settings.")
 
@@ -179,12 +188,13 @@ def _remove_auto_op(bot, event):
     channel = args[1] if len(args) > 1 else event["channel"]
 
     # Check if the database connection is available
-    if not bot.db_connection:
+    conn = bot.db_get()
+    if not conn:
         bot.add_response("Database connection is not available.")
         return
 
     try:
-        cur = bot.db_connection.cursor()
+        cur = conn.cursor()
 
         # Find the user in the database
         cur.execute(
@@ -195,6 +205,7 @@ def _remove_auto_op(bot, event):
         if not user:
             bot.add_response(f"User '{nick}' not found.")
             cur.close()
+            bot.db_return(conn)
             return
 
         user_id = user[0]
@@ -206,15 +217,17 @@ def _remove_auto_op(bot, event):
         )
 
         if cur.rowcount > 0:
-            bot.db_connection.commit()
+            conn.commit()
             bot.add_response(f"Removed '{nick}' from the auto-op list for {channel}.")
         else:
             bot.add_response(f"User '{nick}' is not in the auto-op list for {channel}.")
 
         cur.close()
+        bot.db_return(conn)
 
     except Exception as e:
-        bot.db_connection.rollback()
+        conn.rollback()
+        bot.db_return(conn)
         bot.logger.error(f"Error removing auto-op: {e}")
         bot.add_response("Error updating auto-op settings.")
 
@@ -224,12 +237,13 @@ def _list_auto_op(bot, event):
     channel = event["command_args"] if event["command_args"] else event["channel"]
 
     # Check if the database connection is available
-    if not bot.db_connection:
+    conn = bot.db_get()
+    if not conn:
         bot.add_response("Database connection is not available.")
         return
 
     try:
-        cur = bot.db_connection.cursor()
+        cur = conn.cursor()
 
         # Get users in the auto-op list for this channel
         cur.execute(
@@ -252,6 +266,7 @@ def _list_auto_op(bot, event):
 
         global_users = [row[0] for row in cur.fetchall()]
         cur.close()
+        bot.db_return(conn)
 
         if users or global_users:
             if users:
@@ -264,5 +279,6 @@ def _list_auto_op(bot, event):
             bot.add_response(f"No users in the auto-op list for {channel}.")
 
     except Exception as e:
+        bot.db_return(conn)
         bot.logger.error(f"Error listing auto-op: {e}")
         bot.add_response("Error retrieving auto-op settings.")

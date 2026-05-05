@@ -105,27 +105,6 @@ def handle_custom_command(bot, event):
     if event["trigger"] == "event" and event["text"].startswith(bot.config["trigger"]):
         bot.logger.info(f"Infoitems handle_custom_command processing: {event['text']}")
 
-        # SUPER EARLY CHECK for karma patterns (!item++ or !item--) and ALWAYS return False to let other modules handle it
-        # This is the first check we do to ensure karma patterns are never handled by infoitems
-        if event["text"].endswith("++") or event["text"].endswith("--"):
-            bot.logger.info(
-                f"Infoitems module detected karma pattern by suffix: {event['text']}"
-            )
-            bot.logger.info(
-                "IMMEDIATELY returning False to allow karma module to process this"
-            )
-            return False
-
-        # More detailed check for karma patterns with regex
-        karma_pattern = re.compile(r"^\!([a-zA-Z0-9_-]+)(\+\+|\-\-)(?:\s+#(.+))?$")
-        match = karma_pattern.match(event["text"])
-        if match:
-            bot.logger.info(f"Infoitems module detected karma pattern: {event['text']}")
-            bot.logger.info(f"Matched groups: {match.groups()}")
-            bot.logger.info("Returning False to allow karma module to process this")
-            # IMPORTANT: Always return False for karma patterns to let the karma module handle them
-            return False
-
         # Check for !item? pattern
         get_pattern = re.compile(r"^\!([a-zA-Z0-9_-]+)\?$")
         get_match = get_pattern.match(event["text"])
@@ -162,23 +141,25 @@ def _add_infoitem(bot, event, item, value):
         bot.reply("You need to be a registered user to add info items.")
         return
 
-    if bot.db_connection:
+    conn = bot.db_get()
+    if conn:
         try:
-            cur = bot.db_connection.cursor()
+            cur = conn.cursor()
             cur.execute(
                 "INSERT INTO phreakbot_infoitems (users_id, item, value, channel) VALUES (%s, %s, %s, %s) RETURNING id",
                 (event["user_info"]["id"], item, value, event["channel"]),
             )
             item_id = cur.fetchone()[0]
-            bot.db_connection.commit()
+            conn.commit()
             bot.reply(f"Info item '{item}' added successfully with ID {item_id}.")
             bot.logger.info(f"Added info item '{item}' with ID {item_id}")
         except Exception as e:
             bot.logger.error(f"Error adding info item: {e}")
             bot.reply(f"Error adding info item: {e}")
-            bot.db_connection.rollback()
+            conn.rollback()
         finally:
             cur.close()
+            bot.db_return(conn)
     else:
         bot.reply("Database connection not available.")
 
@@ -190,9 +171,10 @@ def _delete_infoitem(bot, event, item_id):
         bot.reply("You need to be a registered user to delete info items.")
         return
 
-    if bot.db_connection:
+    conn = bot.db_get()
+    if conn:
         try:
-            cur = bot.db_connection.cursor()
+            cur = conn.cursor()
 
             # First check if the item exists and belongs to the user or if user is admin
             cur.execute(
@@ -203,6 +185,8 @@ def _delete_infoitem(bot, event, item_id):
 
             if not item:
                 bot.reply(f"Info item with ID {item_id} not found.")
+                cur.close()
+                bot.db_return(conn)
                 return
 
             # Check if user is owner or the item belongs to the user
@@ -214,28 +198,32 @@ def _delete_infoitem(bot, event, item_id):
 
             if not is_owner and item[2] != event["user_info"]["id"]:
                 bot.reply("You can only delete your own info items.")
+                cur.close()
+                bot.db_return(conn)
                 return
 
             # Delete the item
             cur.execute("DELETE FROM phreakbot_infoitems WHERE id = %s", (item_id,))
-            bot.db_connection.commit()
+            conn.commit()
             bot.reply(f"Info item '{item[1]}' with ID {item_id} deleted successfully.")
             bot.logger.info(f"Deleted info item '{item[1]}' with ID {item_id}")
         except Exception as e:
             bot.logger.error(f"Error deleting info item: {e}")
             bot.reply(f"Error deleting info item: {e}")
-            bot.db_connection.rollback()
+            conn.rollback()
         finally:
             cur.close()
+            bot.db_return(conn)
     else:
         bot.reply("Database connection not available.")
 
 
 def _get_infoitem(bot, event, item):
     """Get all values for an info item"""
-    if bot.db_connection:
+    conn = bot.db_get()
+    if conn:
         try:
-            cur = bot.db_connection.cursor()
+            cur = conn.cursor()
             cur.execute(
                 "SELECT i.id, i.value, u.username, i.insert_time FROM phreakbot_infoitems i "
                 "JOIN phreakbot_users u ON i.users_id = u.id "
@@ -249,7 +237,6 @@ def _get_infoitem(bot, event, item):
             if not items:
                 bot.reply(f"No info found for '{item}'.")
             else:
-                # Display all values on one line, separated by commas
                 values = [value for _, value, _, _ in items]
                 bot.reply(f"{item}: {', '.join(values)}")
         except Exception as e:
@@ -257,6 +244,7 @@ def _get_infoitem(bot, event, item):
             bot.reply(f"Error retrieving info item: {e}")
         finally:
             cur.close()
+            bot.db_return(conn)
     else:
         bot.reply("Database connection not available.")
 
@@ -268,9 +256,10 @@ def _forget_infoitem(bot, event, item, value):
         bot.reply("You need to be a registered user to delete info items.")
         return
 
-    if bot.db_connection:
+    conn = bot.db_get()
+    if conn:
         try:
-            cur = bot.db_connection.cursor()
+            cur = conn.cursor()
 
             # First check if the item exists with the specified value
             cur.execute(
@@ -281,6 +270,8 @@ def _forget_infoitem(bot, event, item, value):
 
             if not items:
                 bot.reply(f"No info item '{item}' with value '{value}' found.")
+                cur.close()
+                bot.db_return(conn)
                 return
 
             # If there are multiple matches, we need to be more specific
@@ -290,6 +281,8 @@ def _forget_infoitem(bot, event, item, value):
                 )
                 for item_id, item_name, item_value, _ in items:
                     bot.reply(f"• [{item_id}] {item_value}")
+                cur.close()
+                bot.db_return(conn)
                 return
 
             # We have exactly one match
@@ -304,28 +297,32 @@ def _forget_infoitem(bot, event, item, value):
 
             if not is_owner and user_id != event["user_info"]["id"]:
                 bot.reply("You can only delete your own info items.")
+                cur.close()
+                bot.db_return(conn)
                 return
 
             # Delete the item
             cur.execute("DELETE FROM phreakbot_infoitems WHERE id = %s", (item_id,))
-            bot.db_connection.commit()
+            conn.commit()
             bot.reply(f"Info item '{item}' with value '{value}' deleted successfully.")
             bot.logger.info(f"Deleted info item '{item}' with ID {item_id}")
         except Exception as e:
             bot.logger.error(f"Error deleting info item: {e}")
             bot.reply(f"Error deleting info item: {e}")
-            bot.db_connection.rollback()
+            conn.rollback()
         finally:
             cur.close()
+            bot.db_return(conn)
     else:
         bot.reply("Database connection not available.")
 
 
 def _list_infoitems(bot, event):
     """List all info items in the current channel"""
-    if bot.db_connection:
+    conn = bot.db_get()
+    if conn:
         try:
-            cur = bot.db_connection.cursor()
+            cur = conn.cursor()
             cur.execute(
                 "SELECT DISTINCT item FROM phreakbot_infoitems WHERE channel = %s ORDER BY item",
                 (event["channel"],),
@@ -344,5 +341,6 @@ def _list_infoitems(bot, event):
             bot.reply(f"Error listing info items: {e}")
         finally:
             cur.close()
+            bot.db_return(conn)
     else:
         bot.reply("Database connection not available.")

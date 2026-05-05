@@ -54,7 +54,7 @@ class TestDatabaseConnection:
 
     def test_connection_pool_creation(self, bot):
         """Test connection pool is created."""
-        assert bot.db_pool is not None or bot.db_connection is None
+        assert bot.db_pool is not None
 
     def test_connection_retry_logic(self, bot, mock_config):
         """Test connection retry on failure."""
@@ -66,9 +66,10 @@ class TestDatabaseConnection:
             assert result is False
 
     def test_ensure_db_connection(self, bot):
-        """Test ensure_db_connection validates connection."""
-        bot.db_connection = Mock()
-        bot.db_connection.cursor = Mock(return_value=Mock())
+        """Test ensure_db_connection validates pool health."""
+        mock_conn = Mock()
+        mock_conn.cursor = Mock(return_value=Mock())
+        bot.db_pool.getconn = Mock(return_value=mock_conn)
         result = bot.ensure_db_connection()
         assert result in [True, False]  # Depends on mock setup
 
@@ -88,7 +89,7 @@ class TestUserInfoQueries:
 
     def test_get_userinfo_cache_miss_no_db(self, bot):
         """Test cache miss with no database."""
-        bot.db_connection = None
+        bot.db_pool = None
         result = bot.db_get_userinfo_by_userhost("new!user@host")
         assert result is None
 

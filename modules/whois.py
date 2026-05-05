@@ -54,13 +54,14 @@ def run(bot, event):
         bot.add_response(f"{tnick} is on channel {found_channel} as {tuserhost}.")
 
     # Check if the user exists in the database
-    if not bot.db_connection:
+    conn = bot.db_get()
+    if not conn:
         bot.add_response("Database connection is not available.")
         return
 
     try:
         # First check by username since we know the generated hostmask might not match
-        cur = bot.db_connection.cursor()
+        cur = conn.cursor()
         cur.execute(
             "SELECT * FROM phreakbot_users WHERE username ILIKE %s", (tnick.lower(),)
         )
@@ -69,7 +70,7 @@ def run(bot, event):
 
         if user_by_username:
             # Get full user info by ID
-            cur = bot.db_connection.cursor()
+            cur = conn.cursor()
             cur.execute(
                 "SELECT * FROM phreakbot_users WHERE id = %s", (user_by_username[0],)
             )
@@ -77,7 +78,7 @@ def run(bot, event):
             cur.close()
 
             # Get user permissions
-            cur = bot.db_connection.cursor()
+            cur = conn.cursor()
             cur.execute(
                 "SELECT permission, channel FROM phreakbot_perms WHERE users_id = %s",
                 (user_info[0],),
@@ -86,7 +87,7 @@ def run(bot, event):
             cur.close()
 
             # Get user hostmasks
-            cur = bot.db_connection.cursor()
+            cur = conn.cursor()
             cur.execute(
                 "SELECT hostmask FROM phreakbot_hostmasks WHERE users_id = %s",
                 (user_info[0],),
@@ -158,3 +159,5 @@ def run(bot, event):
     except Exception as e:
         bot.logger.error(f"Database error in whois module: {e}")
         bot.add_response("Error retrieving user information.")
+    finally:
+        bot.db_return(conn)

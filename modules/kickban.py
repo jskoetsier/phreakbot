@@ -4,8 +4,7 @@
 # Kick/Ban module for PhreakBot
 # Allows channel operators to kick and ban users
 
-import threading
-import time
+import asyncio
 
 # Dictionary to track scheduled unbans
 scheduled_unbans = {}
@@ -64,8 +63,6 @@ def _kick_user(bot, event):
 
     try:
         # Kick the user
-        import asyncio
-
         try:
 
             async def kick_user():
@@ -174,7 +171,6 @@ def _kickban_user(bot, event):
 
         # Set ban on the user
         bot.logger.info(f"Setting ban on {hostmask} in {channel}")
-        import asyncio
 
         try:
 
@@ -228,7 +224,6 @@ def _unban_user(bot, event):
     try:
         # Remove the ban
         bot.logger.info(f"Removing ban on {hostmask} in {channel}")
-        import asyncio
 
         try:
 
@@ -245,6 +240,21 @@ def _unban_user(bot, event):
         bot.add_response(f"Error unbanning {hostmask}: {str(e)}")
 
 
+async def _unban_after_delay(bot, channel, hostmask, minutes):
+    """Wait for the specified minutes, then unban"""
+    await asyncio.sleep(minutes * 60)
+    key = f"{channel}:{hostmask}"
+    try:
+        bot.logger.info(f"Auto-unbanning {hostmask} in {channel}")
+        await bot.set_mode(channel, "-b", hostmask)
+        bot.add_response(f"Auto-unban: {hostmask} has been unbanned")
+    except Exception as e:
+        bot.logger.error(f"Error in auto-unban: {str(e)}")
+    finally:
+        if key in scheduled_unbans:
+            del scheduled_unbans[key]
+
+
 def _schedule_unban(bot, channel, hostmask, minutes):
     """Schedule an unban after the specified number of minutes"""
     key = f"{channel}:{hostmask}"
@@ -253,40 +263,14 @@ def _schedule_unban(bot, channel, hostmask, minutes):
     if key in scheduled_unbans:
         scheduled_unbans[key].cancel()
 
-    # Schedule the unban
     bot.logger.info(
         f"Scheduling unban for {hostmask} in {channel} in {minutes} minutes"
     )
 
-    def unban_task():
-        try:
-            bot.logger.info(f"Auto-unbanning {hostmask} in {channel}")
-            import asyncio
-
-            try:
-
-                async def auto_unban():
-                    await bot.set_mode(channel, "-b", hostmask)
-
-                asyncio.create_task(auto_unban())
-                bot.add_response(f"Auto-unban: {hostmask} has been unbanned")
-            except Exception as e:
-                bot.logger.error(f"Error in auto-unban: {str(e)}")
-            # Remove from scheduled unbans
-            if key in scheduled_unbans:
-                del scheduled_unbans[key]
-        except Exception as e:
-            bot.logger.error(f"Error in scheduled unban for {hostmask}: {str(e)}")
-
-    # Create and start the timer
-    timer = threading.Timer(minutes * 60, unban_task)
-    timer.daemon = (
-        True  # Make sure the timer doesn't prevent the bot from shutting down
+    task = asyncio.create_task(
+        _unban_after_delay(bot, channel, hostmask, minutes)
     )
-    timer.start()
-
-    # Store the timer
-    scheduled_unbans[key] = timer
+    scheduled_unbans[key] = task
 
 
 def _has_permission(bot, event):

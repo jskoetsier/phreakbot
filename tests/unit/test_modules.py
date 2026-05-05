@@ -52,8 +52,9 @@ def bot(mock_config):
     """Create a PhreakBot instance for testing."""
     with patch("phreakbot.psycopg2.pool.ThreadedConnectionPool"):
         bot = PhreakBot(mock_config)
-        bot.db_connection = Mock()
-        bot.db_pool = Mock()
+        mock_conn = Mock()
+        bot.db_pool.getconn = Mock(return_value=mock_conn)
+        bot.db_pool.putconn = Mock()
         # Clear modules loaded during init
         bot.modules = {}
         yield bot
@@ -188,12 +189,16 @@ class TestModuleExecution:
             "user_info": None,
         }
 
+        # Set up scoped output
+        output = []
+        bot._active_output = output
+
         # Execute the module
         bot.modules["test_module"]["object"].run(bot, event)
 
         # Check that response was added
-        assert len(bot.output) > 0
-        assert bot.output[0]["msg"] == "Test command executed!"
+        assert len(output) > 0
+        assert output[0]["msg"] == "Test command executed!"
 
     @pytest.mark.module
     def test_module_event_handling(self, bot, test_module):

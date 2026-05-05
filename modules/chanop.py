@@ -4,6 +4,8 @@
 # Channel Operator module for PhreakBot
 # Allows operators to manage channel modes (op/deop/voice/devoice)
 
+import asyncio
+
 
 def config(bot):
     """Return module configuration"""
@@ -67,7 +69,6 @@ def _op_user(bot, event):
 
     try:
         # Give operator status using asyncio.create_task
-        import asyncio
 
         async def set_op():
             await bot.set_mode(channel, "+o", nick)
@@ -116,7 +117,6 @@ def _deop_user(bot, event):
 
     try:
         # Remove operator status using asyncio.create_task
-        import asyncio
 
         async def set_deop():
             await bot.set_mode(channel, "-o", nick)
@@ -160,7 +160,6 @@ def _voice_user(bot, event):
 
     try:
         # Give voice using asyncio.create_task
-        import asyncio
 
         async def set_voice():
             await bot.set_mode(channel, "+v", nick)
@@ -204,7 +203,6 @@ def _devoice_user(bot, event):
 
     try:
         # Remove voice using asyncio.create_task
-        import asyncio
 
         async def set_devoice():
             await bot.set_mode(channel, "-v", nick)

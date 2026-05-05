@@ -30,10 +30,6 @@ def config(bot):
 
 def run(bot, event):
     """Handle quotes commands"""
-    if not bot.db_connection:
-        bot.add_response("Database connection is not available.")
-        return
-
     try:
         if event["command"] in ["quote", "q"]:
             _show_quote(bot, event)
@@ -52,7 +48,12 @@ def _show_quote(bot, event):
     """Show a quote from the database"""
     search_term = event["command_args"]
 
-    cur = bot.db_connection.cursor()
+    conn = bot.db_get()
+    if not conn:
+        bot.add_response("Database connection is not available.")
+        return
+
+    cur = conn.cursor()
 
     if not search_term:
         # Show a random quote
@@ -81,6 +82,7 @@ def _show_quote(bot, event):
 
     quote = cur.fetchone()
     cur.close()
+    bot.db_return(conn)
 
     if not quote:
         if search_term:
@@ -104,7 +106,12 @@ def _search_quotes(bot, event):
     bot.logger.info(f"Searching quotes for: {event['command_args']}")
     search_term = event["command_args"]
 
-    cur = bot.db_connection.cursor()
+    conn = bot.db_get()
+    if not conn:
+        bot.add_response("Database connection is not available.")
+        return
+
+    cur = conn.cursor()
     cur.execute(
         "SELECT q.id, q.quote, u.username, q.channel, q.insert_time FROM phreakbot_quotes q "
         "JOIN phreakbot_users u ON q.users_id = u.id "
@@ -115,6 +122,7 @@ def _search_quotes(bot, event):
 
     quotes = cur.fetchall()
     cur.close()
+    bot.db_return(conn)
 
     if not quotes:
         bot.add_response(f"No quotes found matching '{search_term}'.")
@@ -142,8 +150,13 @@ def _add_quote(bot, event):
         bot.add_response("You need to be a registered user to add quotes.")
         return
 
+    conn = bot.db_get()
+    if not conn:
+        bot.add_response("Database connection is not available.")
+        return
+
     try:
-        cur = bot.db_connection.cursor()
+        cur = conn.cursor()
 
         # Check if the quote already exists
         cur.execute(
@@ -154,6 +167,7 @@ def _add_quote(bot, event):
         if cur.fetchone():
             bot.add_response("This quote already exists in the database.")
             cur.close()
+            bot.db_return(conn)
             return
 
         # Add the new quote
@@ -163,12 +177,14 @@ def _add_quote(bot, event):
         )
 
         quote_id = cur.fetchone()[0]
-        bot.db_connection.commit()
+        conn.commit()
         cur.close()
+        bot.db_return(conn)
 
         bot.add_response(f"Quote #{quote_id} added successfully.")
     except Exception as e:
-        bot.db_connection.rollback()
+        conn.rollback()
+        bot.db_return(conn)
         bot.logger.error(f"Database error adding quote: {e}")
         bot.add_response("Error adding quote.")
 
@@ -188,8 +204,13 @@ def _delete_quote(bot, event):
         bot.add_response("Please provide a valid quote ID to delete.")
         return
 
+    conn = bot.db_get()
+    if not conn:
+        bot.add_response("Database connection is not available.")
+        return
+
     try:
-        cur = bot.db_connection.cursor()
+        cur = conn.cursor()
 
         # Check if the quote exists
         cur.execute("SELECT id FROM phreakbot_quotes WHERE id = %s", (int(quote_id),))
@@ -197,15 +218,18 @@ def _delete_quote(bot, event):
         if not cur.fetchone():
             bot.add_response(f"Quote #{quote_id} not found.")
             cur.close()
+            bot.db_return(conn)
             return
 
         # Delete the quote
         cur.execute("DELETE FROM phreakbot_quotes WHERE id = %s", (int(quote_id),))
-        bot.db_connection.commit()
+        conn.commit()
         cur.close()
+        bot.db_return(conn)
 
         bot.add_response(f"Quote #{quote_id} deleted successfully.")
     except Exception as e:
-        bot.db_connection.rollback()
+        conn.rollback()
+        bot.db_return(conn)
         bot.logger.error(f"Database error deleting quote: {e}")
         bot.add_response("Error deleting quote.")

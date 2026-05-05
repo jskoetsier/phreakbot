@@ -61,9 +61,9 @@ def bot(mock_config):
 
     with patch("phreakbot.psycopg2.pool.ThreadedConnectionPool"):
         bot = PhreakBot(mock_config)
-        bot.db_connection = Mock()
-        bot.db_pool = Mock()
-        bot.output = []  # Ensure output list exists
+        mock_conn = Mock()
+        bot.db_pool.getconn = Mock(return_value=mock_conn)
+        bot.db_pool.putconn = Mock()
         yield bot
 
 

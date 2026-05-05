@@ -1,5 +1,37 @@
 # Changelog
 
+## 0.1.33 (2026-05-05)
+
+### Changed - Architecture Refactoring
+
+- **Unified module API — all modules use dict-based events**
+  - Rewrote `karma.py` from pydle-native to standard `run(bot, event)` API
+  - Removed hardcoded karma special-casing from `_handle_message` and `_route_to_modules`
+  - Deleted `testminus.py` (duplicate karma-- handler)
+  - Only `modules/karma.py` contains karma pattern matching logic
+
+- **Proper database connection pooling**
+  - Added `db_get()` and `db_return()` methods to `PhreakBot`
+  - Removed permanently-held `self.db_connection` — connections are now obtained from and returned to the pool
+  - Updated all 17 DB-using modules to use the new pattern with proper connection cleanup on all exit paths
+
+- **Event-scoped output**
+  - Replaced shared `self.output` list with `_active_output` stack pattern
+  - Each event's output is isolated — prevents output leaking between concurrent events
+  - Zero module code changes needed for output scoping
+
+- **asyncio-native scheduling (kickban.py)**
+  - Replaced `threading.Timer` with `asyncio.create_task()` + `await asyncio.sleep()`
+  - Eliminates race condition where timer callback called `asyncio.create_task()` from a non-asyncio thread
+
+- **Move inline imports to module level**
+  - `import asyncio` moved to top in `channel.py`, `chanop.py`, `autovoice.py`, `auto-op.py`, `botnick.py`, `kickban.py`
+  - Removed all inline conditional imports
+
+- **Test fixtures updated**
+  - Fixtures use `db_pool.getconn`/`putconn` mocks instead of `db_connection`
+  - Scoped output tests use `_active_output` pattern
+
 ## 0.1.32 (2026-04-14)
 
 ### Documentation

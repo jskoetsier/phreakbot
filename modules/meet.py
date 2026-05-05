@@ -33,7 +33,8 @@ def run(bot, event):
         return
 
     # Check if the user exists in the database
-    if not bot.db_connection:
+    conn = bot.db_get()
+    if not conn:
         bot.add_response("Database connection is not available.")
         return
 
@@ -46,12 +47,13 @@ def run(bot, event):
                 f"Can't find hostmask for '{tnick}'. They need to join a channel or speak first."
             )
             bot.logger.info(f"No cached hostmask found for '{tnick}'")
+            bot.db_return(conn)
             return
 
         bot.logger.info(f"Using cached hostmask for '{tnick}': {tuserhost}")
 
         # Check if the user already exists in the database
-        cur = bot.db_connection.cursor()
+        cur = conn.cursor()
 
         # Check by nickname
         cur.execute(
@@ -62,6 +64,7 @@ def run(bot, event):
                 f"A user with the name '{tnick}' already exists in the database."
             )
             cur.close()
+            bot.db_return(conn)
             return
 
         # Check by hostmask
@@ -75,6 +78,7 @@ def run(bot, event):
                 f"An existing user '{user_info[1]}' was found matching the hostmask for '{tnick}'."
             )
             cur.close()
+            bot.db_return(conn)
             return
 
         # Create new user
@@ -96,8 +100,9 @@ def run(bot, event):
             (user_id, "user"),
         )
 
-        bot.db_connection.commit()
+        conn.commit()
         cur.close()
+        bot.db_return(conn)
 
         bot.add_response(
             f"Added user '{tnick}' to the database with hostmask '{tuserhost}'."
@@ -107,7 +112,8 @@ def run(bot, event):
         bot._cache_invalidate("user_info", tuserhost.lower())
 
     except Exception as e:
-        bot.db_connection.rollback()
+        conn.rollback()
+        bot.db_return(conn)
         bot.logger.error(f"Database error in meet module: {e}")
 
         bot.logger.error(f"Traceback: {traceback.format_exc()}")

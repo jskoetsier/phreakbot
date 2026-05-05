@@ -3,6 +3,8 @@
 #
 # Botnick module for PhreakBot
 
+import asyncio
+
 
 def config(bot):
     """Return module configuration"""
@@ -26,7 +28,6 @@ def run(bot, event):
     # Change the bot's nickname
     bot.logger.info(f"Changing nickname from {bot.nickname} to {new_nick}")
     # Schedule nickname change asynchronously
-    import asyncio
 
     try:
 

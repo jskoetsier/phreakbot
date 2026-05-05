@@ -43,9 +43,7 @@ class PhreakBot(pydle.Client):
 
         # Initialize bot state
         self.modules = {}
-        self.output = []
-        self.db_connection = None
-        self.db_pool = None  # Connection pool
+        self.db_pool = None  # Connection pool (use db_get()/db_return())
         self.re = re  # Expose re module for modules to use
         self.state = {}  # State dictionary for modules to use
         self.user_hostmasks = {}  # Cache of user hostmasks from JOIN/PRIVMSG events
@@ -169,8 +167,6 @@ class PhreakBot(pydle.Client):
                     dbname=self.config["db_name"],
                     connect_timeout=10,
                 )
-                # Get a connection from the pool for backwards compatibility
-                self.db_connection = self.db_pool.getconn()
                 self.logger.info("Database connection pool created successfully")
                 return True
             except Exception as e:
@@ -184,28 +180,37 @@ class PhreakBot(pydle.Client):
                     self.logger.warning(
                         "All database connection attempts failed. Bot will run with limited functionality."
                     )
-                    self.db_connection = None
                     self.db_pool = None
                     return False
 
+    def db_get(self):
+        """Get a database connection from the pool."""
+        if self.db_pool is not None:
+            return self.db_pool.getconn()
+        return None
+
+    def db_return(self, conn):
+        """Return a database connection to the pool."""
+        if conn is None:
+            return
+        if self.db_pool is not None:
+            self.db_pool.putconn(conn)
+
     def ensure_db_connection(self):
-        """Ensure database connection is alive, reconnect if needed"""
-        if self.db_connection is None:
-            self.logger.warning("No database connection, attempting to reconnect...")
+        """Ensure database connection pool is alive, reconnect if needed"""
+        if self.db_pool is None:
+            self.logger.warning("No database connection pool, attempting to reconnect...")
             return self.db_connect(max_retries=2, retry_delay=3)
 
         try:
-            cur = self.db_connection.cursor()
+            conn = self.db_pool.getconn()
+            cur = conn.cursor()
             cur.execute("SELECT 1")
             cur.close()
+            self.db_pool.putconn(conn)
             return True
         except Exception as e:
-            self.logger.warning(f"Database connection lost: {e}. Reconnecting...")
-            try:
-                self.db_connection.close()
-            except Exception:
-                pass
-            self.db_connection = None
+            self.logger.warning(f"Database connection pool unhealthy: {e}. Reconnecting...")
             return self.db_connect(max_retries=2, retry_delay=3)
 
     def _is_cache_valid(self, cache_key):
@@ -395,10 +400,14 @@ class PhreakBot(pydle.Client):
             self.logger.debug("Database unavailable, returning None for user info")
             return None
 
+        conn = self.db_get()
+        if not conn:
+            return None
+
         ret = {}
 
         try:
-            cur = self.db_connection.cursor(cursor_factory=psycopg2.extras.DictCursor)
+            cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
 
             # Optimized query using index on hostmask
             sql = "SELECT h.hostmask AS current_hostmask, u.* FROM phreakbot_hostmasks h, phreakbot_users u WHERE h.users_id = u.id AND h.hostmask = %s"
@@ -407,6 +416,8 @@ class PhreakBot(pydle.Client):
             if not db_res:
                 # Cache negative result too (short TTL)
                 self._cache_set("user_info", hostmask, None)
+                cur.close()
+                self.db_return(conn)
                 return None
 
             db_res = db_res[0]
@@ -437,6 +448,7 @@ class PhreakBot(pydle.Client):
                     ret["hostmasks"].append(row[k])
 
             cur.close()
+            self.db_return(conn)
 
             # Cache the result
             self._cache_set("user_info", hostmask, ret)
@@ -447,10 +459,11 @@ class PhreakBot(pydle.Client):
             self.logger.error(
                 f"Database connection lost in db_get_userinfo_by_userhost: {e}"
             )
-            self.db_connection = None
+            self.db_return(conn)
             return None
         except Exception as e:
             self.logger.error(f"Database error in db_get_userinfo_by_userhost: {e}")
+            self.db_return(conn)
             return None
 
     def load_all_modules(self):
@@ -622,15 +635,13 @@ class PhreakBot(pydle.Client):
             "command_args": "",
             "trigger": "event",
             "ctcp_command": what.upper(),
-            "user_info": (
-                self.db_get_userinfo_by_userhost(user_host)
-                if self.db_connection
-                else None
-            ),
+            "user_info": self.db_get_userinfo_by_userhost(user_host),
         }
 
         # Route to modules that handle CTCP events
-        await self._route_to_modules(event_obj)
+        output = []
+        self._route_to_modules(event_obj, output)
+        await self._process_output(event_obj, output)
 
     async def on_names(self, channel, names):
         """Called when the server sends a NAMES reply"""
@@ -655,7 +666,9 @@ class PhreakBot(pydle.Client):
         }
 
         # Route to modules that handle namreply events
-        await self._route_to_modules(event_obj)
+        output = []
+        self._route_to_modules(event_obj, output)
+        await self._process_output(event_obj, output)
 
     async def _handle_message(self, source, channel, message, is_private):
         """Process incoming messages and route to appropriate modules"""
@@ -703,50 +716,11 @@ class PhreakBot(pydle.Client):
             "command": "",
             "command_args": "",
             "trigger": "",
-            "user_info": (
-                self.db_get_userinfo_by_userhost(user_host)
-                if self.db_connection
-                else None
-            ),
+            "user_info": self.db_get_userinfo_by_userhost(user_host),
         }
 
-        # Check if message starts with trigger
-        trigger_re = re.compile(f'^{re.escape(self.config["trigger"])}')
-
-        # Check for karma pattern first
-        karma_pattern = re.compile(r"^\!([a-zA-Z0-9_-]+)(\+\+|\-\-)(?:\s+#(.+))?$")
-        karma_match = karma_pattern.match(message)
-
-        if karma_match:
-            self.logger.debug(f"Detected karma pattern: '{message}'")
-            item = karma_match.group(1).lower()
-            direction = "up" if karma_match.group(2) == "++" else "down"
-            reason = karma_match.group(3)
-
-            # Don't allow users to give karma to themselves
-            if item.lower() == source.lower():
-                await self.message(channel, "You can't give karma to yourself!")
-                return
-
-            # Create a special event for karma handling
-            karma_event = event_obj.copy()
-            karma_event["trigger"] = "event"
-
-            # Route directly to karma module if available
-            if "karma" in self.modules:
-                try:
-                    self.logger.debug(f"Routing to karma module for {direction} karma")
-                    result = self.modules["karma"]["object"].run(self, karma_event)
-                    if result:
-                        await self._process_output(karma_event)
-                        return
-                except Exception as e:
-
-                    self.logger.error(f"Error in karma module: {e}")
-                    self.logger.error(f"Traceback: {traceback.format_exc()}")
-            return
-
         # Continue with normal message processing
+        trigger_re = self.trigger_re
         if trigger_re.match(message):
             self.logger.debug(f"RAW MESSAGE: '{message}'")
 
@@ -782,18 +756,24 @@ class PhreakBot(pydle.Client):
                 )
 
                 # Find modules that handle this command
-                await self._route_to_modules(event_obj)
+                output = []
+                self._route_to_modules(event_obj, output)
+                await self._process_output(event_obj, output)
             else:
                 # This is a message that starts with the trigger but doesn't match the command pattern
                 self.logger.debug(
                     f"Message starts with trigger but doesn't match command pattern: '{message}'"
                 )
                 event_obj["trigger"] = "event"
-                await self._route_to_modules(event_obj)
+                output = []
+                self._route_to_modules(event_obj, output)
+                await self._process_output(event_obj, output)
         else:
             # Handle non-command events
             event_obj["trigger"] = "event"
-            await self._route_to_modules(event_obj)
+            output = []
+            self._route_to_modules(event_obj, output)
+            await self._process_output(event_obj, output)
 
     async def _handle_event(self, user, channel, event_type):
         """Handle non-message events like joins, parts, quits"""
@@ -831,19 +811,24 @@ class PhreakBot(pydle.Client):
             "command": "",
             "command_args": "",
             "trigger": "event",
-            "user_info": (
-                self.db_get_userinfo_by_userhost(user_host)
-                if self.db_connection
-                else None
-            ),
+            "user_info": self.db_get_userinfo_by_userhost(user_host),
         }
 
-        await self._route_to_modules(event_obj)
+        output = []
+        self._route_to_modules(event_obj, output)
+        await self._process_output(event_obj, output)
 
-    async def _route_to_modules(self, event):
-        """Route an event to the appropriate modules"""
-        self.output = []  # Clear output buffer
+    def _route_to_modules(self, event, output):
+        """Route an event to the appropriate modules."""
+        self._active_output = output
 
+        try:
+            self._dispatch_event(event)
+        finally:
+            self._active_output = None
+
+    def _dispatch_event(self, event):
+        """Internal event dispatch logic."""
         # Find modules to handle this event
         handled = False
 
@@ -851,39 +836,6 @@ class PhreakBot(pydle.Client):
         self.logger.debug(
             f"Routing event: trigger={event['trigger']}, signal={event.get('signal', 'N/A')}, text={event.get('text', 'N/A')}"
         )
-
-        # Special handling for karma patterns in event routing
-        if event["trigger"] == "event" and "text" in event and event["text"]:
-            # Check for karma pattern
-            karma_pattern = re.compile(r"^\!([a-zA-Z0-9_-]+)(\+\+|\-\-)(?:\s+#(.+))?$")
-            match = karma_pattern.match(event["text"])
-
-            if match:
-                self.logger.debug(
-                    f"EVENT ROUTING: Detected karma pattern in message: {event['text']}"
-                )
-                self.logger.debug(f"Matched groups: {match.groups()}")
-                item = match.group(1).lower()
-                direction = "up" if match.group(2) == "++" else "down"
-
-                # Try to route directly to karma module
-                if "karma" in self.modules:
-                    try:
-                        self.logger.debug(
-                            f"Routing directly to karma module for {direction} karma"
-                        )
-                        result = self.modules["karma"]["object"].run(self, event)
-                        if result:
-                            handled = True
-                            self.logger.debug("Karma module handled the message")
-
-                            # Process output and return early
-                            await self._process_output(event)
-                            return
-                    except Exception as e:
-    
-                        self.logger.error(f"Error in karma module: {e}")
-                        self.logger.error(f"Traceback: {traceback.format_exc()}")
 
         # Check for custom infoitem commands first
         if not handled and "infoitems" in self.modules:
@@ -997,12 +949,9 @@ class PhreakBot(pydle.Client):
                         self.logger.error(f"Error in module {module_name}: {e}")
                         self.logger.error(f"Traceback: {traceback.format_exc()}")
 
-        # Process output
-        await self._process_output(event)
-
     def _is_owner(self, hostmask):
         """Check if a hostmask matches an owner in the database"""
-        if not self.db_connection:
+        if not self.db_pool:
             return False
 
         try:
@@ -1039,19 +988,22 @@ class PhreakBot(pydle.Client):
 
             # If we still haven't found an owner, check by username
             try:
-                cur = self.db_connection.cursor()
-                cur.execute(
-                    "SELECT is_owner FROM phreakbot_users WHERE username = %s",
-                    (nick.lower(),),
-                )
-                result = cur.fetchone()
-                cur.close()
-
-                if result and result[0]:
-                    self.logger.debug(
-                        f"User with nick {nick} is an owner in the database"
+                conn = self.db_get()
+                if conn:
+                    cur = conn.cursor()
+                    cur.execute(
+                        "SELECT is_owner FROM phreakbot_users WHERE username = %s",
+                        (nick.lower(),),
                     )
-                    return True
+                    result = cur.fetchone()
+                    cur.close()
+                    self.db_return(conn)
+
+                    if result and result[0]:
+                        self.logger.debug(
+                            f"User with nick {nick} is an owner in the database"
+                        )
+                        return True
             except Exception as e:
                 self.logger.error(f"Error checking owner status by username: {e}")
 
@@ -1137,21 +1089,19 @@ class PhreakBot(pydle.Client):
         self.logger.debug(f"Permission denied for {event['nick']}")
         return False
 
-    async def _process_output(self, event):
-        """Process and send output messages"""
-        if not self.output:
+    async def _process_output(self, event, output):
+        """Process and send output messages."""
+        if not output:
             return
 
-        # Limit number of output lines
-        if len(self.output) > self.config["max_output_lines"]:
+        if len(output) > self.config["max_output_lines"]:
             self.logger.debug(
-                f"Output has {len(self.output)} lines, combining into single line"
+                f"Output has {len(output)} lines, combining into single line"
             )
-            # Join all messages into a single line separated by " | "
-            combined_message = " | ".join([line["msg"] for line in self.output])
+            combined_message = " | ".join([line["msg"] for line in output])
             await self.message(event["channel"], combined_message)
         else:
-            for line in self.output:
+            for line in output:
                 if line["type"] == "say":
                     await self.message(event["channel"], line["msg"])
                 elif line["type"] == "reply":
@@ -1161,23 +1111,23 @@ class PhreakBot(pydle.Client):
                 elif line["type"] == "private":
                     await self.message(event["nick"], line["msg"])
 
-        self.output = []
-
     # Helper methods for modules to use
     async def say(self, target, message):
         """Send a message to a channel or user"""
         await self.message(target, message)
 
     def reply(self, message):
-        """Add a reply message to the output queue"""
-        self.output.append({"type": "reply", "msg": message})
+        """Add a reply message to the output queue."""
+        if self._active_output is not None:
+            self._active_output.append({"type": "reply", "msg": message})
 
     def add_response(self, message, private=False):
-        """Add a message to the output queue"""
-        if private:
-            self.output.append({"type": "private", "msg": message})
-        else:
-            self.output.append({"type": "say", "msg": message})
+        """Add a message to the output queue."""
+        if self._active_output is not None:
+            if private:
+                self._active_output.append({"type": "private", "msg": message})
+            else:
+                self._active_output.append({"type": "say", "msg": message})
 
 
 def main():

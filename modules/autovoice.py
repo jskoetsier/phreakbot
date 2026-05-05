@@ -3,6 +3,8 @@
 #
 # Autovoice module for PhreakBot
 
+import asyncio
+
 
 def config(bot):
     """Return module configuration"""
@@ -36,7 +38,8 @@ def _check_autovoice(bot, event):
         return
 
     # Check if the database connection is available
-    if not bot.db_connection:
+    conn = bot.db_get()
+    if not conn:
         return
 
     try:
@@ -44,7 +47,7 @@ def _check_autovoice(bot, event):
         nick = event["nick"]
         hostmask = event["hostmask"]
 
-        cur = bot.db_connection.cursor()
+        cur = conn.cursor()
 
         # Check if autovoice is enabled for this channel
         cur.execute(
@@ -55,6 +58,7 @@ def _check_autovoice(bot, event):
         if not cur.fetchone():
             # Autovoice is not enabled for this channel
             cur.close()
+            bot.db_return(conn)
             return
 
         # Check if the user is registered
@@ -69,7 +73,6 @@ def _check_autovoice(bot, event):
             # Give the user voice status
             bot.logger.info(f"Auto-voicing {nick} in {channel}")
             # Schedule mode change asynchronously
-            import asyncio
 
             try:
 
@@ -81,8 +84,10 @@ def _check_autovoice(bot, event):
                 bot.logger.error(f"Error setting voice mode: {e}")
 
         cur.close()
+        bot.db_return(conn)
 
     except Exception as e:
+        bot.db_return(conn)
         bot.logger.error(f"Error in autovoice check: {e}")
 
 
@@ -109,12 +114,13 @@ def _manage_autovoice(bot, event):
     channel = args[1] if len(args) > 1 else event["channel"]
 
     # Check if the database connection is available
-    if not bot.db_connection:
+    conn = bot.db_get()
+    if not conn:
         bot.add_response("Database connection is not available.")
         return
 
     try:
-        cur = bot.db_connection.cursor()
+        cur = conn.cursor()
 
         if action == "on":
             # Enable autovoice for the channel
@@ -123,11 +129,10 @@ def _manage_autovoice(bot, event):
                 "ON CONFLICT (channel) DO UPDATE SET enabled = TRUE",
                 (channel.lower(),),
             )
-            bot.db_connection.commit()
+            conn.commit()
 
             # Set moderated mode on the channel
             bot.logger.info(f"Setting moderated mode on {channel}")
-            import asyncio
 
             try:
 
@@ -149,11 +154,10 @@ def _manage_autovoice(bot, event):
                 "ON CONFLICT (channel) DO UPDATE SET enabled = FALSE",
                 (channel.lower(),),
             )
-            bot.db_connection.commit()
+            conn.commit()
 
             # Remove moderated mode from the channel
             bot.logger.info(f"Removing moderated mode from {channel}")
-            import asyncio
 
             try:
 
@@ -185,8 +189,10 @@ def _manage_autovoice(bot, event):
             bot.add_response("Invalid option. Use 'on', 'off', or 'status'.")
 
         cur.close()
+        bot.db_return(conn)
 
     except Exception as e:
-        bot.db_connection.rollback()
+        conn.rollback()
+        bot.db_return(conn)
         bot.logger.error(f"Error managing autovoice: {e}")
         bot.add_response("Error updating autovoice settings.")

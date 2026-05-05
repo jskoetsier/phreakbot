@@ -26,12 +26,13 @@ def run(bot, event):
     merge_db_user = merge_db_user.lower()
 
     # Check if the database connection is available
-    if not bot.db_connection:
+    conn = bot.db_get()
+    if not conn:
         bot.add_response("Database connection is not available.")
         return
 
     try:
-        cur = bot.db_connection.cursor()
+        cur = conn.cursor()
 
         # Check if the database user exists
         cur.execute(
@@ -42,6 +43,7 @@ def run(bot, event):
         if not db_userinfo:
             bot.add_response(f"User '{merge_db_user}' was not found in the database.")
             cur.close()
+            bot.db_return(conn)
             return
 
         # Get the IRC user's hostmask
@@ -54,6 +56,7 @@ def run(bot, event):
         if not merge_userhost:
             bot.add_response(f"Nick '{merge_irc_nick}' was not found in any channel.")
             cur.close()
+            bot.db_return(conn)
             return
 
         # Check if the hostmask is already associated with a user
@@ -67,6 +70,7 @@ def run(bot, event):
                 f"Hostmask '{merge_userhost}' for nick '{merge_irc_nick}' already matches registered user '{existing_user[1]}'."
             )
             cur.close()
+            bot.db_return(conn)
             return
 
         # Add the hostmask to the database user
@@ -75,14 +79,15 @@ def run(bot, event):
             (db_userinfo[0], merge_userhost.lower()),
         )
 
-        bot.db_connection.commit()
+        conn.commit()
         cur.close()
+        bot.db_return(conn)
 
         bot.add_response(
             f"Hostmask '{merge_userhost}' added to '{db_userinfo[1]}', '{merge_irc_nick}' is now identified."
         )
 
     except Exception as e:
-        bot.db_connection.rollback()
+        conn.rollback()
         bot.logger.error(f"Database error in merge module: {e}")
         bot.add_response("Error merging hostmask.")

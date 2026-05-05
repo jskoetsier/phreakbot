@@ -72,21 +72,24 @@ def _set_birthday(bot, event):
             return
 
         # Update the user's birthday in the database
-        if bot.db_connection:
+        conn = bot.db_get()
+        if conn:
             try:
-                cur = bot.db_connection.cursor()
+                cur = conn.cursor()
                 cur.execute(
                     "UPDATE phreakbot_users SET dob = %s WHERE id = %s",
                     (dob, event["user_info"]["id"]),
                 )
-                bot.db_connection.commit()
+                conn.commit()
                 cur.close()
+                bot.db_return(conn)
 
                 bot.add_response(
                     f"Your birthday has been set to {dob.strftime('%d-%m-%Y')}."
                 )
             except Exception as e:
-                bot.db_connection.rollback()
+                conn.rollback()
+                bot.db_return(conn)
                 bot.logger.error(f"Database error in birthday module: {e}")
                 bot.add_response("Error updating your birthday in the database.")
         else:
@@ -99,14 +102,15 @@ def _set_birthday(bot, event):
 
 def _show_birthdays(bot, event):
     """Show birthdays"""
-    if not bot.db_connection:
+    conn = bot.db_get()
+    if not conn:
         bot.add_response("Database connection is not available.")
         return
 
     args = event["command_args"].strip()
 
     try:
-        cur = bot.db_connection.cursor()
+        cur = conn.cursor()
 
         # If a nickname is provided, show that user's birthday
         if args:
@@ -186,22 +190,25 @@ def _show_birthdays(bot, event):
                 bot.add_response("No birthdays have been set yet.")
 
         cur.close()
+        bot.db_return(conn)
 
     except Exception as e:
+        bot.db_return(conn)
         bot.logger.error(f"Database error in birthday module: {e}")
         bot.add_response("Error retrieving birthday information.")
 
 
 def _show_age(bot, event):
     """Show a user's age in years, weeks, and days"""
-    if not bot.db_connection:
+    conn = bot.db_get()
+    if not conn:
         bot.add_response("Database connection is not available.")
         return
 
     args = event["command_args"].strip()
 
     try:
-        cur = bot.db_connection.cursor()
+        cur = conn.cursor()
 
         # If a nickname is provided, show that user's age
         if args:
@@ -278,21 +285,24 @@ def _show_age(bot, event):
                 )
 
         cur.close()
+        bot.db_return(conn)
 
     except Exception as e:
+        bot.db_return(conn)
         bot.logger.error(f"Database error in birthday module: {e}")
         bot.add_response("Error retrieving birthday information.")
 
 
 def _check_todays_birthdays(bot, channel):
     """Check for birthdays today and send congratulations"""
-    if not bot.db_connection:
+    conn = bot.db_get()
+    if not conn:
         return
 
     try:
         today = datetime.date.today()
 
-        cur = bot.db_connection.cursor()
+        cur = conn.cursor()
         cur.execute(
             """
             SELECT username, dob
@@ -307,6 +317,7 @@ def _check_todays_birthdays(bot, channel):
 
         birthday_users = cur.fetchall()
         cur.close()
+        bot.db_return(conn)
 
         if birthday_users:
             bot.add_response(f"🎂 Today's Birthdays 🎂", private=False)
@@ -318,4 +329,5 @@ def _check_todays_birthdays(bot, channel):
                 )
 
     except Exception as e:
+        bot.db_return(conn)
         bot.logger.error(f"Error checking today's birthdays: {e}")

@@ -27,12 +27,13 @@ def run(bot, event):
     channel = args[1] if len(args) > 1 else ""
 
     # Check if the database connection is available
-    if not bot.db_connection:
+    conn = bot.db_get()
+    if not conn:
         bot.add_response("Database connection is not available.")
         return
 
     try:
-        cur = bot.db_connection.cursor()
+        cur = conn.cursor()
 
         # Find users with the specified permission
         if channel:
@@ -56,6 +57,7 @@ def run(bot, event):
 
         users = [row[0] for row in cur.fetchall()]
         cur.close()
+        bot.db_return(conn)
 
         if users:
             if channel:

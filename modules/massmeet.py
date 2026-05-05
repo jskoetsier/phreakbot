@@ -24,7 +24,8 @@ def run(bot, event):
         return
 
     # Check if the database connection is available
-    if not bot.db_connection:
+    conn = bot.db_get()
+    if not conn:
         bot.add_response("Database connection is not available.")
         return
 
@@ -76,13 +77,14 @@ def run(bot, event):
         else:
             bot.logger.warning(f"Channel {current_channel} not in bot.channels")
             bot.add_response(f"Could not access channel {current_channel}")
+            bot.db_return(conn)
             return
 
         stats["total_users"] = len(all_users)
         bot.logger.info(f"Found {len(all_users)} users to process")
 
         # Process each user
-        cur = bot.db_connection.cursor()
+        cur = conn.cursor()
 
         for nickname, hostmask in all_users.items():
             try:
@@ -178,8 +180,9 @@ def run(bot, event):
                 stats["errors"] += 1
 
         # Commit all changes
-        bot.db_connection.commit()
+        conn.commit()
         cur.close()
+        bot.db_return(conn)
 
         # Report results
         summary = (
@@ -194,7 +197,8 @@ def run(bot, event):
         bot.add_response(summary)
 
     except Exception as e:
-        bot.db_connection.rollback()
+        conn.rollback()
+        bot.db_return(conn)
         bot.logger.error(f"Error in massmeet module: {e}")
 
         bot.logger.error(f"Traceback: {traceback.format_exc()}")
