@@ -79,5 +79,6 @@ def run(bot, event):
                 )
 
     except Exception as e:
+        bot.db_return(conn)
         bot.logger.error(f"Database error in whocan module: {e}")
         bot.add_response("Error retrieving permission information.")

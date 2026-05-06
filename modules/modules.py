@@ -41,6 +41,17 @@ def run(bot, event):
         bot.add_response("This command requires at least one argument (module name)")
         return
 
+    module_name = event["command_args"]
+
+    # Security: prevent path traversal in module name
+    import re
+
+    if not re.match(r"^[a-zA-Z0-9_-]+$", module_name):
+        bot.add_response(
+            "Invalid module name. Only alphanumeric characters, hyphens, and underscores are allowed."
+        )
+        return
+
     if event["command"] == "load" or event["command"] == "reload":
         module_name = event["command_args"]
 
@@ -58,6 +69,13 @@ def run(bot, event):
 
             # Construct the full path to the module
             module_path = os.path.join(bot.bot_base, "modules", f"{module_name}.py")
+
+            # Security: ensure the resolved path is within the modules directory
+            real_module_path = os.path.realpath(module_path)
+            real_modules_dir = os.path.realpath(os.path.join(bot.bot_base, "modules"))
+            if not real_module_path.startswith(real_modules_dir + os.sep):
+                bot.add_response("Module path is outside the allowed directory.")
+                return
 
             # Check if the file exists
             if not os.path.exists(module_path):
@@ -113,6 +131,16 @@ def run(bot, event):
 
     if event["command"] == "unload":
         module_name = event["command_args"]
+
+        # Security: prevent path traversal in module name
+        import re
+
+        if not re.match(r"^[a-zA-Z0-9_-]+$", module_name):
+            bot.add_response(
+                "Invalid module name. Only alphanumeric characters, hyphens, and underscores are allowed."
+            )
+            return
+
         if module_name in bot.modules:
             success = bot.unload_module(module_name)
             if success:

@@ -1,5 +1,39 @@
 # Changelog
 
+## 0.1.34 (2026-05-06)
+
+### Changed - Architecture Refactoring & Test Expansion
+
+- **Refactored monolithic phreakbot.py into phreakbot_core/ package**
+  - Split 1,153-line `phreakbot.py` into 8 focused modules: `config.py`, `database.py`, `security.py`, `cache.py`, `permissions.py`, `events.py`, `bot.py`
+  - `phreakbot.py` is now a thin backward-compatible wrapper that re-exports `PhreakBot` from `phreakbot_core.bot`
+  - Each mixin has a single responsibility: ConfigMixin, DatabaseMixin, SecurityMixin, CacheMixin, PermissionMixin, EventsMixin
+  - No functional behavior changes; all existing modules work unchanged
+
+- **Expanded test suite from 49 to 183 tests**
+  - Added 97 module tests covering `asn`, `mac`, `ip`, `karma`, `quotes`, `urls` modules
+  - Added 37 core event handling tests for `_handle_message`, `_dispatch_event`, `_process_output`, `on_connect`, `on_disconnect`, `on_join`, `on_part`, `on_quit`, `on_ctcp`, `on_names`
+  - Coverage: `phreakbot_core/events.py` 10.8% -> 81.2%, `phreakbot_core/security.py` 42% -> 92%, `phreakbot_core/database.py` 50% -> 76.4%
+
+### Fixed - Security & Bugs
+
+- **Path traversal vulnerability in `modules/modules.py`**
+  - Added regex validation (`^[a-zA-Z0-9_-]+$`) for module names
+  - Added `os.path.realpath()` boundary check to prevent `../../../etc/passwd` traversal
+
+- **Missing HTTP timeout in `modules/irrexplorer.py`**
+  - Added `timeout=10` to `requests.get()` calls to prevent indefinite hangs
+
+- **Broken permission check in `modules/quotes.py`**
+  - Fixed `_delete_quote()` using `event["source"]` (doesn't exist) to `event["hostmask"]`
+
+- **Wrong table names in `modules/karma.py`**
+  - Fixed queries from `karma`/`karma_reasons` to `phreakbot_karma`/`phreakbot_karma_why`
+  - Fixed karma reason insertion to use correct `karma_id` column with proper lookup
+
+- **Database connection leak in `modules/birthday.py`**
+  - Added missing `bot.db_return(conn)` in `_show_age()` early-return path
+
 ## 0.1.33 (2026-05-05)
 
 ### Changed - Architecture Refactoring

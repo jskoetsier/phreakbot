@@ -53,7 +53,9 @@ def run(bot, event):
 
     try:
         bot.logger.info(f"Querying IRRExplorer for {net}")
-        req = requests.get(f"https://irrexplorer.nlnog.net/api/prefixes/prefix/{net}")
+        req = requests.get(
+            f"https://irrexplorer.nlnog.net/api/prefixes/prefix/{net}", timeout=10
+        )
 
         # check results
         if req.status_code != 200:

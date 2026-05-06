@@ -53,36 +53,38 @@ def _show_quote(bot, event):
         bot.add_response("Database connection is not available.")
         return
 
-    cur = conn.cursor()
+    try:
+        cur = conn.cursor()
 
-    if not search_term:
-        # Show a random quote
-        cur.execute(
-            "SELECT q.id, q.quote, u.username, q.channel, q.insert_time FROM phreakbot_quotes q "
-            "JOIN phreakbot_users u ON q.users_id = u.id "
-            "ORDER BY RANDOM() LIMIT 1"
-        )
-    elif search_term.isdigit():
-        # Show a specific quote by ID
-        cur.execute(
-            "SELECT q.id, q.quote, u.username, q.channel, q.insert_time FROM phreakbot_quotes q "
-            "JOIN phreakbot_users u ON q.users_id = u.id "
-            "WHERE q.id = %s",
-            (int(search_term),),
-        )
-    else:
-        # Search for quotes containing the search term
-        cur.execute(
-            "SELECT q.id, q.quote, u.username, q.channel, q.insert_time FROM phreakbot_quotes q "
-            "JOIN phreakbot_users u ON q.users_id = u.id "
-            "WHERE q.quote ILIKE %s "
-            "ORDER BY RANDOM() LIMIT 1",
-            (f"%{search_term}%",),
-        )
+        if not search_term:
+            # Show a random quote
+            cur.execute(
+                "SELECT q.id, q.quote, u.username, q.channel, q.insert_time FROM phreakbot_quotes q "
+                "JOIN phreakbot_users u ON q.users_id = u.id "
+                "ORDER BY RANDOM() LIMIT 1"
+            )
+        elif search_term.isdigit():
+            # Show a specific quote by ID
+            cur.execute(
+                "SELECT q.id, q.quote, u.username, q.channel, q.insert_time FROM phreakbot_quotes q "
+                "JOIN phreakbot_users u ON q.users_id = u.id "
+                "WHERE q.id = %s",
+                (int(search_term),),
+            )
+        else:
+            # Search for quotes containing the search term
+            cur.execute(
+                "SELECT q.id, q.quote, u.username, q.channel, q.insert_time FROM phreakbot_quotes q "
+                "JOIN phreakbot_users u ON q.users_id = u.id "
+                "WHERE q.quote ILIKE %s "
+                "ORDER BY RANDOM() LIMIT 1",
+                (f"%{search_term}%",),
+            )
 
-    quote = cur.fetchone()
-    cur.close()
-    bot.db_return(conn)
+        quote = cur.fetchone()
+        cur.close()
+    finally:
+        bot.db_return(conn)
 
     if not quote:
         if search_term:
@@ -111,18 +113,20 @@ def _search_quotes(bot, event):
         bot.add_response("Database connection is not available.")
         return
 
-    cur = conn.cursor()
-    cur.execute(
-        "SELECT q.id, q.quote, u.username, q.channel, q.insert_time FROM phreakbot_quotes q "
-        "JOIN phreakbot_users u ON q.users_id = u.id "
-        "WHERE q.quote ILIKE %s "
-        "ORDER BY q.id LIMIT 5",
-        (f"%{search_term}%",),
-    )
+    try:
+        cur = conn.cursor()
+        cur.execute(
+            "SELECT q.id, q.quote, u.username, q.channel, q.insert_time FROM phreakbot_quotes q "
+            "JOIN phreakbot_users u ON q.users_id = u.id "
+            "WHERE q.quote ILIKE %s "
+            "ORDER BY q.id LIMIT 5",
+            (f"%{search_term}%",),
+        )
 
-    quotes = cur.fetchall()
-    cur.close()
-    bot.db_return(conn)
+        quotes = cur.fetchall()
+        cur.close()
+    finally:
+        bot.db_return(conn)
 
     if not quotes:
         bot.add_response(f"No quotes found matching '{search_term}'.")
@@ -192,7 +196,7 @@ def _add_quote(bot, event):
 def _delete_quote(bot, event):
     """Delete a quote from the database"""
     # Check if the user has permission to delete quotes
-    if not bot._is_owner(event["source"]) and not (
+    if not bot._is_owner(event["hostmask"]) and not (
         event["user_info"] and event["user_info"].get("is_admin")
     ):
         bot.add_response("Only the bot owner and admins can delete quotes.")

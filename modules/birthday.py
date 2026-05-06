@@ -229,6 +229,7 @@ def _show_age(bot, event):
                 "You need to be a registered user to use this command. Use !meet to register."
             )
             cur.close()
+            bot.db_return(conn)
             return
 
         if user:
