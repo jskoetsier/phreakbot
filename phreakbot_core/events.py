@@ -94,6 +94,12 @@ class EventsMixin:
         self._route_to_modules(event_obj, output)
         await self._process_output(event_obj, output)
 
+    async def on_ctcp_version(self, by, target, contents):
+        """Overridden to prevent pydle from sending its default 'pydle v...' response.
+        The custom response is handled dynamically by modules/version.py via on_ctcp.
+        """
+        pass
+
     async def on_names(self, channel, names):
         """Called when the server sends a NAMES reply"""
         self.logger.info(f"Received NAMES reply for {channel}: {names}")

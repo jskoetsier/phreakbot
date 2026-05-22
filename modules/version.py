@@ -35,8 +35,9 @@ def run(bot, event):
         # Handle CTCP VERSION
         if event["trigger"] == "event" and event["signal"] == "ctcp" and event.get("ctcp_command") == "VERSION":
             # In pydle, ctcp_reply is a method on the bot object itself
-            bot.logger.info(f"Sending CTCP VERSION reply to {event['nick']}: {version_info}")
-            bot.ctcp_reply(event["nick"], "VERSION", version_info)
+            ctcp_version_info = f"phreakbot v{version}"
+            bot.logger.info(f"Sending CTCP VERSION reply to {event['nick']}: {ctcp_version_info}")
+            bot.ctcp_reply(event["nick"], "VERSION", ctcp_version_info)
             return
 
     except Exception as e:

@@ -902,5 +902,51 @@ class TestInfoItemsModule:
         mock_add.assert_called_once_with(mock_bot, event, "sjappie", "awesome coder")
 
 
+@pytest.mark.unit
+class TestVersionModule:
+    """Tests for the version module."""
+
+    def test_config_returns_expected_structure(self, mock_bot):
+        from modules import version
+        cfg = version.config(mock_bot)
+        assert "ctcp" in cfg["events"]
+        assert "version" in cfg["commands"]
+        assert "user" in cfg["permissions"]
+
+    def test_run_command(self, mock_bot):
+        from modules import version
+        from unittest.mock import mock_open
+        event = {
+            "trigger": "command",
+            "command": "version",
+            "command_args": "",
+            "nick": "user",
+            "channel": "#test"
+        }
+        with patch("builtins.open", mock_open(read_data="0.1.34")):
+            version.run(mock_bot, event)
+        
+        # Verify it replies with PhreakBot v0.1.34 running on Python ...
+        assert len(mock_bot._active_output) > 0
+        assert "PhreakBot v0.1.34 running on Python" in mock_bot._active_output[0]["msg"]
+
+    def test_run_ctcp_version(self, mock_bot):
+        from modules import version
+        from unittest.mock import mock_open
+        event = {
+            "trigger": "event",
+            "signal": "ctcp",
+            "ctcp_command": "VERSION",
+            "nick": "user",
+            "channel": "#test"
+        }
+        mock_bot.ctcp_reply = Mock()
+        with patch("builtins.open", mock_open(read_data="0.1.34")):
+            version.run(mock_bot, event)
+        
+        # Verify it calls bot.ctcp_reply with "VERSION" and "phreakbot v0.1.34"
+        mock_bot.ctcp_reply.assert_called_once_with("user", "VERSION", "phreakbot v0.1.34")
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])

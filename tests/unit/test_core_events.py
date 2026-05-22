@@ -285,6 +285,13 @@ class TestOnCTCP:
             assert args[0]["hostmask"] == "user!unknown@unknown"
             mock_process.assert_awaited_once()
 
+    @pytest.mark.unit
+    @pytest.mark.asyncio
+    async def test_on_ctcp_version(self, bot):
+        """Test on_ctcp_version does nothing."""
+        result = await bot.on_ctcp_version("user", "#test", "")
+        assert result is None
+
 
 class TestHandleMessage:
     """Test _handle_message method."""
