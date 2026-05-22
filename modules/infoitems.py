@@ -102,7 +102,7 @@ def run(bot, event):
 
 def handle_custom_command(bot, event):
     """Handle custom infoitem commands like !item = value or !item?"""
-    if event["trigger"] == "event" and event["text"].startswith(bot.config["trigger"]):
+    if event["trigger"] == "event" and event.get("text") and event["text"].startswith(bot.config["trigger"]):
         bot.logger.info(f"Infoitems handle_custom_command processing: {event['text']}")
 
         # Skip if it is a karma increment/decrement pattern (e.g. !sjappie++ or !sjappie--)

@@ -901,6 +901,12 @@ class TestInfoItemsModule:
         assert infoitems.handle_custom_command(mock_bot, event) is True
         mock_add.assert_called_once_with(mock_bot, event, "sjappie", "awesome coder")
 
+    def test_handle_custom_command_none_text(self, mock_bot):
+        from modules import infoitems
+        mock_bot.config = {"trigger": "!"}
+        event = {"trigger": "event", "text": None, "channel": "#phreaky"}
+        assert infoitems.handle_custom_command(mock_bot, event) is False
+
 
 @pytest.mark.unit
 class TestVersionModule:
@@ -946,6 +952,317 @@ class TestVersionModule:
         
         # Verify it calls bot.ctcp_reply with "VERSION" and "phreakbot v0.1.34"
         mock_bot.ctcp_reply.assert_called_once_with("user", "VERSION", "phreakbot v0.1.34")
+
+
+@pytest.mark.unit
+class TestAutoOpModule:
+    """Tests for the auto-op module."""
+
+    @pytest.fixture
+    def auto_op(self):
+        import importlib.util
+        import os
+        module_path = os.path.abspath(
+            os.path.join(
+                os.path.dirname(__file__),
+                "..",
+                "..",
+                "modules",
+                "auto-op.py"
+            )
+        )
+        spec = importlib.util.spec_from_file_location("auto_op", module_path)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        return module
+
+    def test_config_returns_expected_structure(self, mock_bot, auto_op):
+        cfg = auto_op.config(mock_bot)
+        assert "join" in cfg["events"]
+        assert "autoop" in cfg["commands"]
+        assert "owner" in cfg["permissions"]
+
+    def test_run_join_event_auto_op_success(self, mock_bot, mock_db_conn, mock_db_cursor, auto_op):
+        mock_bot.db_get.return_value = mock_db_conn
+        mock_bot.nickname = "sjappie"
+        mock_db_cursor.fetchone.return_value = (1,)
+        
+        event = {
+            "trigger": "event",
+            "signal": "join",
+            "nick": "phreak",
+            "hostmask": "phreak!~phreak@proxy.koetsier.org",
+            "channel": "#phreaky"
+        }
+        
+        with patch("asyncio.create_task") as mock_create_task:
+            auto_op.run(mock_bot, event)
+            mock_db_cursor.execute.assert_called_once()
+            mock_create_task.assert_called_once()
+
+    def test_run_join_event_not_in_list(self, mock_bot, mock_db_conn, mock_db_cursor, auto_op):
+        mock_bot.db_get.return_value = mock_db_conn
+        mock_bot.nickname = "sjappie"
+        mock_db_cursor.fetchone.return_value = None
+        
+        event = {
+            "trigger": "event",
+            "signal": "join",
+            "nick": "phreak",
+            "hostmask": "phreak!~phreak@proxy.koetsier.org",
+            "channel": "#phreaky"
+        }
+        
+        with patch("asyncio.create_task") as mock_create_task:
+            auto_op.run(mock_bot, event)
+            mock_db_cursor.execute.assert_called_once()
+            mock_create_task.assert_not_called()
+
+    def test_run_add_auto_op_no_permission(self, mock_bot, auto_op):
+        mock_bot._is_owner.return_value = False
+        event = {
+            "trigger": "command",
+            "command": "autoop",
+            "command_args": "phreak #phreaky",
+            "hostmask": "phreak!~phreak@proxy.koetsier.org",
+            "channel": "#phreaky",
+            "user_info": None
+        }
+        auto_op.run(mock_bot, event)
+        assert any("You don't have permission" in r["msg"] for r in mock_bot._active_output)
+
+    def test_run_add_auto_op_success(self, mock_bot, mock_db_conn, mock_db_cursor, auto_op):
+        mock_bot._is_owner.return_value = True
+        mock_bot.db_get.return_value = mock_db_conn
+        # First call finds user (2,), second call checks if in auto-op (None)
+        mock_db_cursor.fetchone.side_effect = [(2,), None]
+        
+        event = {
+            "trigger": "command",
+            "command": "autoop",
+            "command_args": "phreak #phreaky",
+            "hostmask": "phreak!~phreak@proxy.koetsier.org",
+            "channel": "#phreaky"
+        }
+        auto_op.run(mock_bot, event)
+        assert any("Added 'phreak' to the auto-op list" in r["msg"] for r in mock_bot._active_output)
+
+    def test_run_add_auto_op_user_not_found(self, mock_bot, mock_db_conn, mock_db_cursor, auto_op):
+        mock_bot._is_owner.return_value = True
+        mock_bot.db_get.return_value = mock_db_conn
+        mock_db_cursor.fetchone.return_value = None
+        
+        event = {
+            "trigger": "command",
+            "command": "autoop",
+            "command_args": "phreak #phreaky",
+            "hostmask": "phreak!~phreak@proxy.koetsier.org",
+            "channel": "#phreaky"
+        }
+        auto_op.run(mock_bot, event)
+        assert any("not found. They need to be registered first" in r["msg"] for r in mock_bot._active_output)
+
+    def test_run_add_auto_op_already_exists(self, mock_bot, mock_db_conn, mock_db_cursor, auto_op):
+        mock_bot._is_owner.return_value = True
+        mock_bot.db_get.return_value = mock_db_conn
+        # First call finds user (2,), second call checks if in auto-op (already exists)
+        mock_db_cursor.fetchone.side_effect = [(2,), (1,)]
+        
+        event = {
+            "trigger": "command",
+            "command": "autoop",
+            "command_args": "phreak #phreaky",
+            "hostmask": "phreak!~phreak@proxy.koetsier.org",
+            "channel": "#phreaky"
+        }
+        auto_op.run(mock_bot, event)
+        assert any("already in the auto-op list" in r["msg"] for r in mock_bot._active_output)
+
+    def test_run_remove_auto_op_success(self, mock_bot, mock_db_conn, mock_db_cursor, auto_op):
+        mock_bot._is_owner.return_value = True
+        mock_bot.db_get.return_value = mock_db_conn
+        mock_db_cursor.fetchone.return_value = (2,)
+        mock_db_cursor.rowcount = 1
+        
+        event = {
+            "trigger": "command",
+            "command": "deautoop",
+            "command_args": "phreak #phreaky",
+            "hostmask": "phreak!~phreak@proxy.koetsier.org",
+            "channel": "#phreaky"
+        }
+        auto_op.run(mock_bot, event)
+        assert any("Removed 'phreak' from the auto-op list" in r["msg"] for r in mock_bot._active_output)
+
+    def test_run_remove_auto_op_not_found(self, mock_bot, mock_db_conn, mock_db_cursor, auto_op):
+        mock_bot._is_owner.return_value = True
+        mock_bot.db_get.return_value = mock_db_conn
+        mock_db_cursor.fetchone.return_value = (2,)
+        mock_db_cursor.rowcount = 0
+        
+        event = {
+            "trigger": "command",
+            "command": "deautoop",
+            "command_args": "phreak #phreaky",
+            "hostmask": "phreak!~phreak@proxy.koetsier.org",
+            "channel": "#phreaky"
+        }
+        auto_op.run(mock_bot, event)
+        assert any("is not in the auto-op list" in r["msg"] for r in mock_bot._active_output)
+
+    def test_run_list_auto_op_success(self, mock_bot, mock_db_conn, mock_db_cursor, auto_op):
+        mock_bot.db_get.return_value = mock_db_conn
+        mock_db_cursor.fetchall.side_effect = [[("phreak",)], [("global_user",)]]
+        
+        event = {
+            "trigger": "command",
+            "command": "listautoop",
+            "command_args": "#phreaky",
+            "channel": "#phreaky"
+        }
+        auto_op.run(mock_bot, event)
+        assert any("Users with auto-op in #phreaky" in r["msg"] for r in mock_bot._active_output)
+        assert any("Users with global auto-op" in r["msg"] for r in mock_bot._active_output)
+
+
+@pytest.mark.unit
+class TestAutovoiceModule:
+    """Tests for the autovoice module."""
+
+    def test_config_returns_expected_structure(self, mock_bot):
+        from modules import autovoice
+        cfg = autovoice.config(mock_bot)
+        assert "join" in cfg["events"]
+        assert "autovoice" in cfg["commands"]
+        assert "owner" in cfg["permissions"]
+
+    def test_run_join_event_autovoice_success(self, mock_bot, mock_db_conn, mock_db_cursor):
+        from modules import autovoice
+        mock_bot.db_get.return_value = mock_db_conn
+        mock_bot.nickname = "sjappie"
+        # First query: checks if autovoice is enabled (True)
+        # Second query: checks if user is registered (True)
+        mock_db_cursor.fetchone.side_effect = [(1,), (1,)]
+        
+        event = {
+            "trigger": "event",
+            "signal": "join",
+            "nick": "phreak",
+            "hostmask": "phreak!~phreak@proxy.koetsier.org",
+            "channel": "#phreaky"
+        }
+        
+        with patch("asyncio.create_task") as mock_create_task:
+            autovoice.run(mock_bot, event)
+            assert mock_db_cursor.execute.call_count == 2
+            mock_create_task.assert_called_once()
+
+    def test_run_join_event_not_enabled(self, mock_bot, mock_db_conn, mock_db_cursor):
+        from modules import autovoice
+        mock_bot.db_get.return_value = mock_db_conn
+        mock_bot.nickname = "sjappie"
+        # First query: checks if autovoice enabled (None)
+        mock_db_cursor.fetchone.return_value = None
+        
+        event = {
+            "trigger": "event",
+            "signal": "join",
+            "nick": "phreak",
+            "hostmask": "phreak!~phreak@proxy.koetsier.org",
+            "channel": "#phreaky"
+        }
+        
+        with patch("asyncio.create_task") as mock_create_task:
+            autovoice.run(mock_bot, event)
+            mock_db_cursor.execute.assert_called_once()
+            mock_create_task.assert_not_called()
+
+    def test_run_join_event_not_registered(self, mock_bot, mock_db_conn, mock_db_cursor):
+        from modules import autovoice
+        mock_bot.db_get.return_value = mock_db_conn
+        mock_bot.nickname = "sjappie"
+        # First query: enabled (True), Second query: registered (None)
+        mock_db_cursor.fetchone.side_effect = [(1,), None]
+        
+        event = {
+            "trigger": "event",
+            "signal": "join",
+            "nick": "phreak",
+            "hostmask": "phreak!~phreak@proxy.koetsier.org",
+            "channel": "#phreaky"
+        }
+        
+        with patch("asyncio.create_task") as mock_create_task:
+            autovoice.run(mock_bot, event)
+            assert mock_db_cursor.execute.call_count == 2
+            mock_create_task.assert_not_called()
+
+    def test_manage_autovoice_no_permission(self, mock_bot):
+        from modules import autovoice
+        mock_bot._is_owner.return_value = False
+        event = {
+            "trigger": "command",
+            "command": "autovoice",
+            "command_args": "on #phreaky",
+            "hostmask": "phreak!~phreak@proxy.koetsier.org",
+            "channel": "#phreaky",
+            "user_info": None
+        }
+        autovoice.run(mock_bot, event)
+        assert any("You don't have permission" in r["msg"] for r in mock_bot._active_output)
+
+    def test_manage_autovoice_on(self, mock_bot, mock_db_conn, mock_db_cursor):
+        from modules import autovoice
+        mock_bot._is_owner.return_value = True
+        mock_bot.db_get.return_value = mock_db_conn
+        
+        event = {
+            "trigger": "command",
+            "command": "autovoice",
+            "command_args": "on #phreaky",
+            "hostmask": "phreak!~phreak@proxy.koetsier.org",
+            "channel": "#phreaky"
+        }
+        with patch("asyncio.create_task") as mock_create_task:
+            autovoice.run(mock_bot, event)
+            mock_db_cursor.execute.assert_called_once()
+            mock_create_task.assert_called_once()
+            assert any("Autovoice enabled for #phreaky" in r["msg"] for r in mock_bot._active_output)
+
+    def test_manage_autovoice_off(self, mock_bot, mock_db_conn, mock_db_cursor):
+        from modules import autovoice
+        mock_bot._is_owner.return_value = True
+        mock_bot.db_get.return_value = mock_db_conn
+        
+        event = {
+            "trigger": "command",
+            "command": "autovoice",
+            "command_args": "off #phreaky",
+            "hostmask": "phreak!~phreak@proxy.koetsier.org",
+            "channel": "#phreaky"
+        }
+        with patch("asyncio.create_task") as mock_create_task:
+            autovoice.run(mock_bot, event)
+            mock_db_cursor.execute.assert_called_once()
+            mock_create_task.assert_called_once()
+            assert any("Autovoice disabled for #phreaky" in r["msg"] for r in mock_bot._active_output)
+
+    def test_manage_autovoice_status(self, mock_bot, mock_db_conn, mock_db_cursor):
+        from modules import autovoice
+        mock_bot._is_owner.return_value = True
+        mock_bot.db_get.return_value = mock_db_conn
+        mock_db_cursor.fetchone.return_value = (True,)
+        
+        event = {
+            "trigger": "command",
+            "command": "autovoice",
+            "command_args": "status #phreaky",
+            "hostmask": "phreak!~phreak@proxy.koetsier.org",
+            "channel": "#phreaky"
+        }
+        autovoice.run(mock_bot, event)
+        mock_db_cursor.execute.assert_called_once()
+        assert any("Autovoice is enabled for #phreaky" in r["msg"] for r in mock_bot._active_output)
 
 
 if __name__ == "__main__":

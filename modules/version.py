@@ -3,6 +3,7 @@
 #
 # Version module for PhreakBot
 
+import asyncio
 import os
 import platform
 
@@ -37,7 +38,7 @@ def run(bot, event):
             # In pydle, ctcp_reply is a method on the bot object itself
             ctcp_version_info = f"phreakbot v{version}"
             bot.logger.info(f"Sending CTCP VERSION reply to {event['nick']}: {ctcp_version_info}")
-            bot.ctcp_reply(event["nick"], "VERSION", ctcp_version_info)
+            asyncio.create_task(bot.ctcp_reply(event["nick"], "VERSION", ctcp_version_info))
             return
 
     except Exception as e:
