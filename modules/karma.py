@@ -44,6 +44,7 @@ def _handle_karma_pattern(bot, event):
     item = match.group(1).lower()
     direction = "up" if match.group(2) == "++" else "down"
     reason = match.group(3)
+    channel = event.get("channel", "")
 
     if item == event["nick"].lower():
         bot.reply("You can't give karma to yourself!")
@@ -56,7 +57,7 @@ def _handle_karma_pattern(bot, event):
 
     try:
         cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
-        cur.execute("SELECT * FROM phreakbot_karma WHERE LOWER(item) = LOWER(%s)", (item,))
+        cur.execute("SELECT * FROM phreakbot_karma WHERE LOWER(item) = LOWER(%s) AND channel = %s", (item, channel))
         karma_item = cur.fetchone()
 
         if direction == "up":
@@ -64,27 +65,27 @@ def _handle_karma_pattern(bot, event):
                 cur.execute("UPDATE phreakbot_karma SET karma = karma + 1 WHERE id = %s", (karma_item["id"],))
                 karma_value = karma_item["karma"] + 1
             else:
-                cur.execute("INSERT INTO phreakbot_karma (item, karma) VALUES (%s, 1) RETURNING id, karma", (item,))
+                cur.execute("INSERT INTO phreakbot_karma (item, karma, channel) VALUES (%s, 1, %s) RETURNING id, karma", (item, channel))
                 karma_value = cur.fetchone()["karma"]
         else:
             if karma_item:
                 cur.execute("UPDATE phreakbot_karma SET karma = karma - 1 WHERE id = %s", (karma_item["id"],))
                 karma_value = karma_item["karma"] - 1
             else:
-                cur.execute("INSERT INTO phreakbot_karma (item, karma) VALUES (%s, -1) RETURNING id, karma", (item,))
+                cur.execute("INSERT INTO phreakbot_karma (item, karma, channel) VALUES (%s, -1, %s) RETURNING id, karma", (item, channel))
                 karma_value = cur.fetchone()["karma"]
 
         if reason:
             # Need to get the karma_id first
             cur.execute(
-                "SELECT id FROM phreakbot_karma WHERE LOWER(item) = LOWER(%s)",
-                (item,),
+                "SELECT id FROM phreakbot_karma WHERE LOWER(item) = LOWER(%s) AND channel = %s",
+                (item, channel),
             )
             karma_row = cur.fetchone()
             if karma_row:
                 cur.execute(
                     "INSERT INTO phreakbot_karma_why (karma_id, reason, direction, channel) VALUES (%s, %s, %s, %s)",
-                    (karma_row["id"], reason, direction, event.get("channel", "")),
+                    (karma_row["id"], reason, direction, channel),
                 )
 
         conn.commit()
@@ -108,6 +109,7 @@ def _cmd_karma(bot, event):
         return True
 
     item = args.split()[0].lower()
+    channel = event.get("channel", "")
     conn = bot.db_get()
     if not conn:
         bot.reply("Database connection is not available.")
@@ -115,7 +117,7 @@ def _cmd_karma(bot, event):
 
     try:
         cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
-        cur.execute("SELECT * FROM phreakbot_karma WHERE LOWER(item) = LOWER(%s)", (item,))
+        cur.execute("SELECT * FROM phreakbot_karma WHERE LOWER(item) = LOWER(%s) AND channel = %s", (item, channel))
         karma_item = cur.fetchone()
 
         if not karma_item:
@@ -125,8 +127,8 @@ def _cmd_karma(bot, event):
             return True
 
         cur.execute(
-            "SELECT kw.* FROM phreakbot_karma_why kw JOIN phreakbot_karma k ON kw.karma_id = k.id WHERE LOWER(k.item) = LOWER(%s) ORDER BY kw.id DESC LIMIT 3",
-            (item,),
+            "SELECT kw.* FROM phreakbot_karma_why kw JOIN phreakbot_karma k ON kw.karma_id = k.id WHERE LOWER(k.item) = LOWER(%s) AND k.channel = %s ORDER BY kw.id DESC LIMIT 3",
+            (item, channel),
         )
         reasons = cur.fetchall()
 
@@ -158,6 +160,7 @@ def _cmd_topkarma(bot, event):
         if limit > 10:
             limit = 10
 
+    channel = event.get("channel", "")
     conn = bot.db_get()
     if not conn:
         bot.reply("Database connection is not available.")
@@ -166,10 +169,10 @@ def _cmd_topkarma(bot, event):
     try:
         cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
 
-        cur.execute("SELECT * FROM phreakbot_karma WHERE karma > 0 ORDER BY karma DESC LIMIT %s", (limit,))
+        cur.execute("SELECT * FROM phreakbot_karma WHERE karma > 0 AND channel = %s ORDER BY karma DESC LIMIT %s", (channel, limit))
         top_positive = cur.fetchall()
 
-        cur.execute("SELECT * FROM phreakbot_karma WHERE karma < 0 ORDER BY karma ASC LIMIT %s", (limit,))
+        cur.execute("SELECT * FROM phreakbot_karma WHERE karma < 0 AND channel = %s ORDER BY karma ASC LIMIT %s", (channel, limit))
         top_negative = cur.fetchall()
 
         if top_positive:

@@ -531,7 +531,7 @@ class TestKarmaModule:
         mock_db_cursor.fetchall.return_value = []
         event = {"command_args": "3"}
         karma._cmd_topkarma(mock_bot, event)
-        assert mock_db_cursor.execute.call_args[0][1] == (3,)
+        assert mock_db_cursor.execute.call_args[0][1] == ("", 3)
 
     def test_cmd_topkarma_limit_capped(self, mock_bot, mock_db_conn, mock_db_cursor):
         from modules import karma
@@ -539,7 +539,7 @@ class TestKarmaModule:
         mock_db_cursor.fetchall.return_value = []
         event = {"command_args": "50"}
         karma._cmd_topkarma(mock_bot, event)
-        assert mock_db_cursor.execute.call_args[0][1] == (10,)
+        assert mock_db_cursor.execute.call_args[0][1] == ("", 10)
 
     def test_cmd_topkarma_no_db(self, mock_bot):
         from modules import karma
