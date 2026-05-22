@@ -107,6 +107,11 @@ def _add_auto_op(bot, event):
     nick = args[0]
     channel = args[1] if len(args) > 1 else event["channel"]
 
+    if not channel.startswith("#"):
+        bot.add_response("Please specify a valid channel name (e.g. #channel).")
+        return
+
+
     # Check if the database connection is available
     conn = bot.db_get()
     if not conn:
@@ -187,6 +192,11 @@ def _remove_auto_op(bot, event):
     nick = args[0]
     channel = args[1] if len(args) > 1 else event["channel"]
 
+    if not channel.startswith("#"):
+        bot.add_response("Please specify a valid channel name (e.g. #channel).")
+        return
+
+
     # Check if the database connection is available
     conn = bot.db_get()
     if not conn:
@@ -235,6 +245,11 @@ def _remove_auto_op(bot, event):
 def _list_auto_op(bot, event):
     """List users in the auto-op list"""
     channel = event["command_args"] if event["command_args"] else event["channel"]
+
+    if not channel.startswith("#"):
+        bot.add_response("Please specify a valid channel name (e.g. #channel).")
+        return
+
 
     # Check if the database connection is available
     conn = bot.db_get()

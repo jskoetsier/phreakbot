@@ -1124,6 +1124,40 @@ class TestAutoOpModule:
         assert any("Users with auto-op in #phreaky" in r["msg"] for r in mock_bot._active_output)
         assert any("Users with global auto-op" in r["msg"] for r in mock_bot._active_output)
 
+    def test_run_add_auto_op_invalid_channel(self, mock_bot, auto_op):
+        mock_bot._is_owner.return_value = True
+        event = {
+            "trigger": "command",
+            "command": "autoop",
+            "command_args": "phreak",
+            "hostmask": "phreak!~phreak@proxy.koetsier.org",
+            "channel": "phreak"
+        }
+        auto_op.run(mock_bot, event)
+        assert any("Please specify a valid channel name" in r["msg"] for r in mock_bot._active_output)
+
+    def test_run_remove_auto_op_invalid_channel(self, mock_bot, auto_op):
+        mock_bot._is_owner.return_value = True
+        event = {
+            "trigger": "command",
+            "command": "deautoop",
+            "command_args": "phreak",
+            "hostmask": "phreak!~phreak@proxy.koetsier.org",
+            "channel": "phreak"
+        }
+        auto_op.run(mock_bot, event)
+        assert any("Please specify a valid channel name" in r["msg"] for r in mock_bot._active_output)
+
+    def test_run_list_auto_op_invalid_channel(self, mock_bot, auto_op):
+        event = {
+            "trigger": "command",
+            "command": "listautoop",
+            "command_args": "",
+            "channel": "phreak"
+        }
+        auto_op.run(mock_bot, event)
+        assert any("Please specify a valid channel name" in r["msg"] for r in mock_bot._active_output)
+
 
 @pytest.mark.unit
 class TestAutovoiceModule:
@@ -1263,6 +1297,20 @@ class TestAutovoiceModule:
         autovoice.run(mock_bot, event)
         mock_db_cursor.execute.assert_called_once()
         assert any("Autovoice is enabled for #phreaky" in r["msg"] for r in mock_bot._active_output)
+
+    def test_manage_autovoice_invalid_channel(self, mock_bot):
+        from modules import autovoice
+        mock_bot._is_owner.return_value = True
+        event = {
+            "trigger": "command",
+            "command": "autovoice",
+            "command_args": "on",
+            "hostmask": "phreak!~phreak@proxy.koetsier.org",
+            "channel": "phreak"
+        }
+        autovoice.run(mock_bot, event)
+        assert any("Please specify a valid channel name" in r["msg"] for r in mock_bot._active_output)
+
 
 
 if __name__ == "__main__":

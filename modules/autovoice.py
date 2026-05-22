@@ -113,6 +113,11 @@ def _manage_autovoice(bot, event):
     action = args[0].lower()
     channel = args[1] if len(args) > 1 else event["channel"]
 
+    if not channel.startswith("#"):
+        bot.add_response("Please specify a valid channel name (e.g. #channel).")
+        return
+
+
     # Check if the database connection is available
     conn = bot.db_get()
     if not conn:
