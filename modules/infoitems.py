@@ -105,6 +105,11 @@ def handle_custom_command(bot, event):
     if event["trigger"] == "event" and event["text"].startswith(bot.config["trigger"]):
         bot.logger.info(f"Infoitems handle_custom_command processing: {event['text']}")
 
+        # Skip if it is a karma increment/decrement pattern (e.g. !sjappie++ or !sjappie--)
+        karma_pattern = re.compile(r"^\!([a-zA-Z0-9_-]+)(\+\+|\-\-)(?:\s+#(.+))?$")
+        if karma_pattern.match(event["text"]):
+            return False
+
         # Check for !item? pattern
         get_pattern = re.compile(r"^\!([a-zA-Z0-9_-]+)\?$")
         get_match = get_pattern.match(event["text"])

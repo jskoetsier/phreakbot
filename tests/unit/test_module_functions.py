@@ -855,5 +855,52 @@ class TestUrlsModule:
         assert result.endswith("...")
 
 
+@pytest.mark.unit
+class TestInfoItemsModule:
+    """Tests for the infoitems module."""
+
+    def test_config_returns_expected_structure(self, mock_bot):
+        from modules import infoitems
+        cfg = infoitems.config(mock_bot)
+        assert "infoitem" in cfg["commands"]
+        assert "info" in cfg["commands"]
+        assert "forget" in cfg["commands"]
+
+    def test_handle_custom_command_karma_pattern(self, mock_bot):
+        from modules import infoitems
+        mock_bot.config = {"trigger": "!"}
+        
+        # Test increment
+        event = {"trigger": "event", "text": "!sjappie++", "channel": "#phreaky"}
+        assert infoitems.handle_custom_command(mock_bot, event) is False
+
+        # Test decrement
+        event = {"trigger": "event", "text": "!sjappie--", "channel": "#phreaky"}
+        assert infoitems.handle_custom_command(mock_bot, event) is False
+
+        # Test increment with reason
+        event = {"trigger": "event", "text": "!sjappie++ #great work", "channel": "#phreaky"}
+        assert infoitems.handle_custom_command(mock_bot, event) is False
+
+    @patch("modules.infoitems._get_infoitem")
+    def test_handle_custom_command_get_item(self, mock_get, mock_bot):
+        from modules import infoitems
+        mock_bot.config = {"trigger": "!"}
+        event = {"trigger": "event", "text": "!sjappie?", "channel": "#phreaky"}
+        
+        assert infoitems.handle_custom_command(mock_bot, event) is True
+        mock_get.assert_called_once_with(mock_bot, event, "sjappie")
+
+    @patch("modules.infoitems._add_infoitem")
+    def test_handle_custom_command_set_item(self, mock_add, mock_bot):
+        from modules import infoitems
+        mock_bot.config = {"trigger": "!"}
+        mock_bot.modules = {} # No registered commands
+        event = {"trigger": "event", "text": "!sjappie = awesome coder", "channel": "#phreaky"}
+        
+        assert infoitems.handle_custom_command(mock_bot, event) is True
+        mock_add.assert_called_once_with(mock_bot, event, "sjappie", "awesome coder")
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])

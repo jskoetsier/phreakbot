@@ -10,6 +10,9 @@ echo "IRC Channel: $IRC_CHANNEL"
 echo "Database: $DB_HOST:$DB_PORT/$DB_NAME"
 echo "Bot Version: ${BOT_VERSION:-standard}"
 
+# Initialize the database and wait for PostgreSQL to be ready
+python scripts/init_db.py
+
 # Run the installation script
 python install.py \
   --server "$IRC_SERVER" \
@@ -18,7 +21,12 @@ python install.py \
   --channel "$IRC_CHANNEL" \
   --remote-ssh "${REMOTE_SSH_COMMAND:-}" \
   --remote-dir "${REMOTE_DIRECTORY:-/opt/phreakbot}" \
-  --config /app/config/config.json
+  --config /app/config/config.json \
+  --db-host "$DB_HOST" \
+  --db-port "$DB_PORT" \
+  --db-user "$DB_USER" \
+  --db-password "$DB_PASSWORD" \
+  --db-name "$DB_NAME"
 
 # Start the bot based on the BOT_VERSION environment variable
 if [ "${BOT_VERSION}" = "pydle" ]; then

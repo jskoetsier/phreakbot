@@ -26,3 +26,6 @@ import psycopg2.pool
 from phreakbot_core.bot import PhreakBot, main
 
 __all__ = ["PhreakBot", "main"]
+
+if __name__ == "__main__":
+    main()

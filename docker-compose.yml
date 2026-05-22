@@ -19,24 +19,6 @@ services:
     networks:
       - phreakbot-network
 
-  db-init:
-    image: docker.io/postgres:14-alpine
-    container_name: phreakbot-db-init
-    depends_on:
-      postgres:
-        condition: service_healthy
-    volumes:
-      - ./scripts/direct-init.sh:/direct-init.sh:Z
-      - ./dbschema.psql:/dbschema.psql:Z
-    command: /direct-init.sh
-    environment:
-      PGPASSWORD: ${POSTGRES_PASSWORD:-phreakbot}
-      PGHOST: postgres
-      PGUSER: ${POSTGRES_USER:-phreakbot}
-      PGDATABASE: ${POSTGRES_DB:-phreakbot}
-    networks:
-      - phreakbot-network
-
   phreakbot:
     build:
       context: .
@@ -44,14 +26,14 @@ services:
     container_name: phreakbot
     restart: unless-stopped
     depends_on:
-      db-init:
-        condition: service_completed_successfully
+      postgres:
+        condition: service_healthy
     volumes:
       - ./config:/app/config:Z
       - ./modules:/app/modules:Z
       - ./extra_modules:/app/extra_modules:Z
       - ./logs:/app/logs:Z
-      - ./scripts/startup.sh:/app/scripts/startup.sh:Z
+      - ./scripts:/app/scripts:Z
     environment:
       DB_HOST: postgres
       DB_PORT: 5432
