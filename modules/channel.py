@@ -52,6 +52,10 @@ def run(bot, event):
             bot.add_response("Please specify a channel to join.")
             return
 
+        if not chan.startswith("#"):
+            bot.add_response("Channel name must start with #.")
+            return
+
         bot.logger.info(f"Joining channel '{chan}' on command from '{event['nick']}'")
 
         try:
@@ -60,6 +64,9 @@ def run(bot, event):
                 await bot.join(chan)
 
             asyncio.create_task(join_channel())
+            if chan not in bot.config["channels"]:
+                bot.config["channels"].append(chan)
+                bot.save_config()
             bot.add_response(f"Joining {chan}")
         except Exception as e:
             bot.logger.error(f"Error joining channel: {e}")
@@ -90,6 +97,9 @@ def run(bot, event):
                 await bot.part(chan, f"Requested by {event['nick']}")
 
             asyncio.create_task(part_channel())
+            if chan in bot.config["channels"]:
+                bot.config["channels"].remove(chan)
+                bot.save_config()
             bot.add_response(f"Leaving {chan}")
         except Exception as e:
             bot.logger.error(f"Error parting channel: {e}")

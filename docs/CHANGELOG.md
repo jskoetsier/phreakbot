@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.1.38 (2026-06-23)
+
+### Fixed - Channel persistence
+
+- **`!join` and `!part` now persist across restarts**
+  - `!join` adds the channel to `config["channels"]` and saves `config.json`; on restart `on_connect` re-joins it automatically
+  - `!part` removes the channel from `config["channels"]` and saves `config.json`
+  - Added `#` prefix validation to `!join` (consistent with other channel commands)
+
 ## 0.1.37 (2026-06-23)
 
 ### Fixed - Permission system
