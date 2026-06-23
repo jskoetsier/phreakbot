@@ -18,6 +18,7 @@ class EventsMixin:
                 self.logger.info(f"Joined channel: {channel}")
             except Exception as e:
                 self.logger.error(f"Failed to join channel {channel}: {e}")
+        await super().on_connect()
 
     async def on_disconnect(self, expected):
         """Called when disconnected from server"""
@@ -25,7 +26,7 @@ class EventsMixin:
             self.logger.info("Disconnected from server as expected")
         else:
             self.logger.warning("Unexpectedly disconnected from server")
-            self.logger.info("Automatic reconnection will be attempted by pydle")
+        await super().on_disconnect(expected)
 
     async def on_message(self, target, source, message):
         """Called when a message is received in a channel or privately"""

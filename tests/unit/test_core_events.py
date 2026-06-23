@@ -190,9 +190,10 @@ class TestOnDisconnect:
     @pytest.mark.unit
     @pytest.mark.asyncio
     async def test_on_disconnect_unexpected(self, bot):
-        """Test unexpected disconnect."""
+        """Test unexpected disconnect triggers reconnect via super()."""
+        bot.connect = AsyncMock()
         await bot.on_disconnect(expected=False)
-        # Should not raise
+        bot.connect.assert_awaited_once_with(reconnect=True)
 
 
 class TestOnJoinPartQuit:

@@ -28,6 +28,9 @@ class PhreakBot(
     ConfigMixin,
     pydle.Client,
 ):
+    RECONNECT_ON_ERROR = True
+    RECONNECT_MAX_ATTEMPTS = None  # retry indefinitely on netsplit/server down
+    RECONNECT_DELAYS = [5, 10, 30, 60, 120, 300, 600]
     """Modular IRC bot using pydle."""
 
     def __init__(self, config_path, *args, **kwargs):

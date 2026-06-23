@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.1.35 (2026-06-23)
+
+### Fixed - IRC Reconnection
+
+- **Bot no longer stays disconnected after a netsplit or server outage**
+  - `on_disconnect` now calls `super().on_disconnect(expected)`, enabling pydle's built-in reconnection loop that was previously bypassed entirely
+  - `on_connect` now calls `super().on_connect()`, resetting the reconnect attempt counter after a successful reconnect (without this the counter would saturate and the bot would give up permanently after 3 disconnects)
+  - Set `RECONNECT_MAX_ATTEMPTS = None` for unlimited retries
+  - Added progressive `RECONNECT_DELAYS` (5s → 10s → 30s → 1m → 2m → 5m → 10m) suitable for netsplits that can last several minutes
+
 ## 0.1.34 (2026-05-06)
 
 ### Changed - Architecture Refactoring & Test Expansion
