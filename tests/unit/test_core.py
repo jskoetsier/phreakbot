@@ -304,16 +304,32 @@ class TestPermissionValidation:
             assert bot._check_permissions(event, ["admin"]) is False
 
     @pytest.mark.unit
-    def test_check_permissions_user_permission_granted(self, bot):
-        """Test that 'user' permission is granted to everyone."""
+    def test_check_permissions_user_permission_requires_registration(self, bot):
+        """Test that 'user' permission is denied to unregistered users."""
         event = {
             "nick": "testuser",
             "hostmask": "user!test@example.com",
             "channel": "#test",
             "trigger": "command",
-            "command": "test",  # Add command field
-            "command_args": "",  # Add command_args field
+            "command": "test",
+            "command_args": "",
             "user_info": None,
+        }
+
+        with patch.object(bot, "_is_owner", return_value=False):
+            assert bot._check_permissions(event, ["user"]) is False
+
+    @pytest.mark.unit
+    def test_check_permissions_user_permission_granted_to_registered(self, bot):
+        """Test that 'user' permission is granted to registered users."""
+        event = {
+            "nick": "testuser",
+            "hostmask": "user!test@example.com",
+            "channel": "#test",
+            "trigger": "command",
+            "command": "test",
+            "command_args": "",
+            "user_info": {"id": 1, "permissions": {"global": ["user"]}},
         }
 
         with patch.object(bot, "_is_owner", return_value=False):

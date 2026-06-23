@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.1.37 (2026-06-23)
+
+### Fixed - Permission system
+
+- **Commands no longer respond to unregistered users**
+  - `"user"` permission now requires the user to be registered (`user_info` must be set). Previously it was granted to everyone, so any unregistered user could trigger any command and receive replies like "unrecognized user"
+  - The `owner claim` command remains accessible to all (already special-cased before the permission check)
+
 ## 0.1.36 (2026-06-23)
 
 ### Fixed - URL module

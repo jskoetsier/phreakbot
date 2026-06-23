@@ -125,9 +125,9 @@ class PermissionMixin:
                         )
                         return True
 
-        # 'user' permission is granted to everyone
-        if "user" in required_permissions:
-            self.logger.debug("Granting 'user' permission to everyone")
+        # 'user' permission requires registration
+        if "user" in required_permissions and event.get("user_info"):
+            self.logger.debug("Granting 'user' permission to registered user")
             return True
 
         self.logger.debug(f"Permission denied for {event['nick']}")
