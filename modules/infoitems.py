@@ -160,7 +160,7 @@ def _add_infoitem(bot, event, item, value):
             bot.logger.info(f"Added info item '{item}' with ID {item_id}")
         except Exception as e:
             bot.logger.error(f"Error adding info item: {e}")
-            bot.reply(f"Error adding info item: {e}")
+            bot.reply("Error adding info item. Please try again or contact the bot administrator.")
             conn.rollback()
         finally:
             cur.close()
@@ -214,7 +214,7 @@ def _delete_infoitem(bot, event, item_id):
             bot.logger.info(f"Deleted info item '{item[1]}' with ID {item_id}")
         except Exception as e:
             bot.logger.error(f"Error deleting info item: {e}")
-            bot.reply(f"Error deleting info item: {e}")
+            bot.reply("Error deleting info item. Please try again or contact the bot administrator.")
             conn.rollback()
         finally:
             cur.close()
@@ -246,7 +246,7 @@ def _get_infoitem(bot, event, item):
                 bot.reply(f"{item}: {', '.join(values)}")
         except Exception as e:
             bot.logger.error(f"Error retrieving info item: {e}")
-            bot.reply(f"Error retrieving info item: {e}")
+            bot.reply("Error retrieving info item. Please try again or contact the bot administrator.")
         finally:
             cur.close()
             bot.db_return(conn)
@@ -313,7 +313,7 @@ def _forget_infoitem(bot, event, item, value):
             bot.logger.info(f"Deleted info item '{item}' with ID {item_id}")
         except Exception as e:
             bot.logger.error(f"Error deleting info item: {e}")
-            bot.reply(f"Error deleting info item: {e}")
+            bot.reply("Error deleting info item. Please try again or contact the bot administrator.")
             conn.rollback()
         finally:
             cur.close()
@@ -343,7 +343,7 @@ def _list_infoitems(bot, event):
                 bot.reply(f"• {item_list}")
         except Exception as e:
             bot.logger.error(f"Error listing info items: {e}")
-            bot.reply(f"Error listing info items: {e}")
+            bot.reply("Error listing info items. Please try again or contact the bot administrator.")
         finally:
             cur.close()
             bot.db_return(conn)

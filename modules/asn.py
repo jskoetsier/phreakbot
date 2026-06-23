@@ -95,7 +95,7 @@ def lookup_asn_by_ip(bot, ip):
 
     except Exception as e:
         bot.logger.error(f"Error looking up ASN for IP {ip}: {e}")
-        bot.add_response(f"Error looking up ASN information: {str(e)}")
+        bot.add_response("Error looking up ASN information.")
 
 
 def lookup_asn_by_number(bot, asn):
@@ -145,7 +145,7 @@ def lookup_asn_by_number(bot, asn):
 
     except Exception as e:
         bot.logger.error(f"Error looking up ASN {asn}: {e}")
-        bot.add_response(f"Error looking up ASN information: {str(e)}")
+        bot.add_response("Error looking up ASN information.")
 
 
 def format_location(country, region, city):

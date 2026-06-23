@@ -9,10 +9,9 @@
 import re
 import traceback
 
-import requests
 from bs4 import BeautifulSoup
 
-from phreakbot_core.url_safety import is_url_safe
+from phreakbot_core.url_safety import is_url_safe, safe_get
 
 
 def config(bot):
@@ -108,8 +107,8 @@ def process_url(bot, event, url):
 
     except Exception as e:
         bot.logger.error(f"Error fetching URL info: {e}")
-        bot.add_response(f"Error fetching information from URL: {str(e)}")
         bot.logger.error(f"Traceback: {traceback.format_exc()}")
+        bot.add_response("Could not fetch information for that URL.")
 
 
 def get_url_info(url):
@@ -117,7 +116,7 @@ def get_url_info(url):
     # Set a timeout and user agent
     headers = {"User-Agent": "PhreakBot/1.0 URL Description Fetcher"}
 
-    response = requests.get(url, headers=headers, timeout=10)
+    response = safe_get(url, headers=headers, timeout=10)
     response.raise_for_status()
 
     # Parse the HTML

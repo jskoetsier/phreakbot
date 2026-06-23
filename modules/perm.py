@@ -17,6 +17,13 @@ def config(bot):
     }
 
 
+VALID_PERMISSIONS = frozenset({
+    "user", "owner", "admin", "op", "meet", "perm", "topic",
+    "join", "part", "autoop", "autovoice", "modules", "karma",
+    "quotes", "rbl", "whois", "asn", "ip", "roa",
+})
+
+
 def run(bot, event):
     """Handle permission management commands"""
     args_txt = event["command_args"]
@@ -63,6 +70,12 @@ def run(bot, event):
         user_id = user[0]
 
         if bot.re.match(r"(?:set|add)", mode):
+            invalid = [p for p in args_arr if p not in VALID_PERMISSIONS]
+            if invalid:
+                bot.add_response(f"Unknown permission(s): {', '.join(invalid)}. Valid permissions: {', '.join(sorted(VALID_PERMISSIONS))}")
+                cur.close()
+                bot.db_return(conn)
+                return
             counter = 0
             for permission in args_arr:
                 # Use ON CONFLICT to handle duplicate permissions

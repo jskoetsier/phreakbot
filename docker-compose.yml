@@ -7,7 +7,7 @@ services:
     restart: unless-stopped
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-phreakbot}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-phreakbot}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set}
       POSTGRES_DB: ${POSTGRES_DB:-phreakbot}
     volumes:
       - postgres_data:/var/lib/postgresql/data:Z
@@ -38,10 +38,10 @@ services:
       DB_HOST: postgres
       DB_PORT: 5432
       DB_USER: ${POSTGRES_USER:-phreakbot}
-      DB_PASSWORD: ${POSTGRES_PASSWORD:-phreakbot}
+      DB_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set}
       DB_NAME: ${POSTGRES_DB:-phreakbot}
       IRC_SERVER: ${IRC_SERVER:-irc.libera.chat}
-      IRC_PORT: ${IRC_PORT:-6667}
+      IRC_PORT: ${IRC_PORT:-6697}
       IRC_NICKNAME: ${IRC_NICKNAME:-PhreakBot}
       IRC_CHANNEL: ${IRC_CHANNEL:-#phreakbot}
       REMOTE_SSH_COMMAND: ${REMOTE_SSH_COMMAND:-}

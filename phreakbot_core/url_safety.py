@@ -11,6 +11,7 @@ and cloud metadata endpoints.
 import socket
 
 import netaddr
+import requests
 
 
 # IP ranges that should never be accessed by the bot
@@ -86,3 +87,24 @@ def is_url_safe(url, hostname=None):
                 )
 
     return True, ""
+
+
+def safe_get(url, headers=None, timeout=10):
+    """Fetch a URL, re-checking SSRF rules on every redirect hop.
+
+    Raises ValueError if any redirect target is blocked.
+    Raises requests.RequestException on network errors.
+    """
+    MAX_REDIRECTS = 5
+    for _ in range(MAX_REDIRECTS):
+        response = requests.get(url, headers=headers, timeout=timeout, allow_redirects=False)
+        if response.status_code not in (301, 302, 303, 307, 308):
+            return response
+        redirect_url = response.headers.get("Location", "")
+        if not redirect_url:
+            return response
+        is_safe, reason = is_url_safe(redirect_url)
+        if not is_safe:
+            raise ValueError(f"Redirect blocked: {reason}")
+        url = redirect_url
+    return requests.get(url, headers=headers, timeout=timeout, allow_redirects=False)

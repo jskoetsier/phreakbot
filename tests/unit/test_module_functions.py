@@ -821,7 +821,7 @@ class TestUrlsModule:
         mock_resp = Mock()
         mock_resp.text = "<html><head><title>My Title</title></head><body></body></html>"
         mock_resp.raise_for_status = Mock()
-        with patch("modules.urls.requests.get", return_value=mock_resp):
+        with patch("phreakbot_core.url_safety.requests.get", return_value=mock_resp):
             result = urls.get_url_title("http://example.com")
         assert result == "My Title"
 
@@ -830,7 +830,7 @@ class TestUrlsModule:
         mock_resp = Mock()
         mock_resp.text = "<html><head><title>Title</title></head><body></body></html>"
         mock_resp.raise_for_status = Mock()
-        with patch("modules.urls.requests.get", return_value=mock_resp) as mock_get:
+        with patch("phreakbot_core.url_safety.requests.get", return_value=mock_resp) as mock_get:
             urls.get_url_title("example.com")
         assert "http://example.com" in mock_get.call_args[0][0]
 
@@ -839,13 +839,13 @@ class TestUrlsModule:
         mock_resp = Mock()
         mock_resp.text = "<html><body>No title</body></html>"
         mock_resp.raise_for_status = Mock()
-        with patch("modules.urls.requests.get", return_value=mock_resp):
+        with patch("phreakbot_core.url_safety.requests.get", return_value=mock_resp):
             result = urls.get_url_title("http://example.com")
         assert result is None
 
     def test_get_url_title_exception(self):
         from modules import urls
-        with patch("modules.urls.requests.get", side_effect=Exception("timeout")):
+        with patch("phreakbot_core.url_safety.requests.get", side_effect=Exception("timeout")):
             result = urls.get_url_title("http://example.com")
         assert result is None
 
@@ -855,7 +855,7 @@ class TestUrlsModule:
         mock_resp = Mock()
         mock_resp.text = f"<html><head><title>{long_title}</title></head><body></body></html>"
         mock_resp.raise_for_status = Mock()
-        with patch("modules.urls.requests.get", return_value=mock_resp):
+        with patch("phreakbot_core.url_safety.requests.get", return_value=mock_resp):
             result = urls.get_url_title("http://example.com")
         assert len(result) == 200
         assert result.endswith("...")

@@ -5,10 +5,9 @@
 
 import re
 
-import requests
 from bs4 import BeautifulSoup
 
-from phreakbot_core.url_safety import is_url_safe
+from phreakbot_core.url_safety import is_url_safe, safe_get
 
 
 def config(bot):
@@ -70,7 +69,7 @@ def get_url_title(url):
     headers = {"User-Agent": "PhreakBot/1.0 URL Title Fetcher"}
 
     try:
-        response = requests.get(url, headers=headers, timeout=5)
+        response = safe_get(url, headers=headers, timeout=5)
         response.raise_for_status()
 
         # Parse the HTML

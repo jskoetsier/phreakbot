@@ -43,6 +43,10 @@ class ConfigMixin:
                 if key not in self.config:
                     self.config[key] = os.environ.get(env_var, default)
 
+            if not self.config.get("db_password"):
+                self.logger.error("db_password is not set in config. Set DB_PASSWORD env var or add it to the config file.")
+                sys.exit(1)
+
         except FileNotFoundError:
             self.logger.error(f"Config file not found: {self.config_path}")
             sys.exit(1)

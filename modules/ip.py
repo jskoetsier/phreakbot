@@ -7,6 +7,9 @@ import re
 import socket
 import ipaddress
 import requests
+import netaddr
+
+from phreakbot_core.url_safety import BLOCKED_NETWORKS
 
 
 def config(bot):
@@ -55,8 +58,20 @@ def run(bot, event):
                 bot.add_response(f"Could not resolve any IP addresses for: {query}")
                 return
 
-            # For each IP, get information
+            # Filter out private/blocked addresses before reporting
+            public_ips = []
             for ip in unique_ips:
+                try:
+                    addr = netaddr.IPAddress(ip)
+                    if any(addr in net for net in BLOCKED_NETWORKS):
+                        bot.logger.warning(f"IP lookup blocked for private address: {ip}")
+                        bot.add_response(f"Resolved address {ip} is a private/reserved address.")
+                        continue
+                except (netaddr.AddrFormatError, ValueError):
+                    pass
+                public_ips.append(ip)
+
+            for ip in public_ips:
                 ip_info = get_ip_info(ip)
                 bot.add_response(ip_info)
 
@@ -66,7 +81,7 @@ def run(bot, event):
 
     except Exception as e:
         bot.logger.error(f"Error in IP module: {e}")
-        bot.add_response(f"Error looking up IP information for {query}: {str(e)}")
+        bot.add_response("Error looking up IP information.")
 
 
 def get_ip_info(ip):
@@ -100,7 +115,7 @@ def get_ip_info(ip):
         geo_info = ""
         if ip_obj.is_global and not ip_obj.is_private:
             try:
-                response = requests.get(f"http://ip-api.com/json/{ip}?fields=country,regionName,city,isp,org,as", timeout=5)
+                response = requests.get(f"https://ip-api.com/json/{ip}?fields=country,regionName,city,isp,org,as", timeout=5)
                 if response.status_code == 200:
                     data = response.json()
                     location_parts = []

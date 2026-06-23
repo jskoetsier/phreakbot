@@ -141,10 +141,12 @@ class EventsMixin:
                     user_host = f"{source}!unknown@unknown"
                 else:
                     user_host = f"{source}!{user_info.get('username', 'unknown')}@{user_info.get('hostname', 'unknown')}"
-                    self.user_hostmasks[source.lower()] = user_host
             except Exception as e:
                 self.logger.error(f"Error getting user info: {e}")
                 user_host = f"{source}!unknown@unknown"
+            # Cache the result (including fallback) so WHOIS is not retried on every message.
+            # A JOIN event will overwrite a fallback entry with the real hostmask.
+            self.user_hostmasks[source.lower()] = user_host
         else:
             self.logger.debug(f"Using cached hostmask for {source}: {user_host}")
 
