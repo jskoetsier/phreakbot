@@ -1,4 +1,4 @@
-# PhreakBot (v0.1.34)
+# PhreakBot (v0.1.39)
 
 PhreakBot is a modular IRC bot written in Python.
 
@@ -72,14 +72,14 @@ All utility scripts are located in the `scripts/` directory. See [scripts/README
 Configure via environment variables in `.env` (see `.env.example` for defaults):
 
 ```bash
-# PostgreSQL credentials
+# PostgreSQL credentials — POSTGRES_PASSWORD is required, no default
 POSTGRES_USER=phreakbot
-POSTGRES_PASSWORD=phreakbot
+POSTGRES_PASSWORD=changeme
 POSTGRES_DB=phreakbot
 
-# IRC configuration
+# IRC configuration — TLS on port 6697 is the default
 IRC_SERVER=irc.libera.chat
-IRC_PORT=6667
+IRC_PORT=6697
 IRC_NICKNAME=PhreakBot
 IRC_CHANNEL=#phreakbot
 ```
@@ -91,7 +91,9 @@ Edit `config/config.json` to configure the bot:
 ```json
 {
     "server": "irc.example.com",
-    "port": 6667,
+    "port": 6697,
+    "use_tls": true,
+    "tls_verify": true,
     "nickname": "PhreakBot",
     "realname": "PhreakBot",
     "channels": ["#channel1", "#channel2"],
@@ -113,6 +115,17 @@ Modules are stored in the `modules` directory. Each module should have a `config
 - `help`: Help text for the module
 
 For detailed information on how to create your own modules, see the [Module Development Guide](docs/MODULE_DEVELOPMENT_GUIDE.md).
+
+## Security
+
+- IRC connections default to TLS on port 6697 (`use_tls: true`). Plaintext port 6667 is intentionally not the default.
+- `POSTGRES_PASSWORD` must be set explicitly — the bot refuses to start if it is empty.
+- URL fetching (`!url`, auto-title, `!@`) is protected against SSRF: all redirect hops are re-checked against a blocked-network list (RFC 1918, loopback, link-local, cloud metadata endpoints).
+- The `!ip` command only reports public IP addresses; private/reserved addresses are blocked from output.
+- The permission system enforces an allowlist of valid permission names; unknown values are rejected at write time.
+- Exception details are never sent to IRC channels; full errors are logged server-side only.
+
+See [CHANGELOG.md](CHANGELOG.md) for the full history of security fixes.
 
 ## Contributing
 
