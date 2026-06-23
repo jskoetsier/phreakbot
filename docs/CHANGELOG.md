@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.36 (2026-06-23)
+
+### Fixed - URL module
+
+- **URL title fetcher no longer responds to unregistered users**
+  - Added a registration guard (`event["user_info"]`) so the module silently ignores messages from users who are not in the bot's user database
+
 ## 0.1.35 (2026-06-23)
 
 ### Fixed - IRC Reconnection

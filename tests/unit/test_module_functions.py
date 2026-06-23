@@ -769,15 +769,21 @@ class TestUrlsModule:
         event = {"trigger": "command", "signal": "privmsg", "text": "http://example.com"}
         assert urls.run(mock_bot, event) is None
 
+    def test_run_unregistered_user_ignored(self, mock_bot):
+        from modules import urls
+        event = {"trigger": "event", "signal": "pubmsg", "text": "http://example.com", "user_info": None}
+        urls.run(mock_bot, event)
+        assert mock_bot._active_output == []
+
     def test_run_no_urls(self, mock_bot):
         from modules import urls
-        event = {"trigger": "event", "signal": "pubmsg", "text": "hello world"}
+        event = {"trigger": "event", "signal": "pubmsg", "text": "hello world", "user_info": {"id": 1}}
         assert urls.run(mock_bot, event) is None
 
     def test_run_unsafe_url(self, mock_bot):
         from modules import urls
         with patch("modules.urls.is_url_safe", return_value=(False, "private IP")):
-            event = {"trigger": "event", "signal": "pubmsg", "text": "http://192.168.1.1"}
+            event = {"trigger": "event", "signal": "pubmsg", "text": "http://192.168.1.1", "user_info": {"id": 1}}
             urls.run(mock_bot, event)
         mock_bot.logger.warning.assert_called_once()
 
@@ -785,7 +791,7 @@ class TestUrlsModule:
         from modules import urls
         with patch("modules.urls.is_url_safe", return_value=(True, "")):
             with patch("modules.urls.get_url_title", return_value="Example Domain"):
-                event = {"trigger": "event", "signal": "pubmsg", "text": "http://example.com"}
+                event = {"trigger": "event", "signal": "pubmsg", "text": "http://example.com", "user_info": {"id": 1}}
                 urls.run(mock_bot, event)
         assert any("Example Domain" in r["msg"] for r in mock_bot._active_output)
 
@@ -793,7 +799,7 @@ class TestUrlsModule:
         from modules import urls
         with patch("modules.urls.is_url_safe", return_value=(True, "")):
             with patch("modules.urls.get_url_title", side_effect=Exception("fetch error")):
-                event = {"trigger": "event", "signal": "pubmsg", "text": "http://example.com"}
+                event = {"trigger": "event", "signal": "pubmsg", "text": "http://example.com", "user_info": {"id": 1}}
                 urls.run(mock_bot, event)
         mock_bot.logger.error.assert_called_once()
 

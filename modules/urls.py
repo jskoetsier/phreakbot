@@ -27,6 +27,10 @@ def run(bot, event):
     if event["trigger"] != "event" or event["signal"] != "pubmsg":
         return
 
+    # Only respond to registered users
+    if not event["user_info"]:
+        return
+
     # Extract URLs from the message
     urls = extract_urls(event["text"])
 
