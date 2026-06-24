@@ -35,13 +35,13 @@ def run(bot, event):
             # Check if message starts with !@
             if message.startswith("!@"):
                 bot.logger.info("Found !@ command in message")
+                if not bot._check_permissions(event, ["user"]):
+                    return
                 # Extract URL (everything after !@)
                 url = message[2:].strip()
                 if url:
                     bot.logger.debug(f"Processing URL from !@ command: {url}")
                     process_url(bot, event, url)
-                else:
-                    bot.add_response("Please provide a URL after !@")
                 return
 
         # Handle regular commands
